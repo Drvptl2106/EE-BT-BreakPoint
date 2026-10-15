@@ -1,0 +1,15 @@
+{
+  "name": "break-tracker",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Live break tracking for a contact-centre team. Pilot build.",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test tests/*.test.js",
+    "test:legacy": "node --test legacy/stage1/tests/*.test.js",
+    "test:all": "npm test && npm run test:legacy",
+    "test:e2e": "python3 tests/e2e/smoke.py http://localhost:8080"
+  },
+  "license": "UNLICENSED"
+}
