@@ -11,7 +11,7 @@ export const CONFIG = {
 
   // Supabase project. The URL and the PUBLISHABLE key (starts sb_publishable_) are safe to keep here.
   // NEVER put a key that starts sb_secret_ (or service_role) in this file: the app refuses to start if you do.
-  supabaseUrl: 'https://cintsnddjtehyhwdlddn.supabase.co',
+  supabaseUrl: 'https://mqyeqrxzjzsfvbbjppxj.supabase.co',
   supabaseKey: 'sb_publishable_meHcw_ME6KOZTPU0Vv1Ccg_wXj-t24p',
 
   // The default daily allowance: 15 + 15 + 30 = 60 minutes.
