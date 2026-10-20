@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from '../src/config.js';
-import { plan, slotsFor, score, dayKey } from '../src/core.js';
+import { plan, slotsFor, labelFor, cleanName, dayKey } from '../src/core.js';
 
 const MIN = 60000, NOW = new Date(2026, 9, 14, 15, 0).getTime();   // Wed 14 Oct 2026, 15:00 local
 const TODAY = dayKey(new Date(NOW));
 const rec = (...breaks) => ({ breaks: breaks.map(([slot, startMin, lenMin]) => ({ slot, start: NOW - 8 * 60 * MIN + startMin * MIN, end: NOW - 8 * 60 * MIN + (startMin + lenMin) * MIN })), active: null });
-const base = () => ({ days: {}, adj: {}, custom: {} });
+const base = () => ({ days: {}, adj: {}, custom: {}, names: {} });
 const P = (r, adj = {}, slots = CONFIG.defaultSlots) => plan(r, adj, NOW, slots);
 
 test('config: the allowance is 15 + 15 + 30 and there are five neutral custom labels', () => {
@@ -66,47 +66,36 @@ test('custom breaks: today-only, selected days and every day', () => {
   assert.deepEqual(slotsFor(db, 'EE-1002', TODAY).length, 3);                                                // other people unaffected
 });
 
-function days(db, code, results) {                      // results[0] = today, [1] = yesterday ...; 'clean' | 'over' | 'none'
-  results.forEach((res, back) => {
-    if (res === 'none') return;
-    const dt = new Date(NOW); dt.setDate(dt.getDate() - back);
-    (db.days[dayKey(dt)] ??= {})[code] = rec(['break1', 0, res === 'over' ? 20 : 15]);
-  });
-}
-test('score: streak counts clean days back from today, stops at an over day', () => {
-  const db = base(); days(db, 'A', ['clean', 'clean', 'over', 'clean']);
-  const s = score(db, 'A', NOW);
-  assert.equal(s.streak, 2); assert.equal(s.taken, 4); assert.equal(s.clean, 3); assert.equal(s.pct, 75);
-});
-
-test('score: an empty day follows streakGapPolicy (skip keeps the streak, reset breaks it)', () => {
-  const db = base(); days(db, 'A', ['clean', 'none', 'clean']);
-  assert.equal(score(db, 'A', NOW).streak, 2);                       // config default is 'skip'
-  const keep = CONFIG.streakGapPolicy; CONFIG.streakGapPolicy = 'reset';
-  assert.equal(score(db, 'A', NOW).streak, 1);
-  CONFIG.streakGapPolicy = keep;
-});
-
-test('score: nothing has happened yet today, so it does not break yesterday\'s streak', () => {
-  const db = base(); days(db, 'A', ['none', 'clean', 'clean']);
-  assert.equal(score(db, 'A', NOW).streak, 2);
-});
-
-test('score: points = 10 per clean break + 5 per streak day - 2 per minute over (never below 0)', () => {
-  const db = base(); days(db, 'A', ['over']);
-  assert.equal(score(db, 'A', NOW).points, 0);                       // 0 + 0 - 10 -> floor 0
-  const db2 = base(); days(db2, 'B', ['clean', 'clean']);
-  assert.equal(score(db2, 'B', NOW).points, 2 * 10 + 2 * 5);
-});
-
-test('chained carry-over is not counted twice in minutes over, punctuality or the manager totals', () => {
+test('chained carry-over is not counted twice in the manager totals', () => {
   const r = rec(['break1', 0, 17], ['break2', 60, 15], ['lunch', 120, 30]);   // only 2 minutes are truly extra (62 used of 60)
   const p = P(r);
   assert.equal(p.reduce((a, s) => a + s.overBase, 0), 2 * 60);
   assert.equal(p[1].allowed, 13);                                              // the reduced allowance still drives the timer
-  const db = base(); (db.days[TODAY] ??= {}).A = r;
-  const sc = score(db, 'A', NOW);
-  assert.equal(sc.overMin, 2);
-  assert.equal(sc.taken, 3);
-  assert.equal(sc.clean, 2);                                                   // break 2 and lunch were not themselves late
+});
+
+test('break names: a manager can rename a break for one person only', () => {
+  const db = base(); db.custom['EE-1001'] = [{ key: 'c1', minutes: 10, scope: 'daily', days: [] }];
+  db.names['EE-1001'] = { break1: 'Morning', c1: 'Quiet time' };
+  const s = slotsFor(db, 'EE-1001', TODAY);
+  assert.deepEqual(s.map(x => x.label), ['Morning', 'Break 2', 'Lunch', 'Quiet time']);
+  assert.deepEqual(s.map(x => x.defaultLabel), ['Break 1', 'Break 2', 'Lunch', 'Custom 1']);
+  assert.deepEqual(slotsFor(db, 'EE-1002', TODAY).map(x => x.label), ['Break 1', 'Break 2', 'Lunch']);
+  assert.equal(labelFor(db, 'EE-1001', 'c1'), 'Quiet time');
+  assert.equal(labelFor(db, 'EE-1002', 'c1'), 'Custom 1');
+  assert.equal(P(rec(['break1', 0, 17]), {}, s)[1].allowed, 13);            // renaming never changes the maths
+});
+
+test('break names are tidied and kept short', () => {
+  assert.equal(cleanName('  Quiet    time \n'), 'Quiet time');
+  assert.equal(cleanName('x'.repeat(100)).length, CONFIG.breakNameMaxLength);
+  assert.equal(cleanName('   '), '');
+});
+
+test('older saved data without names still works', () => {
+  const db = { days: {}, adj: {}, custom: {} };
+  assert.equal(slotsFor(db, 'EE-1001', TODAY)[0].label, 'Break 1');
+});
+
+test('Breakathon is gone from the config', () => {
+  assert.equal(CONFIG.rewardLabel, undefined); assert.equal(CONFIG.streakGapPolicy, undefined);
 });

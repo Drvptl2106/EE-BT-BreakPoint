@@ -1,0 +1,20 @@
+# The pilot team: 15 agents and 1 manager. Change the names to people's first names if you like (names only, no surnames).
+# Create the logins with:  SUPABASE_SECRET_KEY=sb_secret_... node scripts/create_logins.mjs db/people.pilot.csv --simple-passwords
+# Sign in with the code; the password is user + the number (EE-001 -> user001), managers manager + the number (MGR-001 -> manager001).
+code,name,role
+EE-001,User 1,agent
+EE-002,User 2,agent
+EE-003,User 3,agent
+EE-004,User 4,agent
+EE-005,User 5,agent
+EE-006,User 6,agent
+EE-007,User 7,agent
+EE-008,User 8,agent
+EE-009,User 9,agent
+EE-010,User 10,agent
+EE-011,User 11,agent
+EE-012,User 12,agent
+EE-013,User 13,agent
+EE-014,User 14,agent
+EE-015,User 15,agent
+MGR-001,Manager,manager

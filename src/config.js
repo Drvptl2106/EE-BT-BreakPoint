@@ -27,25 +27,21 @@ export const CONFIG = {
   // only the manager knows what each one means.
   customLabels: { c1: 'Custom 1', c2: 'Custom 2', c3: 'Custom 3', c4: 'Custom 4', c5: 'Custom 5' },
 
-  // Data is deleted automatically after this many days (plus today).
+  // A manager can rename any break for one person (shown to that person too). It is a NAME, not a reason:
+  // keep it short. The database enforces the same limit (db/schema.sql, break_names).
+  breakNameMaxLength: 24,
+
+  // Data is deleted automatically after this many days (plus today). The database job uses the same number (db/cleanup_job.sql).
   retentionDays: 14,
 
   // A break counts as "over" only once it exceeds its limit by this much.
   overToleranceMinutes: 0.4,
-
-  // Streak rule for days with no recorded break (days off, weekends):
-  // 'skip' -> streak is neither added to nor broken
-  // 'reset' -> streak is broken
-  streakGapPolicy: 'skip',
 
   // Bounds for a manager's adjustment, in minutes.
   adjustmentLimits: { min: -30, max: 120 },
 
   // A break left running this long is closed automatically and flagged.
   forgotToStopMinutes: 90,
-
-  // Breakathon reward text.
-  rewardLabel: '15 min reward',
 
   // How often the screen re-checks the data source, in seconds.
   refreshSeconds: 10,

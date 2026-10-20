@@ -38,7 +38,7 @@ function renderBreaks(){const r=rec(),now=Date.now(),p=P(now),anyA=!!r.active;
     return `<li><i class="dot" style="background:${COL[i%8]}"></i><div><b>${esc(s.label)}</b><span class="${s.over?'bad':''}">${t?t+(s.over?` (+${fmtMin(s.over)} over)`:''):'not taken yet'}</span></div></li>`}).join(''));
   setHtml($('#tiles'),p.map((s,i)=>{const prev=p[i-1];
     const tl=s.act?'In progress':s.done?(s.over?`Done · +${fmtMin(s.over)} over`:'Done ✓'):`${Math.ceil(s.left/60)} Min Left`;
-    const src=p.slice(0,i).reverse().find(x=>x.over>0),note=s.deducted>0&&src?`<small>Sorry mate, ${s.label} is ${tidy(s.allowed)} min because ${src.label} ran ${fmtMin(src.over)} over. Hope you understand 😅</small>`:s.adjust?`<small style="color:var(--muted)">${s.adjust>0?'+':''}${s.adjust} min from your manager</small>`:'';
+    const src=p.slice(0,i).reverse().find(x=>x.over>0),note=s.deducted>0&&src?`<small>Sorry mate, ${esc(s.label)} is ${tidy(s.allowed)} min because ${esc(src.label)} ran ${fmtMin(src.over)} over. Hope you understand 😅</small>`:s.adjust?`<small style="color:var(--muted)">${s.adjust>0?'+':''}${s.adjust} min from your manager</small>`:'';
     const btn=s.act?`<button class="btn teal" data-slot="${s.key}">Open timer</button>`:s.done||s.allowed<=0?`<button class="btn ghost" disabled>${s.allowed<=0?'No time left':'Done'}</button>`:`<button class="btn" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
     return `<div class="tile${s.act?' live':''}"><b>${esc(s.label)}</b><div class="tl">${tl}</div><div class="tbar"><i style="width:${s.allowed?Math.round(s.left/(s.allowed*60)*100):0}%;background:${s.over?'var(--stop)':'var(--go)'}"></i></div>${note}${btn}</div>`}).join(''))}
 function renderAll(){const r=rec();if(!r)return;$('#who').textContent=r.name;$('#startIn').value=hhmm(r.shiftStart);$('#endIn').value=r.shiftEnd?hhmm(r.shiftEnd):'';
@@ -54,7 +54,7 @@ function tick(){const now=Date.now();if(dayKey(new Date(now))!==TODAY){TODAY=day
   $('#fill').style.width=cl+'%';$('#fill').classList.toggle('full',cl>=100);$('#nowDot').style.left=cl+'%';$('#nowDot').style.display=pct===null?'none':'';$('#endsL').textContent=hhmm(start);$('#endsR').textContent=end?hhmm(end):'--:--';
   let segs='',flags='';
   if(end){p.forEach(s=>[...s.segs.map(b=>[b.start,b.end]),...(s.act?[[s.act.start,now]]:[])].forEach(([a,b])=>{const l=Math.max(0,(a-start)/total*100),w=Math.max(.7,Math.min(100,(b-start)/total*100)-l);segs+=`<div class="seg${s.over>0?' over':''}" style="left:${l}%;width:${w}%"></div>`}));
-    let bi=0;p.forEach(s=>{if(s.tone==='custom')return;const f=s.tone==='lunch'?.5:[.25,.75][bi++]??.5;if(s.used>0)return;const t=start+f*total;if(t<now-6e5)return;flags+=`<div class="flag" style="left:${f*100}%"><b>${s.tone==='lunch'?'Lunch':s.label.replace('Break ','B')}</b> ${hhmm(t)}</div>`})}
+    let bi=0;p.forEach(s=>{if(s.tone==='custom')return;const f=s.tone==='lunch'?.5:[.25,.75][bi++]??.5;if(s.used>0)return;const t=start+f*total;if(t<now-6e5)return;flags+=`<div class="flag" style="left:${f*100}%"><b>${s.label!==s.defaultLabel?esc(s.label):s.tone==='lunch'?'Lunch':s.label.replace('Break ','B')}</b> ${hhmm(t)}</div>`})}
   $('#segs').innerHTML=segs;$('#flags').innerHTML=flags;
   const used=p.reduce((a,s)=>a+s.used,0),allowed=p.reduce((a,s)=>a+s.base,0);
   $('#sTaken').innerHTML=`${p.filter(s=>s.done).length} <small>of ${p.length}</small>`;$('#sUsed').innerHTML=`${Math.round(used/60)} <small>of ${tidy(allowed)} min</small>`;

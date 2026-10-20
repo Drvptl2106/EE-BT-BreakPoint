@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut } from '../core.js';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history } from '../core.js';
 import { esc } from '../dom.js';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -10,7 +10,7 @@ $('#gateForm').addEventListener('submit',async e=>{e.preventDefault();const c=$(
   if(CONFIG.backend==='api'){const btn=e.submitter;if(btn)btn.disabled=true;try{const m=await signIn(c,$('#pw').value);if(m.role==='agent'){await signOut();$('#gateErr').textContent="That's a staff code. Staff sign in on the main page (link below).";return}mgr=m.code;$('#pw').value='';$('#gateErr').textContent='';boot()}catch(err){$('#gateErr').textContent=err.message}finally{if(btn)btn.disabled=false}return}
   if(!MANAGER_CODES[c]){$('#gateErr').textContent=PILOT_USERS[c]?"That's a staff code. Staff sign in on the main page (link below).":"That code isn't recognised. Check it and try again.";return}mgr=c;sessionStorage.setItem(SESSION,c);$('#gateErr').textContent='';boot()});
 $('#signout').addEventListener('click',async()=>{sessionStorage.removeItem(SESSION);mgr=null;await signOut();showGate()});
-const adjUI=(c,s,dt,name)=>{const l=CONFIG.adjustmentLimits,d=dt===TODAY?'':` data-date="${dt}"`;return `<div class="adj"><button data-u="${c}" data-s="${s.key}" data-d="-5"${d} aria-label="Take 5 minutes off ${s.label} for ${name}" ${s.adjust<=l.min?'disabled':''}>−</button><output class="${s.adjust?'on':''}">${s.adjust>0?'+':''}${s.adjust} min</output><button data-u="${c}" data-s="${s.key}" data-d="5"${d} aria-label="Add 5 minutes to ${s.label} for ${name}" ${s.adjust>=l.max?'disabled':''}>+</button></div>`};
+const adjUI=(c,s,dt,name)=>{const l=CONFIG.adjustmentLimits,d=dt===TODAY?'':` data-date="${dt}"`,lb=esc(s.label),nm=esc(name);return `<div class="adj"><button data-u="${c}" data-s="${s.key}" data-d="-5"${d} aria-label="Take 5 minutes off ${lb} for ${nm}" ${s.adjust<=l.min?'disabled':''}>−</button><output class="${s.adjust?'on':''}">${s.adjust>0?'+':''}${s.adjust} min</output><button data-u="${c}" data-s="${s.key}" data-d="5"${d} aria-label="Add 5 minutes to ${lb} for ${nm}" ${s.adjust>=l.max?'disabled':''}>+</button></div>`};
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-u]');if(!b)return;db=load();const dt=b.dataset.date||TODAY,u=((db.adj[dt]??={})[b.dataset.u]??={}),l=CONFIG.adjustmentLimits;
   const v=Math.max(l.min,Math.min(l.max,(u[b.dataset.s]||0)+Number(b.dataset.d)));if(v)u[b.dataset.s]=v;else delete u[b.dataset.s];save(db);render(true);if(det)draw()});
 $('#demo').addEventListener('click',()=>{db=load();const now=Date.now();let i=0;
@@ -25,18 +25,52 @@ $('#clear').addEventListener('click',()=>{if(!confirm("Clear today's data for ev
 /* ---------- details dialog ---------- */
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-det]');if(b){det={c:b.dataset.det,date:TODAY};db=load();draw();$('#dOv').classList.remove('hidden')}});
 $('#dClose').addEventListener('click',()=>{det=null;$('#dOv').classList.add('hidden')});
-function draw(){const {c,date}=det,r=db.days[date]?.[c],p=plan(r,db.adj[date]?.[c],Date.now(),slotsFor(db,c,date)),L=k=>p.find(s=>s.key===k)?.label||k;
+function draw(){const {c,date}=det,r=db.days[date]?.[c],p=plan(r,db.adj[date]?.[c],Date.now(),slotsFor(db,c,date)),L=k=>esc(labelFor(db,c,k)),N=esc(U[c]);
   const dates=[...new Set([TODAY,...Object.keys(db.days).filter(d=>db.days[d][c])])].sort().reverse(),cust=db.custom[c]||[];
+  const named=[...CONFIG.defaultSlots.map(s=>[s.key,s.label]),...cust.map(x=>[x.key,CONFIG.customLabels[x.key]])];
   $('#dTitle').textContent=`${U[c]} · ${c}`;
   $('#dBody').innerHTML=`<div class="field"><label for="dDate">Day</label><select id="dDate">${dates.map(d=>`<option ${d===date?'selected':''}>${d}</option>`).join('')}</select></div>
-  <h3>Break history</h3>${r&&(r.breaks.length||r.active)?`<div class="scroll"><table><thead><tr><th>Break</th><th>Started</th><th>Ended</th><th>Length</th><th></th></tr></thead><tbody>${r.breaks.map((b,i)=>`<tr><td>${L(b.slot)}</td><td><input type="time" data-i="${i}" data-f="start" value="${hhmm(b.start)}"></td><td><input type="time" data-i="${i}" data-f="end" value="${hhmm(b.end)}"></td><td>${tidy((b.end-b.start)/6e4)} min${b.flag?' · auto-closed':''}</td><td><button class="btn ghost sm" data-rm="${i}">Remove</button></td></tr>`).join('')}${r.active?`<tr><td>${L(r.active.slot)}</td><td>${hhmm(r.active.start)}</td><td colspan="3">In progress</td></tr>`:''}</tbody></table></div>`:'<p class="hint">No breaks recorded for this day.</p>'}
-  <h3>Allowances for this day</h3><div class="scroll"><table><tbody>${p.map(s=>`<tr><td><b>${s.label}</b></td><td>${tidy(s.used/60)} / ${tidy(s.allowed)} min${s.over?` <span class="bad">(+${tidy(s.over/60)} over)</span>`:''}</td><td>${adjUI(c,s,date,U[c])}</td></tr>`).join('')}</tbody></table></div>
-  ${r?`<h3>Log a missed break</h3><div class="row"><div class="field"><label>Break</label><select id="lSlot">${p.map(s=>`<option value="${s.key}">${s.label}</option>`).join('')}</select></div><div class="field"><label>Start</label><input type="time" id="lS"></div><div class="field"><label>End</label><input type="time" id="lE"></div><button class="btn teal sm" id="lAdd">Add</button></div>`:''}
-  <h3>Custom breaks for ${U[c]}</h3>${cust.length?cust.map(x=>`<p style="margin:4px 0"><b>${CONFIG.customLabels[x.key]}</b> · ${x.minutes} min · ${x.scope==='daily'?'every day':x.scope==='today'?'only '+x.date:x.days.map(d=>DN[d]).join(', ')} <button class="btn ghost sm" data-cdel="${x.key}">Remove</button></p>`).join(''):'<p class="hint">None yet.</p>'}
-  <div class="row" style="margin-top:10px"><div class="field"><label>Break</label><select id="cKey">${Object.entries(CONFIG.customLabels).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div><div class="field"><label>Minutes</label><input type="number" id="cMin" value="15" min="1" max="120" style="width:80px"></div><button class="btn teal sm" id="cAdd">Add custom break</button></div>
+  <h3>Shift</h3>${r?`<div class="row"><div class="field"><label for="dSs">Start</label><input type="time" id="dSs" value="${hhmm(r.shiftStart)}"></div><div class="field"><label for="dSe">End</label><input type="time" id="dSe" value="${r.shiftEnd?hhmm(r.shiftEnd):''}"></div></div>${r.shiftEnd?'':'<p class="hint">No end time set yet.</p>'}`:'<p class="hint">Not started on this day.</p>'}
+  <h3>Break history</h3>${r&&(r.breaks.length||r.active)?`<div class="scroll"><table><thead><tr><th>Break</th><th>Started</th><th>Ended</th><th>Length</th><th></th></tr></thead><tbody>${r.breaks.map((b,i)=>`<tr><td>${L(b.slot)}</td><td><input type="time" data-i="${i}" data-f="start" value="${hhmm(b.start)}" aria-label="Start of ${L(b.slot)}"></td><td><input type="time" data-i="${i}" data-f="end" value="${hhmm(b.end)}" aria-label="End of ${L(b.slot)}"></td><td>${tidy((b.end-b.start)/6e4)} min${b.flag?' · auto-closed':''}</td><td><button class="btn ghost sm" data-rm="${i}">Remove</button></td></tr>`).join('')}${r.active?`<tr><td>${L(r.active.slot)}</td><td>${hhmm(r.active.start)}</td><td colspan="3">In progress</td></tr>`:''}</tbody></table></div>`:'<p class="hint">No breaks recorded for this day.</p>'}
+  <h3>Allowances for this day</h3><div class="scroll"><table><tbody>${p.map(s=>`<tr><td><b>${esc(s.label)}</b></td><td>${tidy(s.used/60)} / ${tidy(s.allowed)} min${s.over?` <span class="bad">(+${tidy(s.over/60)} over)</span>`:''}</td><td>${adjUI(c,s,date,U[c])}</td></tr>`).join('')}</tbody></table></div>
+  ${r?`<h3>Log a missed break</h3><div class="row"><div class="field"><label for="lSlot">Break</label><select id="lSlot">${p.map(s=>`<option value="${s.key}">${esc(s.label)}</option>`).join('')}</select></div><div class="field"><label for="lS">Start</label><input type="time" id="lS"></div><div class="field"><label for="lE">End</label><input type="time" id="lE"></div><button class="btn teal sm" id="lAdd">Add</button></div>`:''}
+  <h3>Custom breaks for ${N}</h3>${cust.length?cust.map(x=>`<p style="margin:4px 0"><b>${L(x.key)}</b> · ${x.minutes} min · ${x.scope==='daily'?'every day':x.scope==='today'?'only '+x.date:x.days.map(d=>DN[d]).join(', ')} <button class="btn ghost sm" data-cdel="${x.key}">Remove</button></p>`).join(''):'<p class="hint">None yet.</p>'}
+  <div class="row" style="margin-top:10px"><div class="field"><label for="cKey">Break</label><select id="cKey">${Object.entries(CONFIG.customLabels).map(([k,v])=>`<option value="${k}">${esc(db.names?.[c]?.[k]?`${db.names[c][k]} (${v})`:v)}</option>`).join('')}</select></div><div class="field"><label for="cMin">Minutes</label><input type="number" id="cMin" value="15" min="1" max="120" style="width:80px"></div><button class="btn teal sm" id="cAdd">Add custom break</button></div>
   <div class="opt" style="margin-top:10px"><label><input type="radio" name="sc" value="today" checked> Only ${date}</label><label><input type="radio" name="sc" value="days"> Selected days</label><label><input type="radio" name="sc" value="daily"> Every day</label></div>
-  <div class="opt">${DN.map((n,i)=>`<label><input type="checkbox" class="dchk" value="${i}"> ${n}</label>`).join('')}</div>`}
+  <div class="opt">${DN.map((n,i)=>`<label><input type="checkbox" class="dchk" value="${i}"> ${n}</label>`).join('')}</div>
+  <h3>Break names for ${N}</h3><p class="hint" style="margin:0 0 8px">${N} sees these names too. Leave a box empty for the standard name. A name, not a reason: up to ${CONFIG.breakNameMaxLength} characters.</p>
+  <div class="scroll"><table><tbody>${named.map(([k,def])=>`<tr><td>${esc(def)}</td><td><input type="text" data-name="${k}" maxlength="${CONFIG.breakNameMaxLength}" value="${esc(db.names?.[c]?.[k]||'')}" placeholder="${esc(def)}" aria-label="Name for ${esc(def)}"></td></tr>`).join('')}</tbody></table></div>
+  <h3>Change history</h3><div id="dHist"><p class="hint">${CONFIG.backend==='api'?'Loading…':'The change history is kept by the database, so it is not available in demo mode.'}</p></div>`;
+  loadHist()}
+/* ---------- change history (audit trail, newest first) ---------- */
+let histTimer=null;
+function loadHist(){if(CONFIG.backend!=='api')return;clearTimeout(histTimer);const want=det&&`${det.c}|${det.date}`;
+  histTimer=setTimeout(async()=>{let rows;try{rows=await history(det.c,det.date)}catch(err){if($('#dHist'))$('#dHist').innerHTML=`<p class="hint">${esc(err.message)}</p>`;return}
+    if(!det||`${det.c}|${det.date}`!==want||!$('#dHist'))return;
+    $('#dHist').innerHTML=rows.length?`<div class="scroll"><table class="audit"><tbody>${rows.map(h=>`<tr><td>${esc(h.at.slice(0,10))} ${hhmm(Date.parse(h.at))}</td><td>${esc(h.actor)}</td><td>${describe(h)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">No manager changes for this person on this day.</p>'},800)}
+const tm=v=>v?hhmm(Date.parse(v)):'none',span=v=>v?v.split('/').map(tm).join('–'):'none';
+function describe(h){const {c}=det,sl=h.slot_key?esc(labelFor(db,c,h.slot_key)):'',b=h.before_value,a=h.after_value;
+  switch(h.action){
+    case 'adjust_allowance':return `${sl}: allowance ${b??0} → ${a??0} min`;
+    case 'edit_shift_start':return `Shift start ${tm(b)} → ${tm(a)}`;
+    case 'edit_shift_end':return `Shift end ${tm(b)} → ${tm(a)}`;
+    case 'add_shift':return `Started a shift ${span(a)}`;
+    case 'remove_shift':return `Removed the shift ${span(b)}`;
+    case 'add_break':return `Added ${sl} ${span(a)}`;
+    case 'remove_break':return `Removed ${sl} ${span(b)}`;
+    case 'edit_break':{const [was,t]=b.includes(' ')?b.split(' '):[null,b];return `Changed ${was?esc(labelFor(db,c,was))+' → ':''}${sl} ${span(t)} → ${span(a)}`}
+    case 'add_custom_break':return `Added ${sl}: ${esc(a)}`;
+    case 'remove_custom_break':return `Removed ${sl} (was ${esc(b)})`;
+    case 'edit_custom_break':return `Changed ${sl}: ${esc(b)} → ${esc(a)}`;
+    case 'rename_break':{const def=esc(CONFIG.defaultSlots.find(s=>s.key===h.slot_key)?.label||CONFIG.customLabels[h.slot_key]);return `Renamed ${def}: “${b?esc(b):def}” → “${a?esc(a):def}”`}
+    default:return esc(h.action)}}
 $('#dBody').addEventListener('change',e=>{const t=e.target;if(t.id==='dDate'){det.date=t.value;return draw()}
+  if(t.dataset.name){db=load();const n=cleanName(t.value),m=(db.names??={})[det.c]??={};if(n&&n!==CONFIG.defaultSlots.find(s=>s.key===t.dataset.name)?.label&&n!==CONFIG.customLabels[t.dataset.name])m[t.dataset.name]=n;else delete m[t.dataset.name];
+    if(!Object.keys(m).length)delete db.names[det.c];save(db);render(true);return draw()}
+  if((t.id==='dSs'||t.id==='dSe')&&t.value){db=load();const r=db.days[det.date]?.[det.c];if(!r)return;
+    if(t.id==='dSs'){r.shiftStart=atTime(t.value,r.shiftStart);if(r.shiftEnd&&r.shiftEnd<=r.shiftStart)r.shiftEnd+=864e5}
+    else{let v=atTime(t.value,r.shiftStart);if(v<=r.shiftStart)v+=864e5;r.shiftEnd=v}
+    save(db);render(true);return draw()}
   if(t.dataset.i===undefined||!t.value)return;db=load();const b=db.days[det.date][det.c].breaks[t.dataset.i],v=atTime(t.value,b.start);
   if(t.dataset.f==='start'?v<b.end:v>b.start){b[t.dataset.f]=v;save(db)}render(true);draw()});
 $('#dBody').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;db=load();const {c,date}=det,r=db.days[date]?.[c];
@@ -52,9 +86,9 @@ function render(force){const now=Date.now();if(dayKey(new Date(now))!==TODAY)TOD
   let inn=0,onB=0,overP=0,overS=0;
   $('#rows').innerHTML=Object.entries(U).map(([c,name])=>{const r=day[c],p=plan(r,adj[c],now,slotsFor(db,c,TODAY));let shift='<span style="color:var(--muted)">Not started</span>',pct=0,status='<span class="pill">Not started</span>';
     if(r){inn++;shift=r.shiftEnd?`${hhmm(r.shiftStart)} – ${hhmm(r.shiftEnd)}`:`${hhmm(r.shiftStart)} – <span style="color:var(--muted)">no end set</span>`;pct=r.shiftEnd?Math.max(0,Math.min(100,(now-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;status=pct>=100?'<span class="pill">Finished</span>':'<span class="pill work">Working</span>';
-      if(r.active){onB++;const s=p.find(x=>x.act);status=`<span class="pill brk" data-live data-start="${r.active.start}" data-left="${s.left}" data-label="${s.label}"></span>`}}
+      if(r.active){onB++;const s=p.find(x=>x.act);status=`<span class="pill brk" data-live data-start="${r.active.start}" data-left="${s.left}" data-label="${esc(s.label)}"></span>`}}
     const tot=p.reduce((a,s)=>a+s.overBase,0);if(tot>0){overP++;overS+=tot}
-    const cells=p.slice(0,3).map(s=>{const main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(now-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell">${main}${adjUI(c,s,TODAY,name)}</td>`}).join('');
+    const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(now-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell">${nm}${main}${adjUI(c,s,TODAY,name)}</td>`}).join('');
     return `<tr><td class="person"><b>${esc(name)}</b><span>${c}${p.length>3?` · +${p.length-3} custom`:''}</span></td><td>${shift}</td><td><div class="mini"><i style="width:${pct}%"></i></div>${r&&r.shiftEnd?Math.floor(pct)+'%':'–'}</td><td>${status}</td>${cells}<td><button class="btn ghost sm" data-det="${c}">View more</button></td></tr>`}).join('');
   $('#kIn').textContent=inn;$('#kBrk').textContent=onB;$('#kOver').textContent=overP;$('#kMin').textContent=Math.round(overS/60);$('#kOver').classList.toggle('bad',overP>0);$('#kMin').classList.toggle('bad',overS>0);liveTick()}
 function liveTick(){const now=Date.now();$$('[data-live]').forEach(el=>{const t=Number(el.dataset.rt||(el.dataset.rt=now)),r2=Number(el.dataset.left)-(now-t)/1000;
