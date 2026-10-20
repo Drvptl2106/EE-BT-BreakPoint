@@ -6,7 +6,7 @@ export const CONFIG = {
   // Which implementations to plug in.
   // backend: 'fake' (data kept in this browser) -> 'api' when the database arrives (see docs/DATABASE.md)
   // auth: 'stub' (pilot codes in src/pilot.js, temporary) -> 'sso' later
-  backend: 'fake',   // 'api' = Supabase database (needs the two lines below). 'fake' = demo data kept in this browser.
+  backend: 'api',   // 'api' = Supabase database (needs the two lines below). 'fake' = demo data kept in this browser.
   auth: 'stub',     // in 'api' mode people sign in with their code + password through Supabase.
 
   // Supabase project. The URL and the PUBLISHABLE key (starts sb_publishable_) are safe to keep here.
