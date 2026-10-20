@@ -25,6 +25,12 @@ Do all of this in the **same** project as `supabaseUrl` in `src/config.js`. Chec
    person with their own random password, and writes `logins-<date>.csv`. Give each person only their own line, then delete the file.
    Run it again any time you add people (existing passwords stay; `--reset-passwords` issues new ones; `--dry-run` only checks the list).
    This replaces the old `create_pilot_logins.sql` / `fix_pilot_logins.sql`.
+
+   **Quick trial with simple passwords:** `db/people.pilot.csv` has EE-001 to EE-015 and MGR-001. Run
+   `SUPABASE_SECRET_KEY=sb_secret_... node scripts/create_logins.mjs db/people.pilot.csv --simple-passwords`
+   and people sign in with their code and `user001`, `user002`, ... (manager: `manager001`).
+   Anyone who knows the pattern can sign in as someone else, so the privacy rules and the change history mean nothing
+   while these are in use. Before real use, run the same command with `--reset-passwords` instead to issue random ones.
 5. **Check it.** With one manager and two agent passwords from step 4:
    ```
    AGENT_A=EE-1001:pass AGENT_B=EE-1002:pass MANAGER=MGR-7777:pass npm run test:security

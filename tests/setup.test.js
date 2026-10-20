@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { CONFIG } from '../src/config.js';
 import { settings, checkSetup, explain } from '../src/backend/api.js';
-import { parsePeople, newPassword } from '../scripts/create_logins.mjs';
+import { parsePeople, newPassword, simplePassword } from '../scripts/create_logins.mjs';
 
 const PAGES = ['index.html', 'manager.html'];
 const cspOf = html => html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
@@ -77,4 +77,13 @@ test('Breakathon is fully removed', () => {
 test('secrets and the generated password files are ignored by git', () => {
   const gi = readFileSync('.gitignore', 'utf8');
   for (const f of ['.env', 'people.csv', 'logins-*.csv']) assert.ok(gi.split('\n').includes(f), f);
+});
+
+test('trial passwords follow the code number and are long enough for Supabase', () => {
+  assert.equal(simplePassword({ code: 'EE-001', role: 'agent' }), 'user001');
+  assert.equal(simplePassword({ code: 'MGR-001', role: 'manager' }), 'manager001');
+  assert.throws(() => simplePassword({ code: 'EE-1', role: 'agent' }), /6 characters/);
+  const pilot = parsePeople(readFileSync('db/people.pilot.csv', 'utf8'));
+  assert.equal(pilot.filter(p => p.role === 'agent').length, 15);
+  assert.ok(pilot.some(p => p.role === 'manager'));
 });

@@ -9,6 +9,8 @@
 //   3. Run (Node 18 or newer):
 //        SUPABASE_SECRET_KEY=sb_secret_... node scripts/create_logins.mjs people.csv
 //      Add --dry-run to only check the list. Add --reset-passwords to give people who already have a login a NEW password.
+//      Add --simple-passwords for a quick trial: EE-001 gets user001, MGR-001 gets manager001 (see the warning in docs/DATABASE.md).
+//      Anyone who knows the pattern can sign in as anyone, so switch back with --reset-passwords before real use.
 //   4. It writes logins-<date>.csv (code, name, role, password). Hand each person their own line, privately,
 //      then DELETE the file. git ignores it, but do not keep it.
 //
@@ -20,7 +22,7 @@ import { pathToFileURL } from 'node:url';
 import { CONFIG } from '../src/config.js';
 
 const args = process.argv.slice(2), flag = f => args.includes(f), file = args.find(a => !a.startsWith('--'));
-const DRY = flag('--dry-run'), RESET = flag('--reset-passwords');
+const DRY = flag('--dry-run'), SIMPLE = flag('--simple-passwords'), RESET = flag('--reset-passwords') || SIMPLE;
 const URL_ = String(process.env.SUPABASE_URL || CONFIG.supabaseUrl).trim().replace(/\/+$/, '');
 const KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/\s/g, '');
 const EMAIL_DOMAIN = '@pilot.local';                      // must match src/backend/api.js
@@ -45,6 +47,16 @@ export function parsePeople(text) {
 /* ---------- passwords: 12 random characters out of 51 that can't be mistaken for each other (about 68 bits) ---------- */
 const ALPHA = 'abcdefghjkmnpqrstuvwxyzACDEFGHJKLMNPQRTUVWXY2346789';
 export const newPassword = () => Array.from({ length: 3 }, () => Array.from({ length: 4 }, () => ALPHA[randomInt(ALPHA.length)]).join('')).join('-');
+/* --simple-passwords (trial only): the role plus the number in the code. EE-001 -> user001, MGR-001 -> manager001.
+   Supabase refuses passwords under 6 characters by default, so the number keeps its leading zeros. */
+export function simplePassword(p) {
+  const n = (p.code.match(/(\d+)$/) || [])[1];
+  if (!n) throw new Error(`${p.code}: --simple-passwords needs a number at the end of the code.`);
+  const pw = (p.role === 'manager' ? 'manager' : 'user') + n;
+  if (pw.length < 6) throw new Error(`${p.code}: "${pw}" is shorter than the 6 characters Supabase needs. Use codes like EE-001.`);
+  return pw;
+}
+const passwordFor = p => SIMPLE ? simplePassword(p) : newPassword();
 
 /* ---------- Supabase admin calls ---------- */
 async function admin(path, { method = 'GET', body, prefer } = {}) {
@@ -72,7 +84,9 @@ async function main() {
   if (!people.length) die(`${file} has nobody in it.`);
   console.log(`${people.length} people in ${file}: ${people.filter(p => p.role === 'agent').length} agents, ${people.filter(p => p.role === 'manager').length} managers.`);
   if (!people.some(p => p.role === 'manager')) console.log('  Note: nobody in the list is a manager, so nobody will be able to use the manager page.');
-  if (DRY) { people.forEach(p => console.log(`  ${p.code.padEnd(12)} ${p.name.padEnd(16)} ${p.role}   -> ${p.email}`)); console.log('\nDry run: nothing was changed.'); return; }
+  if (SIMPLE) { try { people.forEach(simplePassword); } catch (e) { die(e.message); }
+    console.log('  WARNING: --simple-passwords. Anyone who knows the pattern can sign in as anyone. Trial use only.'); }
+  if (DRY) { people.forEach(p => console.log(`  ${p.code.padEnd(12)} ${p.name.padEnd(16)} ${p.role.padEnd(8)} -> sign in as ${p.code}${SIMPLE ? ' / ' + simplePassword(p) : ''}`)); console.log('\nDry run: nothing was changed.'); return; }
 
   if (!KEY) die('Set SUPABASE_SECRET_KEY to the project\'s secret key (Supabase > Project Settings > API Keys > Secret keys).');
   if (KEY.startsWith('sb_publishable_')) die('That is the PUBLISHABLE key. This script needs the SECRET key (starts sb_secret_).');
@@ -91,12 +105,12 @@ async function main() {
     let user = existing.get(p.email);
     try {
       if (!user) {
-        const password = newPassword();
+        const password = passwordFor(p);
         user = await admin('/auth/v1/admin/users', { method: 'POST', body: { email: p.email, password, email_confirm: true, user_metadata: { code: p.code } } });
         user = user.user || user; fresh.push({ ...p, password });      // recorded at once, so a later failure never loses it
         console.log(`  + ${p.code}  new login`);
       } else if (RESET) {
-        const password = newPassword();
+        const password = passwordFor(p);
         await admin(`/auth/v1/admin/users/${user.id}`, { method: 'PUT', body: { password, email_confirm: true } });
         fresh.push({ ...p, password });
         console.log(`  ~ ${p.code}  new password`);
