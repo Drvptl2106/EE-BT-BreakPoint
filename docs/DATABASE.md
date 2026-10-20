@@ -1,64 +1,72 @@
-# Moving from browser storage to a real database
+# The database (Supabase)
 
-> **Status (Oct 2026):** the database layer is built. `src/backend/api.js` talks to Supabase, `src/core.js` picks it when
-> `backend: 'api'` in `src/config.js`, and people sign in with code + password. To finish: paste the **publishable** key into
-> `src/config.js`, create the logins (`db/create_pilot_logins.sql`), and add the nightly job below so agents can see the team
-> Breakathon board. Everything underneath is the original plan and is still the reference.
+The app keeps its data in a Supabase project (Postgres + login + per-row security). The page only holds the **publishable** key;
+the rules about who may see and change what live in the database (`db/schema.sql`), not in the page.
 
-Today every number lives in one browser (`localStorage`). That is why a manager on another PC sees
-nothing. To share data you need a hosted database, and a login that the **database** trusts.
+Current project: **`mqyeqrxzjzsfvbbjppxj`** (`https://mqyeqrxzjzsfvbbjppxj.supabase.co`). The old project `cintsnddjtehyhwdlddn` is no longer used.
 
-## What I recommend: Supabase
+## Setting up a project, in order
 
-A static site on GitHub Pages cannot run server code, and you do not need to write any:
-Supabase is Postgres plus login plus per-row security plus live updates, with a free tier.
-The alternative (your own Node server + Postgres) works too but means you run and patch a server.
+Do all of this in the **same** project as `supabaseUrl` in `src/config.js`. Check the project name at the top of the Supabase dashboard first.
 
-## Set-up, in order
+1. **Tables and rules.** SQL Editor > New query > paste the whole of `db/schema.sql` > Run.
+   It is safe to run again, and it upgrades a project that ran an older version (it keeps the data and drops the tables of the removed ranking feature).
+   The last result lists every table with "row level security on" = true.
+2. **Nightly cleanup.** New query > paste `db/cleanup_job.sql` > Run. If the first line fails, switch on
+   Database > Extensions > `pg_cron` and run it again. The last result shows one job, `break-track-purge`.
+3. **Sign-ups off.** Authentication > Sign In / Providers > turn **off** "Allow new users to sign up" > Save.
+   Nobody can then create their own login; only the script below can.
+4. **Logins for everyone.** On your own computer (Node 18+), never in the browser:
+   ```
+   cp db/people.example.csv people.csv        # one line per person: code,name,role (agent or manager)
+   SUPABASE_SECRET_KEY=sb_secret_... node scripts/create_logins.mjs people.csv
+   ```
+   The secret key is under Project Settings > API Keys > Secret keys. It creates a confirmed login and a profile for each
+   person with their own random password, and writes `logins-<date>.csv`. Give each person only their own line, then delete the file.
+   Run it again any time you add people (existing passwords stay; `--reset-passwords` issues new ones; `--dry-run` only checks the list).
+   This replaces the old `create_pilot_logins.sql` / `fix_pilot_logins.sql`.
+5. **Check it.** With one manager and two agent passwords from step 4:
+   ```
+   AGENT_A=EE-1001:pass AGENT_B=EE-1002:pass MANAGER=MGR-7777:pass npm run test:security
+   ```
+   It proves on the live project that sign-ups are off, signed-out visitors see nothing, one agent cannot see or change
+   another's data, and the manager can see the team.
 
-1. **Create a project** at supabase.com (pick the London region). Keep the database password somewhere safe.
-2. **Run `db/schema.sql`** in the SQL editor. This creates the tables, the "agent sees own rows, manager sees team" rules,
-   the audit trigger and the leaderboard function. There is no reason column anywhere.
-3. **Login**: Authentication > Providers > Email, and turn **off** "Allow new users to sign up". Invite people from the dashboard.
-   Then insert one `profiles` row per person (id = their auth user id, code, first name, `role`). Making someone a manager
-   is a row in this table, which only you can edit. It is never a code in the page.
-4. **Keys**: copy the project URL and the `anon` key into the page config. The anon key is meant to be public;
-   row-level security is what protects the data. **Never put the `service_role` key in the repo or the browser.**
-5. **Content-security policy**: add the project URL to `connect-src` in the `<meta http-equiv="Content-Security-Policy">`
-   of the three pages (and `wss://` for live updates), or the browser will block every call.
-6. **Retention and the nightly job**: enable `pg_cron`, uncomment the two schedules at the bottom of the schema,
-   and add a nightly function that fills `day_results` (see "The one tricky part").
+## Keys, addresses and the page security line
 
-## What has to change in the code
+- `src/config.js` holds `supabaseUrl` and the **publishable** key (`sb_publishable_…`). Both are meant to be public.
+  **Never** put a secret key (`sb_secret_…` or `service_role`) there: the app refuses to start if you do.
+- `index.html` and `manager.html` each have a `Content-Security-Policy` line. Its `connect-src` must include exactly the same
+  address as `supabaseUrl`, or the browser silently blocks every request. `npm test` fails if they differ, and the app says so on screen.
+- If you move to a new project: change `supabaseUrl` and `supabaseKey`, change `connect-src` in both pages, then do steps 1 to 5 there.
 
-The pages call `load()` and `save()` from `src/core.js` in many places. Those two are synchronous; a database is not.
-So the change is a proper step, not a one-line swap:
+## What the error messages mean
 
-| Page action today | Becomes | Table |
+| On screen | Cause | Fix |
 |---|---|---|
-| first open of the day | insert shift | `shifts` |
-| set start/end time | update shift | `shifts` |
-| start / stop / resume a break | update `active_*`, insert a sitting | `shifts`, `break_segments` |
-| manager +/- 5 min | upsert / delete | `adjustments` (audited by trigger) |
-| manager edits, adds or removes a recorded break | update / insert / delete | `break_segments` |
-| manager adds a custom break | upsert | `custom_break_rules` |
-| Breakathon / Punctuality | call `leaderboard(14)` | `day_results` |
+| That code or password is not right. | wrong code or password | check the line from `logins-….csv`, or re-issue with `--reset-passwords` |
+| This page's security line doesn't allow the database address… | `connect-src` and `supabaseUrl` differ | make them the same |
+| Can't reach the database at … | offline, wrong address, or blocked | check the address and connection |
+| The database rejected the key in src/config.js… | key from another project, or mistyped | copy the publishable key again |
+| The database on … isn't set up… | schema not run on **this** project | step 1 |
+| Your login works, but it has no profile… | login made by hand without a profile | run the login script for that code |
+| This login hasn't been confirmed yet. | login made by hand without "Auto confirm" | run the login script again |
 
-Plan: add `src/data/api.js` with these as named async functions, give `src/core.js` the pure maths only,
-and make the pages call the named functions instead of `load()`/`save()`. Use Supabase realtime on `shifts`
-and `break_segments` instead of the 10 second refresh. The break maths in `plan()` stays exactly as it is.
+## Tables
 
-## The one tricky part
+| Table | What | Who can write |
+|---|---|---|
+| `profiles` | code, first name, team, role | nobody from the page (the login script, or you in the dashboard) |
+| `shifts`, `break_segments` | a person's day and each break sitting | the person, and their team's manager |
+| `adjustments` | +/- minutes, one person, one day, one break | managers of that team |
+| `custom_break_rules` | Custom 1 to 5 | managers of that team |
+| `break_names` | a manager's name for a break, per person | managers of that team |
+| `audit_log` | every manager change: who, when, what, before, after | only the database triggers |
 
-Agents must see the Breakathon ranking without being able to read each other's raw break times. So the ranking comes from
-`day_results` (one summary row per person per day) through the `leaderboard()` function, which hides minutes-over from agents.
-Something trusted has to write `day_results` using the **same rules as `plan()`** (overrun comes off the next break,
-tolerance, custom breaks). Easiest: a nightly Supabase Edge Function that re-implements `plan()` in TypeScript, with the test cases in
-`tests/engine.test.js` copied across so the two cannot drift.
-Today's live row is computed from the person's own `shifts` for themselves, and by managers for the team.
+Making someone a manager is a `role` in `profiles` (or `manager` in the login list). It is never a code in the page.
 
 ## Honest limits
 
-- The pilot codes in `src/pilot.js` are readable by anyone who views the page source. They are fine for a demo and must not be used with real data.
-- Times use the laptop clock. For a real roll-out use server time (`now()`) and the Europe/London zone, including the clock change on Sunday 25 October 2026.
-- Check with HR/legal that taking overrun off the next break (including lunch) is allowed where you operate, and that the data is covered by your privacy notice.
+- Times use the device clock. For a real roll-out use server time and the Europe/London zone, including the clock change on Sunday 25 October 2026.
+- Check with HR/legal that taking overrun off the next break (including lunch) is allowed where you operate, and that the data,
+  including the audit trail, is covered by your privacy notice.

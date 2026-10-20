@@ -1,5 +1,6 @@
 # Optional browser smoke test (needs: pip install playwright && playwright install chromium).
-# Start the site first (npm start), then: python3 tests/e2e/smoke.py [http://localhost:8080]
+# It runs in DEMO mode: set backend: 'fake' in src/config.js first (and put it back to 'api' afterwards).
+# Start the site (npm start), then: python3 tests/e2e/smoke.py [http://localhost:8080]
 import sys, json, time
 from playwright.sync_api import sync_playwright
 BASE = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:8080'
@@ -53,17 +54,18 @@ with sync_playwright() as p:
     m.select_option('#cKey', 'c1'); m.fill('#cMin', '10'); m.check('input[name=sc][value=daily]'); m.click('#cAdd')
     ok('Custom 1' in m.inner_text('#dBody') and 'every day' in m.inner_text('#dBody'), 'custom break added (every day)')
     m.fill('#lS', '08:00') if m.locator('#lS').count() else None
+    # manager edits the shift and renames a break (the name must be escaped, never run as markup)
+    m.fill('#dSe', '23:30'); m.dispatch_event('#dSe', 'change')
+    m.fill('input[data-name="c1"]', '<b>Quiet</b> time'); m.dispatch_event('input[data-name="c1"]', 'change')
+    ok('<b>Quiet</b> time' in m.inner_text('#dBody'), 'manager renamed Custom 1 (shown as plain text)')
     m.click('#dClose')
     ok('+1 custom' in m.inner_text('#rows'), 'table flags the extra custom break')
+    ok('23:30' in m.inner_text('#rows'), 'manager changed the shift end')
     pg.reload(); pg.wait_for_selector('#tiles .tile')
-    ok('Custom 1' in pg.inner_text('#tiles') and '10 Min' in pg.inner_text('#tiles'), 'agent now sees "Custom 1 / 10 Min"')
+    ok('<b>Quiet</b> time' in pg.inner_text('#tiles') and '10 Min' in pg.inner_text('#tiles'), 'agent now sees the renamed custom break, 10 Min')
+    ok(pg.input_value('#endIn') == '23:30', 'agent sees the shift end the manager set')
 
-    # ---- breakathon (agent) and punctuality (manager) ----
-    pg.click('a.link[href="breakathon.html"]'); pg.wait_for_selector('#rows tr')
-    ok(pg.locator('#rows tr').count() == 5 and 'Top spot' in pg.inner_text('#sub'), 'Breakathon ranks everyone and shows the reward')
-    ok('Minutes over' not in pg.inner_text('#th'), 'agents do not see other people\'s minutes over')
-    m.goto(BASE + '/breakathon.html'); m.wait_for_selector('#rows tr')
-    ok('Minutes over' in m.inner_text('#th'), 'manager punctuality report has the detail columns')
+    ok(pg.locator('a[href="breakathon.html"]').count() == 0 and m.locator('a[href="breakathon.html"]').count() == 0, 'no Breakathon links left')
     ok(not logs, 'no JS or CSP errors: ' + '; '.join(logs)[:300])
     b.close()
 print('\nRESULT:', 'ALL PASSED' if not errs else f'{len(errs)} FAILED'); sys.exit(1 if errs else 0)

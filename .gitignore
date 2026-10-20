@@ -1,0 +1,12 @@
+# Ground rule 1: no data and no secrets in git.
+.env
+.env.*
+node_modules/
+# the list of people and the generated passwords (scripts/create_logins.mjs)
+people.csv
+logins-*.csv
+# exports and local data
+*.sqlite
+exports/
+data/
+.DS_Store
