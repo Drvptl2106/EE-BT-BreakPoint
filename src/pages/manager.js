@@ -1,5 +1,6 @@
 import { CONFIG } from '../config.js';
 import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js';
+import { teamLooks, teamRewards } from '../core.js';
 import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js';
 import { esc, setHtml } from '../dom.js';
 import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js';
@@ -83,7 +84,8 @@ $('#dBody').addEventListener('click',e=>{const t=e.target.closest('button');if(!
     const key=$('#cKey').value;db.custom[c]=[...(db.custom[c]||[]).filter(x=>x.key!==key),{key,minutes:Math.max(1,Number($('#cMin').value)||15),scope:sc,date,days}]}
   else return;save(db);render(true);draw()});
 /* ---------- dashboard (view only): filters, team pulse, one card per person ---------- */
-let filter='all',tab='dash',lastDash='';
+let filter='all',tab='dash',lastDash='',LOOKS={};
+async function loadLooks(){try{const l=await teamLooks();if(JSON.stringify(l)!==JSON.stringify(LOOKS)){LOOKS=l;renderDash(now(),true)}}catch{}}
 const teamNow=at=>Object.entries(U).map(([c,name])=>{const r=db.days[TODAY]?.[c],p=plan(r,db.adj[TODAY]?.[c],at,slotsFor(db,c,TODAY));return {c,name,rec:r,p,st:statusOf(r,p,at)}});
 function renderDash(at,force){if(tab!=='dash'&&!force)return;const sig=JSON.stringify(db)+filter+Math.floor(at/1e4);if(!force&&sig===lastDash)return;lastDash=sig;
   const team=teamNow(at),f=FILTERS.find(x=>x.key===filter),list=team.filter(t=>f.test(t.st,t.p));
@@ -95,7 +97,7 @@ function card({c,name,rec:r,p,st},at){
   const shift=r?(r.shiftEnd?`${hhmm(r.shiftStart)}–${hhmm(r.shiftEnd)}`:`since ${hhmm(r.shiftStart)}`):'not clocked in',pct=r&&r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;
   const pill=st.onBreak?`<span class="pill ${st.key}" data-live data-left="${st.slot.allowed*60-st.slot.used}" data-label="${esc(st.slot.label)}">${esc(liveText(st.slot.label,st.slot.allowed*60-st.slot.used))}</span>`:`<span class="pill ${st.key}">${esc(st.label)}</span>`;
   const bars=r?p.map(s=>`<div class="hb${s.over||s.overBase?' over':s.act?' act':''}"><span>${esc(s.label)}</span><div class="tr"><i style="width:${s.allowed?Math.min(100,s.used/(s.allowed*60)*100):s.used?100:0}%"></i></div><span>${Math.round(s.used/60)}/${tidy(s.allowed)}m</span></div>`).join(''):'';
-  return `<article class="pcard ${st.key}"><div class="top">${avatar(c,{mood:st.key==='over'?'worried':st.onBreak?'sleepy':'happy'}).replace('<svg','<svg style="width:40px;height:40px;flex:none"')}<div><b>${esc(name)}</b><span>${c}</span></div>${pill}</div>${r?`<div class="hint" style="margin:0">Shift ${shift}</div>`:''}${bars}${r&&r.shiftEnd?`<div class="mini" style="width:100%" title="Shift ${Math.floor(pct)}% done"><i style="width:${pct}%"></i></div>`:''}</article>`}
+  return `<article class="pcard ${st.key}"><div class="top">${avatar(c,{look:LOOKS[c],mood:st.key==='over'?'worried':st.onBreak?'sleepy':'happy'}).replace('<svg','<svg style="width:40px;height:40px;flex:none"')}<div><b>${esc(name)}</b><span>${c}</span></div>${pill}</div>${r?`<div class="hint" style="margin:0">Shift ${shift}</div>`:''}${bars}${r&&r.shiftEnd?`<div class="mini" style="width:100%" title="Shift ${Math.floor(pct)}% done"><i style="width:${pct}%"></i></div>`:''}</article>`}
 $('#filters').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b)return;filter=b.dataset.f;renderDash(now(),true)});
 
 /* ---------- export: one row per person, day and break, for the pilot write-up ---------- */
@@ -111,8 +113,9 @@ let week=0,raceT=null,champ=null;
 async function drawRace(){if(tab!=='race')return;try{
     const w=weekOf(TODAY,week),l=weekOf(TODAY,1),[rows,last]=await Promise.all([breakathon(w.from,w.to),breakathon(l.from,l.to)]);
     champ=last[0]?.points>0?last[0]:null;
+    const prize=champ?(await teamRewards(l.from))[champ.code]||{}:null;
     const done=!!champ&&(db.custom[champ.code]||[]).some(x=>x.scope==='today'&&x.date===TODAY&&db.names?.[champ.code]?.[x.key]===REWARD);
-    setHtml($('#race'),raceHTML({rows,me:null,isManager:true,champion:champ,grant:champ?{done}:null}));placeRacers($('#race'))}
+    setHtml($('#race'),raceHTML({rows,me:null,isManager:true,champion:champ,grant:champ?{done}:null,prize}));placeRacers($('#race'))}
   catch(err){$('#race').innerHTML=`<p class="empty">${esc(err.message)}</p>`}}
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);$$('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 $('#race').addEventListener('click',e=>{if(e.target.id!=='grantBtn'||!champ)return;const c=champ.code;db=load();
@@ -137,7 +140,7 @@ function liveTick(){const at=now();$$('[data-live]').forEach(el=>{const t=Number
 let t1,t2,clock,tabsReady=false;
 function boot(){if(!mgr||!MANAGER_CODES[mgr])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');$('#who').textContent=MANAGER_CODES[mgr];if(CONFIG.backend==='api'){$('#demo')?.remove();$('#clear')?.remove()}db=load();purge(db);save(db);render(true);
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
-  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);t2=setInterval(async()=>{if(det)return;if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
+  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000)loadLooks();if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&mgr&&!det){db=load();render()}});
 setupPassword();setupTheme();wireRacers($('#race'));
 (async()=>{if(CONFIG.backend==='api')$('#pw').classList.remove('hidden');try{await init();if(CONFIG.backend==='api'){const m=me();mgr=m&&m.role!=='agent'?m.code:null}boot()}catch(err){showGate();$('#gateErr').textContent=err.message}})();

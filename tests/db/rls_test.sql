@@ -32,6 +32,10 @@ insert into profiles(id, code, name, team, role) values
 insert into shifts(id, user_id, day, shift_start) values ('10000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000b', current_date, now() - interval '3 hours');
 insert into break_segments(id, shift_id, slot_key, started_at, ended_at) values
   ('20000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-00000000000b', 'break1', now() - interval '2 hours', now() - interval '105 minutes');
+-- B had a good day last week (so B is last week's Breakathon champion)
+insert into shifts(id, user_id, day, shift_start) values ('10000000-0000-0000-0000-0000000000b7', '00000000-0000-0000-0000-00000000000b', current_date - 7, now() - interval '7 days');
+insert into break_segments(shift_id, slot_key, started_at, ended_at) values
+  ('10000000-0000-0000-0000-0000000000b7', 'break1', now() - interval '7 days', now() - interval '7 days' + interval '10 minutes');
 -- and A has a day from last week
 insert into shifts(id, user_id, day, shift_start) values ('10000000-0000-0000-0000-0000000000a7', '00000000-0000-0000-0000-00000000000a', current_date - 7, now() - interval '7 days');
 insert into break_segments(id, shift_id, slot_key, started_at, ended_at) values
@@ -100,9 +104,9 @@ select t.ok(t.n('select * from audit_log') = 0, 'agent and own-data changes crea
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
 select t.ok(t.n('select * from profiles') = 3, 'manager sees the 3 people in their team');
 select t.ok(t.n($$select * from profiles where team = 'other'$$) = 0, 'manager does not see another team');
-select t.ok(t.n('select * from shifts') = 3, 'manager sees their team''s shifts only');
-update shifts set shift_start = shift_start - interval '30 minutes' where user_id = '00000000-0000-0000-0000-00000000000b';
-update shifts set shift_end = now() + interval '5 hours' where user_id = '00000000-0000-0000-0000-00000000000b';
+select t.ok(t.n('select * from shifts') = 4, 'manager sees their team''s shifts only');
+update shifts set shift_start = shift_start - interval '30 minutes' where id = '10000000-0000-0000-0000-00000000000b';
+update shifts set shift_end = now() + interval '5 hours' where id = '10000000-0000-0000-0000-00000000000b';
 update break_segments set ended_at = ended_at - interval '2 minutes' where id = '20000000-0000-0000-0000-00000000000b';
 insert into break_segments(id, shift_id, slot_key, started_at, ended_at) values
   ('30000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-00000000000b', 'lunch', now() - interval '80 minutes', now() - interval '50 minutes');
@@ -175,7 +179,7 @@ select t.ok(t.n($$select * from audit_log where actor_id = '00000000-0000-0000-0
 -- B: break 1 of 13 min (the manager's edit): 1 break, on time, clean -> 15.   X and the managers are not in the game.
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
 select t.ok((select string_agg(code || ':' || breaks || '/' || on_time || '/' || clean_days || '/' || coalesce(over_minutes::text, '-') || '/' || points, ' ')
-             from breakathon(current_date - 30, current_date)) = 'EE-1002:1/1/1/-/15 EE-1001:2/1/1/-/5', 'Breakathon ranks the team; agents see points but not minutes over');
+             from breakathon(current_date - 30, current_date)) = 'EE-1002:2/2/2/-/30 EE-1001:2/1/1/-/5', 'Breakathon ranks the team; agents see points but not minutes over');
 select t.ok(t.n('select * from breakathon(current_date - 3, current_date)') = 2 and (select points from breakathon(current_date - 3, current_date) where code = 'EE-1001') = 15,
             'Breakathon only counts the chosen week');
 commit;
@@ -190,6 +194,42 @@ select t.denied('select * from breakathon(current_date - 30, current_date)');
 select t.ok(true, 'signed-out visitors cannot see Breakathon');
 commit;
 
+-- ---------- prizes and mascots: only the champion claims, once, and you only wear what you unlocked ----------
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select t.ok((my_rewards()->>'champion')::boolean = false and my_rewards()->>'colour' = 'teal', 'everyone starts as the same teal mascot');
+select t.denied($$select claim_reward('break')$$);
+select t.ok(true, 'someone who did not win cannot claim the prize');
+select t.denied($$select set_look('pink', 'none')$$);
+select t.ok(true, 'nobody can wear a colour they have not unlocked');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true); set local role authenticated;
+select t.ok((my_rewards()->>'champion')::boolean and my_rewards()->>'claimed' is null, 'last week''s champion is told they can pick a prize');
+select t.denied($$select claim_reward('look', 'colour:teal')$$);
+select t.denied($$select claim_reward('look', 'acc:jetpack')$$);
+select t.ok(true, 'the prize must be a real item you do not already have');
+select claim_reward('look', 'colour:pink');
+select t.ok(my_rewards()->>'colour' = 'pink' and my_rewards()->'unlocked'->>0 = 'colour:pink' and my_rewards()->>'claimed' = 'look', 'claiming a new look unlocks it and puts it on');
+select t.denied($$select claim_reward('break')$$);
+select t.ok(true, 'the prize can only be claimed once a week');
+select t.denied($$select set_look('pink', 'headset')$$);
+select set_look('teal', 'none'); select set_look('pink', 'none');
+select t.ok(my_rewards()->>'colour' = 'pink', 'you can switch between what you have unlocked');
+select t.denied($$insert into rewards(user_id, week, choice, item) values (auth.uid(), current_date, 'look', 'acc:headset')$$);
+select t.denied($$update avatars set accessory = 'headset'$$);
+select t.ok(true, 'nobody can give themselves prizes or looks by writing the tables');
+select t.denied('select last_week_champion()');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select t.ok((select colour from breakathon(current_date - 30, current_date) where code = 'EE-1002') = 'pink', 'everyone sees the winner''s new look in the race');
+select t.ok(t.n('select * from rewards') + t.n('select * from avatars') = 0, 'agents cannot read other people''s prizes');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
+select t.ok((select choice from rewards where user_id = '00000000-0000-0000-0000-00000000000b') = 'look', 'the team lead sees what the champion picked');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', true); set local role authenticated;
+select t.ok(t.n('select * from rewards') = 0, 'another team''s lead does not');
+commit;
+
 -- ---------- cleanup job ----------
 insert into shifts(user_id, day, shift_start) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, now() - interval '20 days');
 insert into adjustments(user_id, day, slot_key, minutes) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, 'lunch', 5);
@@ -198,7 +238,7 @@ select purge_old_data();
 select t.ok(t.n('select * from shifts where day < current_date - 14') = 0, 'cleanup removes shifts older than 14 days');
 select t.ok(t.n('select * from adjustments where day < current_date - 14') = 0, 'cleanup removes old adjustments');
 select t.ok(t.n($$select * from audit_log where action = 'old'$$) = 0, 'cleanup removes old audit entries');
-select t.ok(t.n('select * from shifts') = 4, 'cleanup keeps recent shifts');
+select t.ok(t.n('select * from shifts') = 5, 'cleanup keeps recent shifts');
 select t.ok(t.n($$select * from cron.job where jobname = 'break-track-purge'$$) = 1, 'nightly job is scheduled');
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
 select t.denied('select purge_old_data()');

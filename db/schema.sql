@@ -284,9 +284,36 @@ create trigger break_names_audit after insert or update or delete on break_names
 -- Everyone in a team sees names and points; only managers also see minutes over. Nobody gets anyone else's break times.
 -- Same maths as weekScore() in src/core.js: a break is on time when it stays within its OWN allowance (+ adjustment),
 -- 24 seconds of grace (= CONFIG.overToleranceMinutes); points = 10 per on-time break + 5 per clean day - 2 per minute over.
+-- ---------- mascots and prizes ----------
+-- Everyone's mascot starts the same (teal, no accessory). Last week's Breakathon champion picks ONE prize:
+-- an extra break (the team lead then gives it) or a new look (one colour or accessory, kept for good).
+-- Nobody writes these tables directly: the functions below check you really won, claim once a week, and only wear what you unlocked.
+create table if not exists avatars (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  colour text not null default 'teal', accessory text not null default 'none');
+create table if not exists rewards (
+  user_id uuid not null references profiles(id) on delete cascade,
+  week date not null,                                        -- the Monday of the week that was won
+  choice text not null check (choice in ('break', 'look')),
+  item text,                                                 -- for a look: 'colour:pink', 'acc:headset' ...
+  at timestamptz not null default now(),
+  primary key (user_id, week));
+alter table avatars enable row level security; alter table rewards enable row level security;
+drop policy if exists "read own or team" on avatars; drop policy if exists "read own or team" on rewards;
+create policy "read own or team" on avatars for select to authenticated using (user_id = auth.uid() or is_manager_of(user_id));
+create policy "read own or team" on rewards for select to authenticated using (user_id = auth.uid() or is_manager_of(user_id));
+revoke all on avatars, rewards from anon, authenticated;
+grant select on avatars, rewards to authenticated;
+
+-- = LOOKS in src/race.js. The first colour and 'none' are free for everyone.
+create or replace function look_items() returns text[] language sql immutable as $$
+  select array['colour:teal','colour:blue','colour:pink','colour:yellow','colour:purple','colour:green','colour:orange',
+               'acc:none','acc:headset','acc:cap','acc:bow','acc:glasses','acc:scarf','acc:flower']
+$$;
+create or replace function week_start(d date) returns date language sql immutable as $$ select d - (extract(isodow from d)::int - 1) $$;
 drop function if exists breakathon(date, date);
 create or replace function breakathon(p_from date, p_to date)
-returns table (code text, name text, breaks int, on_time int, clean_days int, over_minutes int, points int)
+returns table (code text, name text, breaks int, on_time int, clean_days int, over_minutes int, points int, colour text, accessory text)
 language sql stable security definer set search_path = public as $$
   with me as (select team, role from profiles where id = auth.uid()),
   team as (select p.id, p.code, p.name from profiles p join me on p.team = me.team where p.role = 'agent'),
@@ -307,14 +334,64 @@ language sql stable security definer set search_path = public as $$
           from per_day group by 1)
   select t.code, t.name, coalesce(x.breaks, 0)::int, coalesce(x.on_time, 0)::int, coalesce(x.clean, 0)::int,
          case when (select role from me) in ('manager', 'admin') then coalesce(x.over_m, 0)::int end,
-         greatest(0, coalesce(x.on_time, 0) * 10 + coalesce(x.clean, 0) * 5 - coalesce(x.over_m, 0) * 2)::int
-  from team t left join tot x on x.user_id = t.id
+         greatest(0, coalesce(x.on_time, 0) * 10 + coalesce(x.clean, 0) * 5 - coalesce(x.over_m, 0) * 2)::int,
+         coalesce(a.colour, 'teal'), coalesce(a.accessory, 'none')
+  from team t left join tot x on x.user_id = t.id left join avatars a on a.user_id = t.id
   order by 7 desc, 4 desc, 2
 $$;
 revoke execute on function breakathon(date, date) from public, anon;
 grant execute on function breakathon(date, date) to authenticated;
 revoke execute on function server_time() from public, anon;
 grant execute on function server_time() to authenticated;
+
+create or replace function last_week_champion() returns uuid language sql stable security definer set search_path = public as $$
+  select p.id from breakathon(week_start(current_date) - 7, week_start(current_date) - 1) b
+  join profiles p on p.code = b.code where b.points > 0 order by b.points desc, b.on_time desc, b.name limit 1
+$$;
+create or replace function my_rewards() returns json language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'colour', coalesce((select colour from avatars where user_id = auth.uid()), 'teal'),
+    'accessory', coalesce((select accessory from avatars where user_id = auth.uid()), 'none'),
+    'unlocked', coalesce((select json_agg(item order by at) from rewards where user_id = auth.uid() and choice = 'look'), '[]'::json),
+    'week', week_start(current_date) - 7,
+    'champion', coalesce(last_week_champion() = auth.uid(), false),
+    'claimed', (select choice from rewards where user_id = auth.uid() and week = week_start(current_date) - 7),
+    'claimed_item', (select item from rewards where user_id = auth.uid() and week = week_start(current_date) - 7))
+$$;
+create or replace function claim_reward(p_choice text, p_item text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare w date := week_start(current_date) - 7;
+begin
+  if auth.uid() is null or last_week_champion() is distinct from auth.uid() then raise exception 'Only last week''s champion can claim the prize.'; end if;
+  if exists (select 1 from rewards where user_id = auth.uid() and week = w) then raise exception 'You have already claimed last week''s prize.'; end if;
+  if p_choice = 'look' then
+    if p_item is null or not p_item = any(look_items()) or p_item in ('colour:teal', 'acc:none')
+       or exists (select 1 from rewards where user_id = auth.uid() and item = p_item) then
+      raise exception 'Pick a colour or accessory you don''t have yet.';
+    end if;
+  elsif p_choice <> 'break' then raise exception 'Pick a break or a new look.';
+  end if;
+  insert into rewards(user_id, week, choice, item) values (auth.uid(), w, p_choice, case when p_choice = 'look' then p_item end);
+  if p_choice = 'look' then                                  -- wear it straight away
+    insert into avatars(user_id) values (auth.uid()) on conflict (user_id) do nothing;
+    update avatars set colour = case when p_item like 'colour:%' then substr(p_item, 8) else colour end,
+                       accessory = case when p_item like 'acc:%' then substr(p_item, 5) else accessory end where user_id = auth.uid();
+  end if;
+end $$;
+create or replace function set_look(p_colour text, p_accessory text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'Sign in first.'; end if;
+  if not (p_colour = 'teal' or exists (select 1 from rewards where user_id = auth.uid() and item = 'colour:' || p_colour))
+     or not (p_accessory = 'none' or exists (select 1 from rewards where user_id = auth.uid() and item = 'acc:' || p_accessory)) then
+    raise exception 'You can only wear colours and accessories you have unlocked.';
+  end if;
+  insert into avatars(user_id, colour, accessory) values (auth.uid(), p_colour, p_accessory)
+  on conflict (user_id) do update set colour = excluded.colour, accessory = excluded.accessory;
+end $$;
+revoke execute on function last_week_champion(), my_rewards(), claim_reward(text, text), set_look(text, text) from public, anon;
+grant execute on function my_rewards(), claim_reward(text, text), set_look(text, text) to authenticated;
+revoke execute on function last_week_champion() from authenticated;
 
 -- Retention (= CONFIG.retentionDays): run db/cleanup_job.sql once, after this file.
 
