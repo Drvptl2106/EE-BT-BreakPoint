@@ -30,7 +30,9 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
 - Going over takes the extra minutes off the next break (Break 1 → Break 2 → Lunch → OH breaks), with a friendly note.
 - The shift pie: time worked, breaks, overruns and time still to go, with the worked time ticking to the second.
 - A sales-floor pep talk that changes with the time of day, a live clock and a Live indicator.
-- **Breakathon:** the team race, this week and last week, and last week's champion.
+- **Breakathon:** everyone's mascot races across the island to Champion's Keep, this week and last week.
+- **Mascots and prizes:** everyone starts as the same fuzzy teal mascot (it also delivers the pep talk and reacts to your day).
+  Last week's champion picks a prize: a 15 min extra break, or a new colour or accessory that's theirs for good.
 
 **Team leads**
 - **Dashboard** (view only): filters for everyone / on a break / running over / taken a break / no break yet / not clocked in,
@@ -38,7 +40,7 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
   and a live card per person.
 - **Manage:** +/- 5 minute adjustments, and per person: shift start and end, break history (edit, remove, log a missed break),
   OH breaks (today, chosen weekdays or every day), break names, and the change history. Export the last 14 days as CSV.
-- **Breakathon:** the race with minutes over, and a button to give last week's champion their reward break.
+- **Breakathon:** the race with minutes over, what last week's champion picked, and a button to give the extra break if they chose it.
 
 ## Security in one paragraph
 

@@ -28,7 +28,44 @@ export const changePassword = pw => api.changePassword(pw);                     
 export const now = () => Date.now() + (API ? api.clockOffset() : 0);
 /* Breakathon scores for the team between two days (inclusive). The database works them out in 'api' mode, so agents
    only ever receive names and points, never anyone's break times. */
-export const breakathon = async (from, to) => API ? api.breakathon(from, to) : teamScores(fakeLoad(), Object.keys(PILOT_USERS), from, to, true);
+export const breakathon = async (from, to) => API ? api.breakathon(from, to)
+  : teamScores(fakeLoad(), Object.keys(PILOT_USERS), from, to, true).map(r => ({ ...r, ...lookOf(fakeLooks().avatars[r.code]) }));
+
+/* Mascots and prizes. Database mode: the database decides (db/schema.sql). Demo mode: the same rules, kept in this browser. */
+const LOOKS_KEY = 'bt-looks:v1', FREE = ['colour:teal', 'acc:none'];
+const lookOf = a => ({ colour: a?.colour || 'teal', accessory: a?.accessory || 'none' });
+const fakeLooks = () => { try { return { avatars: {}, rewards: {}, ...JSON.parse(localStorage.getItem(LOOKS_KEY)) }; } catch { return { avatars: {}, rewards: {} }; } };
+const saveLooks = v => localStorage.setItem(LOOKS_KEY, JSON.stringify(v));
+const lastWeek = () => weekOf(dayKey(new Date(now())), 1);
+function fakeChampion() { const w = lastWeek(), top = teamScores(fakeLoad(), Object.keys(PILOT_USERS), w.from, w.to, true)[0]; return top?.points > 0 ? top.code : null; }
+const unlockedOf = (L, code) => Object.values(L.rewards[code] || {}).filter(x => x.choice === 'look').map(x => x.item);
+/** { colour, accessory, unlocked[], week, champion (won last week?), claimed: 'break'|'look'|null, claimed_item } */
+export async function myRewards(code) {
+  if (API) return api.myRewards();
+  const L = fakeLooks(), w = lastWeek().from, r = L.rewards[code]?.[w];
+  return { ...lookOf(L.avatars[code]), unlocked: unlockedOf(L, code), week: w, champion: fakeChampion() === code, claimed: r?.choice || null, claimed_item: r?.item || null };
+}
+export async function claimReward(code, choice, item) {
+  if (API) return api.claimReward(choice, item);
+  const L = fakeLooks(), w = lastWeek().from;
+  if (fakeChampion() !== code) throw new Error("Only last week's champion can claim the prize.");
+  if (L.rewards[code]?.[w]) throw new Error("You have already claimed last week's prize.");
+  if (choice === 'look' && (!item || FREE.includes(item) || unlockedOf(L, code).includes(item))) throw new Error("Pick a colour or accessory you don't have yet.");
+  (L.rewards[code] ??= {})[w] = { choice, item: choice === 'look' ? item : null };
+  if (choice === 'look') { const [k, v] = item.split(':'); L.avatars[code] = { ...lookOf(L.avatars[code]), [k === 'colour' ? 'colour' : 'accessory']: v }; }
+  saveLooks(L);
+}
+export async function setLook(code, colour, accessory) {
+  if (API) return api.setLook(colour, accessory);
+  const L = fakeLooks(), ok = item => FREE.includes(item) || unlockedOf(L, code).includes(item);
+  if (!ok('colour:' + colour) || !ok('acc:' + accessory)) throw new Error('You can only wear colours and accessories you have unlocked.');
+  L.avatars[code] = { colour, accessory }; saveLooks(L);
+}
+export const teamLooks = async () => API ? api.teamLooks() : fakeLooks().avatars;
+export async function teamRewards(week) {
+  if (API) return api.teamRewards(week);
+  const L = fakeLooks(), out = {}; for (const [c, w] of Object.entries(L.rewards)) if (w[week]) out[c] = w[week]; return out;
+}
 export function purge(db){
   if (API) return;                                                              // the database deletes old rows itself (db/cleanup_job.sql)
   const c = new Date(); c.setDate(c.getDate() - CONFIG.retentionDays); const ck = dayKey(c);

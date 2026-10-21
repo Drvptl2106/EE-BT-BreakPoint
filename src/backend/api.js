@@ -100,6 +100,7 @@ export function explain(status, data, where = 'data') {
     if (status === 429 || /rate limit/i.test(msg)) return 'Too many sign-in attempts. Wait a minute and try again.';
     if (/refresh token/i.test(msg) || code.startsWith('refresh_token')) return 'You were signed out. Sign in again.';
   }
+  if (code === 'P0001' && msg) return msg;                // our own rule messages from db/schema.sql are already plain English
   if (code === 'weak_password' || /password should|weak password/i.test(msg)) return 'That password is too weak. Use at least 8 characters, mixing letters and numbers.';
   if (code === 'same_password') return "That's your current password. Pick a new one.";
   if (/no running break/i.test(msg)) return 'That break was already closed on another screen. Showing the latest.';
@@ -320,7 +321,21 @@ export async function history(code, day) {
 /** Breakathon scores for the signed-in person's team between two days. Agents get names and points only. */
 export async function breakathon(from, to) {
   const rows = await call('/rest/v1/rpc/breakathon', { method: 'POST', body: { p_from: from, p_to: to } });
-  return rows.map(r => ({ code: r.code, name: r.name, breaks: r.breaks, onTime: r.on_time, cleanDays: r.clean_days, overMinutes: r.over_minutes, points: r.points }));
+  return rows.map(r => ({ code: r.code, name: r.name, breaks: r.breaks, onTime: r.on_time, cleanDays: r.clean_days, overMinutes: r.over_minutes, points: r.points, colour: r.colour, accessory: r.accessory }));
+}
+/* Mascots and prizes. The database checks every rule (claim once, only the champion, only wear what you unlocked). */
+const rpc = (fn, body = {}) => call(`/rest/v1/rpc/${fn}`, { method: 'POST', body });
+export const myRewards = () => rpc('my_rewards');
+export const claimReward = (choice, item) => rpc('claim_reward', { p_choice: choice, p_item: item ?? null });
+export const setLook = (colour, accessory) => rpc('set_look', { p_colour: colour, p_accessory: accessory });
+/** Managers: everyone's look { code: { colour, accessory } } and what each person picked for a week { code: { choice, item } }. */
+export async function teamLooks() {
+  const out = {}; (await call('/rest/v1/avatars?select=user_id,colour,accessory')).forEach(a => { if (idToCode[a.user_id]) out[idToCode[a.user_id]] = { colour: a.colour, accessory: a.accessory }; });
+  return out;
+}
+export async function teamRewards(week) {
+  const out = {}; (await call(`/rest/v1/rewards?select=user_id,choice,item&week=eq.${week}`)).forEach(a => { if (idToCode[a.user_id]) out[idToCode[a.user_id]] = { choice: a.choice, item: a.item }; });
+  return out;
 }
 /** Change the signed-in person's password. */
 export async function changePassword(password) {

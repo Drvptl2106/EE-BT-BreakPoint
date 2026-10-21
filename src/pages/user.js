@@ -1,10 +1,12 @@
 import { CONFIG } from '../config.js';
 import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js';
+import { myRewards, claimReward, setLook } from '../core.js';
 import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js';
 import { jokeFor } from '../jokes.js';
 import { esc, setHtml } from '../dom.js';
 import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js';
-import { raceHTML, placeRacers, wireRacers, avatar } from '../race.js';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js';
+import { toast } from '../chrome.js';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -75,7 +77,7 @@ function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new
   $('#sTaken').innerHTML=`${p.filter(s=>s.done).length} <small>of ${p.length}</small>`;$('#sUsed').innerHTML=`${Math.round(used/60)} <small>of ${tidy(allowed)} min</small>`;$('#sUsed').classList.toggle('bad',p.some(s=>s.over));
   if(end){const left=Math.max(0,(end-at)/1000),unused=p.reduce((a,s)=>a+(s.done?0:s.left),0);$('#sLeft').textContent=durHM(left);$('#sWork').textContent=durHM(Math.max(0,left-unused))}else{$('#sLeft').textContent='–';$('#sWork').textContent='–'}
   const j=jokeFor(at,r,pct);if($('#joke').textContent!==j.text){$('#joke').textContent=j.text;$('#pepK').textContent=j.kicker;const bb=$('#bubble');bb.classList.remove('pop');void bb.offsetWidth;bb.classList.add('pop')}
-  const act=p.find(s=>s.act),mood=act?(act.over>0?'worried':'sleepy'):pct>=100?'wow':'happy';if($('#buddy').dataset.mood!==mood+code){$('#buddy').dataset.mood=mood+code;$('#buddy').innerHTML=avatar(code,{mood})}
+  const act=p.find(s=>s.act),mood=act?(act.over>0?'worried':'sleepy'):pct>=100?'wow':'happy';const bk=mood+code+(mine?mine.colour+mine.accessory:'');if($('#buddy').dataset.mood!==bk){$('#buddy').dataset.mood=bk;$('#buddy').innerHTML=avatar(code,{mood,look:mine})}
   if(r.active){const i=p.findIndex(s=>s.key===r.active.slot),s=p[i],n=p[i+1],tot=s.allowed*60,left=tot-s.used,ratio=tot?left/tot:-1;
     const ph=left<=0?'over':ratio<=1/3?'red':ratio<=2/3?'amber':'green',sh=left>=0?Math.ceil(left):Math.floor(-left);
     $('#timerBox').className='dialog timer '+ph;$('#tName').textContent=`${s.label} · ${tidy(s.allowed)} min${s.used-(at-r.active.start)/1000>1?' (resumed)':''}`;$('#tDigits').textContent=(left<0?'−':'')+mmss(sh);
@@ -84,16 +86,27 @@ function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new
     document.title=`${left<0?'−':''}${mmss(sh)} · ${s.label}`}}
 
 /* ---------- Breakathon ---------- */
-let week=0,raceT=null;
+let week=0,raceT=null,mine=null,picking=false;
+async function loadMine(){try{mine=await myRewards(code)}catch{mine=null}tick();drawLook()}
+function drawLook(){if(tab!=='race')return;setHtml($('#prize'),prizeHTML(mine,picking));setHtml($('#look'),lookPanelHTML(code,mine,picking))}
+$('#prize').addEventListener('click',async e=>{const b=e.target.closest('[data-prize]');if(!b)return;const k=b.dataset.prize;
+  if(k==='look'||k==='cancel'){picking=k==='look';return drawLook()}
+  if(!confirm(`Take a ${CONFIG.breakathon.rewardMinutes} min extra break as your prize? Your team lead will add it to your day.`))return;
+  try{await claimReward(code,'break');toast('Prize claimed 🎉 Your team lead will add your extra break.')}catch(err){toast(err.message)}await loadMine();drawRace()});
+$('#look').addEventListener('click',async e=>{const b=e.target.closest('.sw');if(!b||b.disabled)return;
+  const kind=b.dataset.colour?'colour':'accessory',key=b.dataset.colour||b.dataset.accessory,item=(kind==='colour'?'colour:':'acc:')+key;
+  try{if(b.classList.contains('locked')){if(!picking)return;if(!confirm(`Unlock ${itemName(item)} as your prize? It's yours for good.`))return;await claimReward(code,'look',item);picking=false;toast(`You unlocked ${itemName(item)} 🎉`)}
+    else{const look={colour:mine?.colour||'teal',accessory:mine?.accessory||'none',[kind]:key};await setLook(code,look.colour,look.accessory)}}
+  catch(err){toast(err.message)}await loadMine();drawRace()});
 async function drawRace(){if(tab!=='race')return;try{
     const [rows,last]=await Promise.all([breakathon(weekOf(TODAY,week).from,weekOf(TODAY,week).to),breakathon(weekOf(TODAY,1).from,weekOf(TODAY,1).to)]);
     const champion=last[0]?.points>0?last[0]:null;
-    setHtml($('#race'),raceHTML({rows,me:code,isManager:false,champion}));placeRacers($('#race'))}
+    setHtml($('#race'),raceHTML({rows,me:code,isManager:false,champion,prize:champion?.code===code&&mine?{choice:mine.claimed,item:mine.claimed_item}:null}));placeRacers($('#race'));drawLook()}
   catch(err){$('#race').innerHTML=`<p class="empty">${esc(err.message)}</p>`}}
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);document.querySelectorAll('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 
 let t1,t2,clock,tabsReady=false;
-function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();if(rec().active)openTimer();
+function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();if(rec().active)openTimer();loadMine();
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});

@@ -147,8 +147,18 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .racer.me .tag{background:var(--ee-yellow);color:var(--accent-ink)}.racer.me .av{filter:drop-shadow(0 0 6px var(--ee-yellow))}
 .racer:hover,.racer:focus-visible,.racer.sel{z-index:5}.racer .tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:6px;background:var(--surface);color:var(--ink);border-radius:12px;padding:8px 10px;font-size:12.5px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.3);text-align:left}
 .racer:hover .tip,.racer:focus-visible .tip,.racer.sel .tip{display:block}.racer .tip b{font-size:14px}
+.prize{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--ee-yellow);color:var(--accent-ink);border-radius:18px;padding:14px 16px;margin-bottom:14px;font-size:15.5px}
+.prize.done{display:block;background:var(--teal-soft);color:var(--ink)}.prize .btn.ghost{color:var(--accent-ink);border-color:rgba(0,0,0,.25)}
+.lookgrid{display:grid;grid-template-columns:150px 1fr;gap:20px;align-items:center}@media(max-width:600px){.lookgrid{grid-template-columns:1fr}.lookprev{margin:0 auto}}
+.lookprev{width:140px;height:140px;animation:bob 2.4s ease-in-out infinite}.lookprev svg{width:100%;height:100%}
+.swatches{display:flex;flex-wrap:wrap;gap:10px}
+.sw{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:74px;padding:8px 4px 6px;border-radius:14px;border:2px solid var(--line);background:var(--surface);cursor:pointer}
+.sw small{font-size:11.5px;color:var(--muted)}.sw.on{border-color:var(--teal);background:var(--teal-soft)}.sw:disabled{cursor:not-allowed}.sw.locked>:not(i):not(small){opacity:.35;filter:grayscale(.7)}
+.sw i{position:absolute;top:4px;right:6px;font-style:normal;font-size:13px}.sw.pick{border-color:var(--ee-yellow);box-shadow:0 0 0 3px rgba(255,224,60,.45);animation:pop .5s}
+.sw .dot{width:34px;height:34px;border-radius:50%;box-shadow:inset -4px -5px 0 rgba(0,0,0,.15)}.sw .mini-av{width:40px;height:40px}.sw .mini-av svg{width:100%;height:100%}
+.arm-wave{transform-origin:14px 29px;animation:armwave 1.8s ease-in-out infinite}@keyframes armwave{0%,60%,100%{transform:rotate(0)}70%{transform:rotate(-14deg)}80%{transform:rotate(8deg)}90%{transform:rotate(-10deg)}}
 .rank tr.hl{outline:3px solid var(--ee-yellow);outline-offset:-3px}
 .rank td:first-child{font:800 18px var(--display);width:52px}.rank tr.me{background:var(--teal-soft)}.rank svg{width:30px;height:30px;vertical-align:middle;margin-right:6px}
 .seg2{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px}.seg2 button{border:0;background:transparent;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13.5px;font-weight:600}.seg2 button[aria-pressed=true]{background:var(--teal);color:#fff}
 @media(max-width:700px){.who{margin-left:0}.tabs{order:3;width:100%;justify-content:space-between}.tabs button{flex:1}}
-@media(prefers-reduced-motion:reduce){.ring-fg,.tube i,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.map .cloud,.map .wave,.map .flagw,.bubble.pop{animation:none}}
+@media(prefers-reduced-motion:reduce){.ring-fg,.tube i,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.arm-wave,.lookprev,.map .cloud,.map .wave,.map .flagw,.bubble.pop{animation:none}}
