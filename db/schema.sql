@@ -1,4 +1,4 @@
--- break.track database for Supabase (Postgres). Paste the whole file into the Supabase SQL editor and press Run.
+-- breakpoint database for Supabase (Postgres). Paste the whole file into the Supabase SQL editor and press Run.
 -- SAFE TO RE-RUN: on an empty project it creates everything; on a project that already has an older version it
 -- upgrades it in place (keeps the data, drops the old Breakathon parts, adds break names and the full audit trail).
 --

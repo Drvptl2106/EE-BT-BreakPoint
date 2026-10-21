@@ -1,7 +1,7 @@
 // Every adjustable value lives here, so IT can change behaviour without
 // hunting through the code. Nothing in this file is secret.
 export const CONFIG = {
-  appName: 'break.track',
+  appName: 'breakpoint',
 
   // Which implementations to plug in.
   // backend: 'fake' (data kept in this browser) -> 'api' when the database arrives (see docs/DATABASE.md)

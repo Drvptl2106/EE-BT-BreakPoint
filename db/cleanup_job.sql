@@ -1,4 +1,4 @@
--- Old-data cleanup for break.track. Run once in the Supabase SQL editor, AFTER db/schema.sql. Safe to re-run.
+-- Old-data cleanup for breakpoint. Run once in the Supabase SQL editor, AFTER db/schema.sql. Safe to re-run.
 -- Every night at 03:15 UTC it deletes everything older than 14 days (= CONFIG.retentionDays in src/config.js;
 -- if you change one, change the other). Deleting a shift also deletes its breaks.
 -- Needs the pg_cron extension. The first line switches it on; if that line fails, switch it on in

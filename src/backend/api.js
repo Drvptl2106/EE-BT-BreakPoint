@@ -1,4 +1,4 @@
-// Supabase backend for break.track. No library needed: this talks to Supabase's two
+// Supabase backend for breakpoint. No library needed: this talks to Supabase's two
 // plain web APIs (login + tables) with fetch, so the page security policy only needs
 // ONE extra allowed address (connect-src). Nothing here touches the page at import time,
 // so core.js still imports fine in Node for the tests.

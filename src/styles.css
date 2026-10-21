@@ -37,6 +37,11 @@ button,input,select{font:inherit;color:inherit}:focus-visible{outline:3px solid 
 @keyframes beat{0%{box-shadow:0 0 0 0 rgba(60,203,140,.7)}70%{box-shadow:0 0 0 8px rgba(60,203,140,0)}100%{box-shadow:0 0 0 0 rgba(60,203,140,0)}}
 
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:16px}
+.phead-r{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cust{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--teal);background:var(--teal-soft);color:var(--teal);border-radius:999px;padding:3px 14px 3px 4px;font:700 13.5px var(--body);cursor:pointer;transition:transform .15s}
+.cust:hover{transform:translateY(-1px) rotate(-1deg)}.cust:hover .cust-av{animation:wiggle .6s ease-in-out}
+.cust-av{width:30px;height:30px;display:inline-block;margin-top:-6px}.cust-av svg{width:100%;height:100%}
+@keyframes wiggle{25%{transform:rotate(-10deg)}50%{transform:rotate(8deg) translateY(-2px)}75%{transform:rotate(-4deg)}}
 .phead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .btn{border:0;border-radius:12px;padding:10px 16px;background:var(--ink);color:var(--surface);font-weight:700;cursor:pointer;white-space:nowrap}
 .btn.teal{background:var(--teal);color:#fff}.btn.yellow{background:var(--ee-yellow);color:var(--accent-ink)}.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
@@ -158,7 +163,7 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .rank td:first-child{font:800 18px var(--display);width:52px}.rank tr.me{background:var(--teal-soft)}.rank svg{width:30px;height:30px;vertical-align:middle;margin-right:6px}
 .seg2{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px}.seg2 button{border:0;background:transparent;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13.5px;font-weight:600}.seg2 button[aria-pressed=true]{background:var(--teal);color:#fff}
 @media(max-width:700px){.who{margin-left:0}.tabs{order:3;width:100%;justify-content:space-between}.tabs button{flex:1}}
-@media(prefers-reduced-motion:reduce){.ring-fg,.tube i,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.arm-wave,.lookprev,.map .cloud,.map .coin,.map .star,.pep.pop p{animation:none}}
+@media(prefers-reduced-motion:reduce){.ring-fg,.tube i,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.arm-wave,.lookprev,.map .cloud,.map .coin,.map .star,.pep.pop p,.cust:hover .cust-av{animation:none}.cust{transition:none}}
 
 /* ================= manager page: a calmer, more formal look (body.mgr) =================
    Same colours, less decoration: white header with underline tabs, smaller corners, one typeface, tables over cards,
