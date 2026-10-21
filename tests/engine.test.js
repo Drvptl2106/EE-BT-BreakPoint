@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CONFIG } from '../src/config.js';
-import { plan, slotsFor, labelFor, cleanName, dayKey, weekScore, weekOf, statusOf, teamPulse, FILTERS } from '../src/core.js';
+import { version } from '../scripts/stamp.mjs';
+const V = version();   // the same module URLs the pages use (see scripts/stamp.mjs)
+const { CONFIG } = await import('../src/config.js?v=' + V);
+const { plan, slotsFor, labelFor, cleanName, dayKey, weekScore, weekOf, statusOf, teamPulse, FILTERS } = await import('../src/core.js?v=' + V);
 
 const MIN = 60000, NOW = new Date(2026, 9, 14, 15, 0).getTime();   // Wed 14 Oct 2026, 15:00 local
 const TODAY = dayKey(new Date(NOW));

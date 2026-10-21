@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js';
-import { myRewards, claimReward, setLook } from '../core.js';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js';
-import { jokeFor } from '../jokes.js';
-import { esc, setHtml } from '../dom.js';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js';
-import { toast } from '../chrome.js';
+import { CONFIG } from '../config.js?v=30c8b36143';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=30c8b36143';
+import { myRewards, claimReward, setLook } from '../core.js?v=30c8b36143';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=30c8b36143';
+import { jokeFor } from '../jokes.js?v=30c8b36143';
+import { esc, setHtml } from '../dom.js?v=30c8b36143';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=30c8b36143';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=30c8b36143';
+import { toast } from '../chrome.js?v=30c8b36143';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -18,7 +18,7 @@ function showGate(){$('#gate').classList.remove('hidden');$('#app').classList.ad
 $('#gateForm').addEventListener('submit',async e=>{e.preventDefault();const c=$('#code').value.trim().toUpperCase();
   if(API){const btn=e.submitter;if(btn)btn.disabled=true;try{const m=await signIn(c,$('#pw').value);if(m.role!=='agent'){await signOut();$('#gateErr').textContent="That's a manager code. Team leads sign in on the manager page (link below).";return}code=m.code;$('#pw').value='';$('#gateErr').textContent='';boot()}catch(err){$('#gateErr').textContent=err.message}finally{if(btn)btn.disabled=false}return}
   if(!USERS[c]){$('#gateErr').textContent=MANAGER_CODES[c]?"That's a manager code. Team leads sign in on the manager page (link below).":"That code isn't on the pilot list. Check it with your team lead.";return}code=c;localStorage.setItem(SESSION,c);$('#gateErr').textContent='';boot()});
-$('#signout').addEventListener('click',async()=>{localStorage.removeItem(SESSION);code=null;closeTimer();await signOut();showGate()});
+$('#signout').addEventListener('click',async()=>{localStorage.removeItem(SESSION);code=null;document.title='breakpoint';await signOut();showGate()});
 
 /* ---------- changes ---------- */
 function ensureRec(){db=load();purge(db);const d=(db.days[TODAY]??={});if(!d[code])d[code]={name:USERS[code],shiftStart:Math.floor(now()/60000)*60000,shiftEnd:null,breaks:[],active:null};save(db)}
@@ -26,31 +26,42 @@ function commit(fn){db=load();const r=db.days[TODAY]?.[code];if(r)fn(r);save(db)
 $('#startIn').addEventListener('change',e=>{if(!e.target.value)return;commit(r=>{r.shiftStart=atTime(e.target.value,now());if(r.shiftEnd&&r.shiftEnd<=r.shiftStart)r.shiftEnd+=864e5})});
 $('#endIn').addEventListener('change',e=>{if(!e.target.value)return;commit(r=>{let t=atTime(e.target.value,r.shiftStart);if(t<=r.shiftStart)t+=864e5;r.shiftEnd=t})});
 document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>commit(r=>{r.shiftEnd=r.shiftStart+Number(c.dataset.len)*36e5})));
-$('#bars').addEventListener('click',e=>{const b=e.target.closest('button[data-slot]');if(!b)return;if(rec().active?.slot!==b.dataset.slot)commit(r=>{r.active={slot:b.dataset.slot,start:now()}});openTimer()});
-$('#tStop').addEventListener('click',()=>endBreak(false));
+$('#bars').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='tStop')return endBreak(false);
+  if(b.dataset.slot&&rec().active?.slot!==b.dataset.slot){commit(r=>{r.active={slot:b.dataset.slot,start:now()}});toast('Break started. Enjoy it, the timer is running.')}});
 function endBreak(auto){const a=rec()?.active;if(!a)return;const key=a.slot;
   commit(r=>{const x=r.active;if(!x)return;r.breaks.push({slot:x.slot,start:x.start,end:auto?x.start+CONFIG.forgotToStopMinutes*6e4:now(),...(auto?{flag:'forgot'}:{})});r.active=null});
-  closeTimer();showResult(key,auto)}
+  document.title='breakpoint';showResult(key,auto)}
+/* after a break: a short message that doesn't get in the way */
 function showResult(key,auto){const p=P(now()),i=p.findIndex(s=>s.key===key),s=p[i],n=p[i+1];let body;
-  if(auto)body=`Your break was left running for ${CONFIG.forgotToStopMinutes} minutes, so we closed it automatically. Your manager will see it flagged.`;
-  else if(s.over>0)body=`You used your full ${tidy(s.allowed)} min of ${s.label}, plus ${fmtMin(s.over)} over. `+(n?`That's come off ${n.label}, which is now ${tidy(n.allowed)} min. Sorry mate, hope you don't mind.`:'There\'s no later break to take it from, so it\'s been noted for your manager.');
-  else if(s.left>=10)body=`${tidy(s.used/60)} of ${tidy(s.allowed)} min used. You still have ${fmtMin(s.left)} of ${s.label}. Hit Resume whenever`;
-  else body='Right on time. Nicely done';
-  $('#rTitle').textContent=s.done?`${s.label} done`:`${s.label} paused`;$('#rBody').textContent=body;$('#resOv').classList.remove('hidden');$('#rOk').focus()}
-$('#rOk').addEventListener('click',()=>$('#resOv').classList.add('hidden'));
-function openTimer(){$('#timerOv').classList.remove('hidden');$('#tStop').focus();tick()}
-function closeTimer(){$('#timerOv').classList.add('hidden');document.title='breakpoint'}
+  if(auto)body=`Your break was left running for ${CONFIG.forgotToStopMinutes} minutes, so we closed it. Your manager will see it flagged.`;
+  else if(s.over>0)body=`${s.label}: ${fmtMin(s.over)} over. `+(n?`That's come off ${n.label}, which is now ${tidy(n.allowed)} min. Sorry mate.`:'There was no later break to take it from, so your manager will see it.');
+  else if(s.left>=10)body=`Welcome back. You still have ${fmtMin(s.left)} of ${s.label} for later.`;
+  else body=`Welcome back. ${s.label} done, right on time.`;
+  toast(body,7000)}
 
-/* ---------- the break bars (one per break, including any OH break the manager adds) ---------- */
+/* ---------- the break bars: one row per break (plus any OH break the manager adds). The running one grows and talks. ---------- */
+function liveLine(s,n,at){const left=s.allowed*60-s.used,m=Math.floor(s.used/60);
+  if(left<=0)return n?`${fmtMin(-left)} over. That's coming off ${n.label}. Leg it!`:`${fmtMin(-left)} over. There's no break after this to take it from, so your manager will see it.`;
+  if(left<=60)return 'Under a minute left. Put the biscuit down and head back.';
+  if(left<=s.allowed*60/3)return `${m} min done, only ${Math.ceil(left/60)} left. Start heading back.`;
+  if(s.used<60)return "Clock's running. Enjoy it, you've earned it.";
+  return `${m} min done, ${Math.ceil(left/60)} min to go. Back at ${hhmm(at+left*1000)}.`}
 function renderBars(at){const r=rec(),p=P(at),anyA=!!r.active;
   const tot=p.reduce((a,s)=>a+s.base,0),used=p.reduce((a,s)=>a+s.used,0);
   $('#brkSum').textContent=`${Math.round(used/60)} of ${tidy(tot)} min used today`;
   setHtml($('#bars'),p.map((s,i)=>{
-    const fill=s.allowed>0?Math.min(100,s.used/(s.allowed*60)*100):(s.used>0?100:0);
-    const st=s.act?(s.over?`+${fmtMin(s.over)} over`:`In progress · ${Math.ceil(s.left/60)} min left`):s.done?(s.over?`Done · +${fmtMin(s.over)} over`:'Done'):s.used>0?`Paused · ${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
-    const src=p.slice(0,i).reverse().find(x=>x.over>0),note=s.deducted>0&&src?`<small>${esc(s.label)} is ${tidy(s.allowed)} min because ${esc(src.label)} ran ${fmtMin(src.over)} over. Sorry mate.</small>`:s.adjust?`<small class="mgr">${s.adjust>0?'+':''}${s.adjust} min from your manager</small>`:'';
-    const btn=s.act?`<button class="btn teal" data-slot="${s.key}">Open timer</button>`:s.done||s.allowed<=0?`<button class="btn ghost" disabled>${s.allowed<=0?'No time left':'Done'}</button>`:`<button class="btn yellow" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
-    return `<div class="bcol${s.act?' live':''}"><b>${esc(s.label)}</b><div class="tube${s.over?' over':''}" role="meter" aria-label="${esc(s.label)}: ${Math.round(s.used/60)} of ${tidy(s.allowed)} minutes used" aria-valuemin="0" aria-valuemax="${tidy(s.allowed)}" aria-valuenow="${Math.min(tidy(s.allowed),Math.round(s.used/60))}"><i style="height:${fill}%"></i><span class="mins">${Math.floor(s.used/60)}/${tidy(s.allowed)}</span></div><div class="st">${st}</div>${note}${btn}</div>`}).join(''))}
+    const cap=Math.max(s.allowed*60,1),fill=s.allowed>0?Math.min(100,s.used/cap*100):(s.used>0?100:0),over=s.over>0;
+    const src=p.slice(0,i).reverse().find(x=>x.over>0),note=s.deducted>0&&src?`<small class="bad">${tidy(s.allowed)} min today because ${esc(src.label)} ran ${fmtMin(src.over)} over. Sorry mate.</small>`:s.adjust?`<small>${s.adjust>0?'+':''}${s.adjust} min from your manager</small>`:'';
+    if(s.act){const left=s.allowed*60-s.used,sh=left>=0?Math.ceil(left):Math.floor(-left);
+      return `<div class="brow on${over?' over':''}"><div class="bl"><b>${esc(s.label)}</b><span>${tidy(s.allowed)} min</span></div>
+        <div class="btrack big" role="timer" aria-label="${esc(s.label)}: ${left>=0?mmss(sh)+' left':mmss(sh)+' over'}"><i style="width:${over?100:fill}%"></i><span class="bt">${left<0?'−':''}${mmss(sh)} <small>${left>=0?'left':'over'}</small></span><span class="bu">${mmss(s.used)} / ${mmss(s.allowed*60)}</span></div>
+        <div class="br"><button class="btn teal" id="tStop">I'm back</button></div><p class="say">${esc(liveLine(s,p[i+1],at))}</p></div>`}
+    const st=s.done?(over?`Done · +${fmtMin(s.over)} over`:'Done'):s.used>0?`${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
+    const btn=s.done||s.allowed<=0?`<button class="btn ghost sm" disabled>${s.allowed<=0?'No time left':'Done'}</button>`:`<button class="btn yellow sm" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
+    return `<div class="brow${s.done?' done':''}${over?' over':''}"><div class="bl"><b>${esc(s.label)}</b><span>${st}</span></div>
+      <div class="btrack" role="meter" aria-label="${esc(s.label)}: ${Math.round(s.used/60)} of ${tidy(s.allowed)} minutes used" aria-valuemin="0" aria-valuemax="${tidy(s.allowed)}" aria-valuenow="${Math.min(tidy(s.allowed),Math.round(s.used/60))}"><i style="width:${fill}%"></i><span class="bu">${Math.floor(s.used/60)} / ${tidy(s.allowed)} min</span></div>
+      <div class="br">${btn}</div>${note?`<p class="say">${note}</p>`:''}</div>`}).join(''))}
 
 /* ---------- the shift pie: worked, breaks, over and still to go, with the time ticking to the second ---------- */
 const C=2*Math.PI*90,arc=(a,b,col)=>b>a?`<circle cx="110" cy="110" r="90" stroke="${col}" stroke-dasharray="${(b-a)*C} ${C}" stroke-dashoffset="${-a*C}"/>`:'';
@@ -78,12 +89,7 @@ function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new
   if(end){const left=Math.max(0,(end-at)/1000),unused=p.reduce((a,s)=>a+(s.done?0:s.left),0);$('#sLeft').textContent=durHM(left);$('#sWork').textContent=durHM(Math.max(0,left-unused))}else{$('#sLeft').textContent='–';$('#sWork').textContent='–'}
   const j=jokeFor(at,r,pct);if($('#joke').textContent!==j.text){$('#joke').textContent=j.text;$('#pepK').textContent=j.kicker;const bb=$('#bubble');bb.classList.remove('pop');void bb.offsetWidth;bb.classList.add('pop')}
   
-  if(r.active){const i=p.findIndex(s=>s.key===r.active.slot),s=p[i],n=p[i+1],tot=s.allowed*60,left=tot-s.used,ratio=tot?left/tot:-1;
-    const ph=left<=0?'over':ratio<=1/3?'red':ratio<=2/3?'amber':'green',sh=left>=0?Math.ceil(left):Math.floor(-left);
-    $('#timerBox').className='dialog timer '+ph;$('#tName').textContent=`${s.label} · ${tidy(s.allowed)} min${s.used-(at-r.active.start)/1000>1?' (resumed)':''}`;$('#tDigits').textContent=(left<0?'−':'')+mmss(sh);
-    $('#ringFg').style.strokeDashoffset=565.49*(1-Math.max(0,Math.min(1,ratio)));$('#tPhase').textContent={green:'Plenty of time',amber:'Getting there',red:'Nearly up',over:'Over your break'}[ph];
-    $('#tSub').textContent=left<0?(n?`${fmtMin(-left)} over so far. It will come off ${n.label}.`:`${fmtMin(-left)} over so far. Your manager will see this.`):`Back at ${hhmm(at+left*1000)}. Back early? You can resume later.`;
-    document.title=`${left<0?'−':''}${mmss(sh)} · ${s.label}`}}
+  if(r.active){const s=p.find(x=>x.act),left=s.allowed*60-s.used,sh=left>=0?Math.ceil(left):Math.floor(-left);document.title=`${left<0?'−':''}${mmss(sh)} · ${s.label}`}}
 
 /* ---------- Breakathon ---------- */
 let week=0,raceT=null,mine=null,picking=false;
@@ -109,7 +115,7 @@ async function drawRace(){if(tab!=='race')return;try{
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);document.querySelectorAll('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 
 let t1,t2,clock,tabsReady=false;
-function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();if(rec().active)openTimer();loadMine();
+function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();loadMine();
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;showTab=setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});

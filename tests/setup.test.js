@@ -2,9 +2,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { CONFIG } from '../src/config.js';
-import { settings, checkSetup, explain } from '../src/backend/api.js';
 import { parsePeople, newPassword, simplePassword } from '../scripts/create_logins.mjs';
+import { version } from '../scripts/stamp.mjs';
+const V = version();   // the same module URLs the pages use (see scripts/stamp.mjs)
+const { CONFIG } = await import('../src/config.js?v=' + V);
+const { settings, checkSetup, explain } = await import('../src/backend/api.js?v=' + V);
 
 const PAGES = ['index.html', 'manager.html'];
 const cspOf = html => html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
@@ -91,4 +93,9 @@ test('trial passwords follow the code number and are long enough for Supabase', 
   const pilot = parsePeople(readFileSync('db/people.pilot.csv', 'utf8'));
   assert.equal(pilot.filter(p => p.role === 'agent').length, 15);
   assert.ok(pilot.some(p => p.role === 'manager'));
+});
+
+test('every page and import carries the current version stamp (run npm run stamp after a change)', async () => {
+  const { FILES, stamped } = await import('../scripts/stamp.mjs');
+  for (const f of FILES) assert.equal(readFileSync(f, 'utf8'), stamped(f, readFileSync(f, 'utf8'), V), `${f} is out of date: run npm run stamp`);
 });

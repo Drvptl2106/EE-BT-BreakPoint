@@ -38,9 +38,9 @@ button,input,select{font:inherit;color:inherit}:focus-visible{outline:3px solid 
 
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:16px}
 .phead-r{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.cust{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--teal);background:var(--teal-soft);color:var(--teal);border-radius:999px;padding:3px 14px 3px 4px;font:700 13.5px var(--body);cursor:pointer;transition:transform .15s}
+.cust{display:inline-grid;place-items:center;width:42px;height:42px;border:2px solid var(--teal);background:var(--teal-soft);border-radius:50%;padding:0;cursor:pointer;transition:transform .15s}
 .cust:hover{transform:translateY(-1px) rotate(-1deg)}.cust:hover .cust-av{animation:wiggle .6s ease-in-out}
-.cust-av{width:30px;height:30px;display:inline-block;margin-top:-6px}.cust-av svg{width:100%;height:100%}
+.cust-av{width:32px;height:32px;display:block;margin-top:-4px}.cust-av svg{width:100%;height:100%}
 @keyframes wiggle{25%{transform:rotate(-10deg)}50%{transform:rotate(8deg) translateY(-2px)}75%{transform:rotate(-4deg)}}
 .phead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .btn{border:0;border-radius:12px;padding:10px 16px;background:var(--ink);color:var(--surface);font-weight:700;cursor:pointer;white-space:nowrap}
@@ -54,17 +54,29 @@ h2{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:-.01
 .gate .mark span{color:var(--teal)}
 .gate input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:18px;margin-bottom:12px}
 
-/* ---- agent: break bars ---- */
-.bars{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;align-items:end}
-.bcol{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:12px 8px;border-radius:16px;border:1px solid transparent}
-.bcol.live{border-color:var(--ee-aqua);background:var(--teal-soft)}
-.bcol b{font-size:16px;line-height:1.2}.bcol .st{font-size:13px;color:var(--muted);min-height:20px}
-.tube{position:relative;width:64px;height:170px;border-radius:16px;background:var(--line);overflow:hidden}
-.tube i{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,var(--ee-aqua),var(--teal));border-radius:0 0 16px 16px;transition:height .6s}
-.tube.over{box-shadow:0 0 0 3px var(--stop)}.tube.over i{background:linear-gradient(180deg,var(--stop),var(--over))}
-.tube .mins{position:absolute;inset:auto 0 8px;font:800 15px var(--display);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}
-.bcol small{display:block;font-size:12.5px;color:var(--stop);text-align:left}.bcol small.mgr{color:var(--muted)}
-.bcol .btn{width:100%;margin-top:auto}
+/* ---- agent: break bars (horizontal; the running one grows into a loading bar) ---- */
+.bars{display:flex;flex-direction:column;gap:12px}
+.brow{display:grid;grid-template-columns:118px 1fr 112px;grid-template-areas:"l t b" "s s s";align-items:center;gap:6px 14px;padding:10px 12px;border-radius:14px;border:1px solid transparent;transition:background .3s,border-color .3s}
+.brow .bl{grid-area:l;display:flex;flex-direction:column;line-height:1.25}.brow .bl b{font-size:15.5px}.brow .bl span{font-size:12.5px;color:var(--muted)}
+.brow .br{grid-area:b}.brow .br .btn{width:100%}
+.brow .say{grid-area:s;margin:0;font-size:13.5px;color:var(--muted)}.brow .say small{font-size:inherit}.brow .say .bad{color:var(--stop)}
+.btrack{grid-area:t;position:relative;height:22px;border-radius:999px;background:var(--line);overflow:hidden}
+.btrack i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--ee-aqua),var(--teal));border-radius:999px;transition:width .6s}
+.btrack .bu{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:700 12px var(--body);color:var(--ink);opacity:.8}
+.brow.done .btrack i{opacity:.55}
+.brow.over .btrack i{background:linear-gradient(90deg,var(--stop),var(--over))}
+.brow.on{border-color:var(--ee-aqua);background:var(--teal-soft);padding:14px}
+.brow.on .bl b{font-size:17px}
+.btrack.big{height:46px;border-radius:12px;box-shadow:inset 0 0 0 2px var(--teal)}
+.btrack.big i{border-radius:10px;background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.22) 0 12px,transparent 12px 24px),linear-gradient(90deg,var(--ee-aqua),var(--teal));background-size:34px 34px,100% 100%;animation:load 1s linear infinite}
+.brow.over .btrack.big{box-shadow:inset 0 0 0 2px var(--stop)}
+.brow.over .btrack.big i{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.2) 0 12px,transparent 12px 24px),linear-gradient(90deg,var(--stop),var(--over))}
+@keyframes load{to{background-position:34px 0,0 0}}
+.btrack .bt{position:absolute;left:8px;top:50%;transform:translateY(-50%);font:800 21px var(--display);color:var(--ink);background:var(--surface);padding:1px 10px;border-radius:8px;font-variant-numeric:tabular-nums}.brow.over .btrack .bt{color:var(--stop)}
+.btrack .bt small{font:600 12px var(--body);color:var(--muted)}
+.btrack.big .bu{font-size:12.5px;right:8px;background:var(--surface);padding:3px 8px;border-radius:7px;opacity:1}
+.brow.on .say{font-size:14.5px;font-weight:600;color:var(--ink)}.brow.on.over .say{color:var(--stop)}
+@media(max-width:560px){.brow{grid-template-columns:1fr auto;grid-template-areas:"l b" "t t" "s s"}.brow .br .btn{width:auto}}
 
 /* ---- agent: shift pie + motivation ---- */
 .shiftgrid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(240px,1fr);gap:22px;align-items:center}
@@ -163,7 +175,7 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .rank td:first-child{font:800 18px var(--display);width:52px}.rank tr.me{background:var(--teal-soft)}.rank svg{width:30px;height:30px;vertical-align:middle;margin-right:6px}
 .seg2{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px}.seg2 button{border:0;background:transparent;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13.5px;font-weight:600}.seg2 button[aria-pressed=true]{background:var(--teal);color:#fff}
 @media(max-width:700px){.who{margin-left:0}.tabs{order:3;width:100%;justify-content:space-between}.tabs button{flex:1}}
-@media(prefers-reduced-motion:reduce){.ring-fg,.tube i,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.arm-wave,.lookprev,.map .cloud,.map .coin,.map .star,.pep.pop p,.cust:hover .cust-av{animation:none}.cust{transition:none}}
+@media(prefers-reduced-motion:reduce){.ring-fg,.btrack i,.brow,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.arm-wave,.lookprev,.map .cloud,.map .coin,.map .star,.pep.pop p,.cust:hover .cust-av,.btrack.big i{animation:none}.cust{transition:none}}
 
 /* ================= manager page: a calmer, more formal look (body.mgr) =================
    Same colours, less decoration: white header with underline tabs, smaller corners, one typeface, tables over cards,

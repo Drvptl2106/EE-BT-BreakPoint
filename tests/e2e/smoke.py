@@ -40,14 +40,16 @@ with sync_playwright() as p:
     m.click('#dClose')
 
     # ---- agent: break bars (the OH break is a new bar), shift pie ticking, pep talk ----
-    pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .bcol')
-    ok(pg.locator('#bars .bcol').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as its own bar')
+    pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .brow')
+    ok(pg.locator('#bars .brow').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as its own bar')
     ok(pg.input_value('#endIn') == '23:30', 'agent sees the shift end the manager set')
     w1 = pg.text_content('#worked'); pg.wait_for_timeout(1100)
     ok(w1 != pg.text_content('#worked'), 'shift clock ticks every second')
     ok(len(pg.text_content('#joke')) > 10, 'pep talk shown')
-    pg.click('#bars button[data-slot="break2"]'); pg.wait_for_timeout(1200); pg.click('#tStop')
-    ok(pg.is_visible('#resOv'), 'ending a break shows the result'); pg.click('#rOk')
+    pg.click('#bars button[data-slot="break2"]'); pg.wait_for_timeout(1200)
+    ok(pg.locator('#bars .brow.on .btrack.big').count() == 1 and pg.is_visible('[data-tab="race"]'), 'a running break grows in its own row, the rest of the page stays usable')
+    pg.click('#tStop')
+    ok(pg.locator('#bars .brow.on').count() == 0 and pg.is_visible('#toast'), 'ending a break shows the result as a note')
     ok(pg.inner_text('#bars button[data-slot="break2"]') == 'Resume', 'a part-used break can be resumed')
 
     # ---- Breakathon on both pages ----
