@@ -98,27 +98,37 @@ export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
 }
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
 
-/* ---------------- the world map ----------------
-   A simple overworld like an old platform game: three islands with cliff edges, a dotted path and numbered level stops
-   from START to the castle. Every CONFIG.breakathon.pointsPerLevel points clears a level; everyone stands on the level
-   they have reached, so you can see the standings at a glance. A stop turns red once anyone has cleared it. */
-const ROAD = 'M70 392 C150 400 200 330 250 318 S350 352 420 330 S470 240 540 236 S650 284 700 236 S730 150 800 140 S880 128 905 96';
-const ISLANDS = [
-  'M28 330Q40 268 140 280L300 286Q385 270 452 300Q484 342 444 382L420 428Q300 444 160 440Q40 440 28 400Z',
-  'M478 228Q500 172 600 188L702 198Q762 204 762 250Q766 300 702 310L560 316Q484 312 478 270Z',
-  'M772 140Q768 66 862 58Q962 48 976 110Q986 170 930 186L820 192Q772 186 772 140Z',
+/* ---------------- the climb ----------------
+   A simple platform-game level: grassy platforms zig-zag up the screen, joined by ladders, with a star at the top.
+   Every CONFIG.breakathon.pointsPerLevel points lifts you one platform; the top platform (level CONFIG.breakathon.levels)
+   is a perfect week. Everyone stands on the platform they have reached, so the highest one is winning. */
+const VB_H = 640;
+const PLATFORMS = [   // one per level, bottom to top: x, y = top of the grass, w = width. Each overlaps the next, for its ladder.
+  { x: 30, y: 590, w: 300 }, { x: 250, y: 528, w: 230 }, { x: 420, y: 466, w: 230 }, { x: 590, y: 404, w: 230 },
+  { x: 730, y: 342, w: 230 }, { x: 560, y: 280, w: 230 }, { x: 360, y: 218, w: 250 }, { x: 170, y: 156, w: 250 }, { x: 40, y: 92, w: 330 },
 ];
-const tree = (x, y) => `<g transform="translate(${x} ${y})"><rect x="-2.5" y="2" width="5" height="9" rx="1.5" fill="#7A4A26"/><circle r="10" fill="#2E9E4F"/><circle cx="-3.5" cy="-3.5" r="3.5" fill="#fff" opacity=".22"/></g>`;
-const MAP = `<svg viewBox="0 -50 1000 510" aria-hidden="true">
-  <rect y="-50" width="1000" height="510" fill="#4FA3E0"/>
-  ${[[60, -10], [300, 40], [620, 10], [520, 400], [880, 300], [180, 220], [960, 420], [700, 380]].map(([x, y]) => `<path d="M${x} ${y}q6-5 12 0t12 0" stroke="#A9D6F5" stroke-width="2.5" fill="none" stroke-linecap="round"/>`).join('')}
-  ${ISLANDS.map(d => `<path d="${d}" fill="#B5743E" transform="translate(0 26)"/><path d="${d}" fill="#D08A4C" transform="translate(0 13)"/>`).join('')}
-  ${ISLANDS.map(d => `<path d="${d}" fill="#6CC04A"/><path d="${d}" fill="none" stroke="#4E9E33" stroke-width="3"/>`).join('')}
-  <path d="M460 270l44-22M462 288l44-22" stroke="#7A4A26" stroke-width="4"/><path d="M466 266l6 16M478 260l6 16M490 254l6 16" stroke="#A86B3C" stroke-width="5"/>
-  <path d="M752 186l34-30M766 196l34-30" stroke="#7A4A26" stroke-width="4"/><path d="M762 180l8 12M772 171l8 12M782 162l8 12" stroke="#A86B3C" stroke-width="5"/>
-  ${[[110, 425], [330, 418], [200, 300], [380, 300], [620, 300], [735, 285], [950, 160], [830, 178], [520, 210]].map(([x, y]) => tree(x, y)).join('')}
-  <path id="road" d="${ROAD}" stroke="#F7E7B4" stroke-width="12" fill="none" stroke-linecap="round" opacity=".55"/>
-  <path d="${ROAD}" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray=".1 13"/>
+const platform = ({ x, y, w }, i) => `<g>
+  <rect x="${x}" y="${y + 6}" width="${w}" height="${i ? 30 : 50}" rx="6" fill="#8B5A2B"/>
+  <path d="M${x + 8} ${y + 20}h${w - 16}M${x + 8} ${y + 30}h${w - 16}" stroke="#6E4520" stroke-width="2" stroke-dasharray="14 10"/>
+  <rect x="${x - 3}" y="${y}" width="${w + 6}" height="11" rx="5.5" fill="#5DBB3F"/><rect x="${x + 4}" y="${y + 1.5}" width="${w - 8}" height="3" rx="1.5" fill="#8FDB5F"/>
+  ${[.18, .62].map(t => `<path d="M${x + w * t} ${y}l3-8 2 8 3-6 2 6z" fill="#4EA334"/>`).join('')}</g>`;
+const ladder = (x, top, bottom) => `<g stroke="#C98B3C" stroke-width="4" stroke-linecap="round"><path d="M${x - 9} ${top}V${bottom}M${x + 9} ${top}V${bottom}"/>
+  ${[...Array(Math.max(1, Math.floor((bottom - top) / 13)))].map((_, k) => `<path d="M${x - 9} ${top + 9 + k * 13}h18"/>`).join('')}</g>`;
+/* a ladder from each platform down to the one below, where they overlap (or at the nearer end) */
+const LADDERS = PLATFORMS.slice(1).map((up, i) => { const lo = PLATFORMS[i], l = Math.max(up.x, lo.x) + 20, r = Math.min(up.x + up.w, lo.x + lo.w) - 20;
+  const x = l <= r ? (l + r) / 2 : (up.x > lo.x ? up.x + 16 : up.x + up.w - 16); return ladder(x, up.y + 8, lo.y + 2); }).join('');
+const coin = (x, y, d) => `<g transform="translate(${x} ${y})"><g class="coin" style="animation-delay:-${d}s"><ellipse rx="7" ry="9" fill="#FFC928" stroke="#C98A00" stroke-width="2"/><rect x="-1.4" y="-4.5" width="2.8" height="9" rx="1.4" fill="#FFE98A"/></g></g>`;
+const cloud = (x, y, s, cls = '') => `<g class="cloud ${cls}" transform="translate(${x} ${y}) scale(${s})"><ellipse rx="40" ry="14" fill="#fff"/><ellipse cx="-18" cy="-8" rx="20" ry="13" fill="#fff"/><ellipse cx="16" cy="-10" rx="24" ry="15" fill="#fff"/></g>`;
+const MAP = `<svg viewBox="0 0 1000 ${VB_H}" aria-hidden="true">
+  <defs><linearGradient id="bt-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#47B4F0"/><stop offset="1" stop-color="#BFE8FF"/></linearGradient></defs>
+  <rect width="1000" height="${VB_H}" fill="url(#bt-sky)"/>
+  <path d="M0 520Q120 440 240 500T480 480T720 470T1000 450V640H0z" fill="#9ED6F2"/><path d="M0 570Q160 510 300 560T620 540T1000 530V640H0z" fill="#7CC7E8"/>
+  ${cloud(150, 70, 1)}${cloud(470, 40, .8, 'c2')}${cloud(860, 300, .7)}${cloud(250, 260, .6, 'c2')}
+  ${LADDERS}${PLATFORMS.map(platform).join('')}
+  ${PLATFORMS.slice(1, -1).map((p, i) => [.12, .24].map((t, k) => coin(p.x + p.w * t, p.y - 22, (i + k) * .3)).join('')).join('')}${[.35, .5, .65].map((t, k) => coin(PLATFORMS.at(-1).x + PLATFORMS.at(-1).w * t, PLATFORMS.at(-1).y - 24, k * .3)).join('')}
+  <g transform="translate(${PLATFORMS[0].x + 22} ${PLATFORMS[0].y})"><rect x="-2.5" y="-34" width="5" height="34" fill="#7A4A26"/><path d="M-20-40h36l8 8-8 8h-36z" fill="#FFC928" stroke="#A8730A" stroke-width="2"/><text x="0" y="-27" text-anchor="middle" font-size="11" font-weight="800" fill="#5A3A00">START</text></g>
+  <g transform="translate(${PLATFORMS.at(-1).x + PLATFORMS.at(-1).w - 40} ${PLATFORMS.at(-1).y})"><rect x="-2" y="-78" width="4" height="78" fill="#555"/><path d="M2-78h26l-7 8 7 8H2z" fill="#E84B4B"/></g>
+  <g transform="translate(${PLATFORMS.at(-1).x + PLATFORMS.at(-1).w / 2} ${PLATFORMS.at(-1).y - 62})"><g class="star"><circle r="26" fill="#FFF3A8" opacity=".55"/><path d="M0-17l5 10.5 11.5 1.5-8.5 8 2 11.5L0 8.5-10 14l2-11.5-8.5-8 11.5-1.5z" fill="#FFD84A" stroke="#C98A00" stroke-width="2" stroke-linejoin="round"/></g></g>
   <g id="stops"></g>
 </svg>`;
 const levelOf = points => Math.min(CONFIG.breakathon.levels, Math.floor(Math.max(0, points) / CONFIG.breakathon.pointsPerLevel));
@@ -138,28 +148,25 @@ export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
     const lv = levelOf(r.points), k = (onLevel[lv] = (onLevel[lv] || 0) + 1) - 1, toNext = lv >= B.levels ? 0 : (lv + 1) * B.pointsPerLevel - r.points;
     return `<button class="racer${r.code === me ? ' me' : ''}" data-lv="${lv}" data-k="${k}" data-code="${esc(r.code)}" style="left:7%;top:85%" aria-label="${esc(r.name)}, level ${lv}, ${r.points} points, rank ${i + 1}">
       <span class="av">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span><span class="tag">${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
-      <span class="tip"><b>${i + 1}. ${esc(r.name)}</b> · level ${lv}${lv >= B.levels ? ', at the castle' : ''}<br>${r.points} points${toNext ? ` · ${toNext} to level ${lv + 1}` : ''}<br>${r.onTime}/${r.breaks} breaks on time${isManager ? ` · ${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
+      <span class="tip"><b>${i + 1}. ${esc(r.name)}</b> · level ${lv}${lv >= B.levels ? ', at the top' : ''}<br>${r.points} points${toNext ? ` · ${toNext} to level ${lv + 1}` : ''}<br>${r.onTime}/${r.breaks} breaks on time${isManager ? ` · ${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
   const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>Racer</th><th>Level</th><th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
     `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td>${levelOf(r.points)}</td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays || '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
   return `${champ}<div class="mapwrap"><div class="map" data-top="${top}">${MAP}<div class="racers">${runners || ''}</div></div></div>
     ${rows.length ? '' : '<p class="empty">Nobody in the race yet.</p>'}${table}
-    <p class="hint">Every ${B.pointsPerLevel} points clears a level; reach the castle (level ${B.levels}) for a perfect week. ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see how close they are to the next level.</p>`;
+    <p class="hint">Every ${B.pointsPerLevel} points lifts you one platform; the highest racer wins the week, and the star at the top (level ${B.levels}) is a perfect week. ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see how close they are to the next platform.</p>`;
 }
 
-/** Draws the level stops and sends each racer to the stop they have reached. Safe to call repeatedly. */
+/** Numbers each platform and sends each racer to the platform they have reached. Safe to call repeatedly. */
 export function placeRacers(root) {
-  const road = root.querySelector('#road'); if (!road?.getTotalLength) return;
-  const B = CONFIG.breakathon, L = road.getTotalLength(), at = lv => road.getPointAtLength(L * lv / B.levels);
-  const top = Number(root.querySelector('.map')?.dataset.top || 0), stops = root.querySelector('#stops');
-  if (stops) stops.innerHTML = [...Array(B.levels + 1)].map((_, lv) => { const p = at(lv);
-    if (lv === 0) return `<g transform="translate(${p.x} ${p.y})"><path d="M-13 2v-14l13-11 13 11V2z" fill="#fff" stroke="#3A2A1A" stroke-width="2.5" stroke-linejoin="round"/><rect x="-4" y="-8" width="8" height="10" fill="#E84B4B"/><text y="22" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" stroke="#3A2A1A" stroke-width="3" paint-order="stroke">START</text></g>`;
-    if (lv === B.levels) return `<g transform="translate(${p.x} ${p.y})"><rect x="-26" y="-34" width="52" height="36" fill="#E9E2D2" stroke="#3A2A1A" stroke-width="2.5"/><path d="M-30-34h12v-10h-12zM-6-34h12v-14h-12zM18-34h12v-10H18z" fill="#E9E2D2" stroke="#3A2A1A" stroke-width="2.5"/><path d="M-8 2v-16a8 8 0 0116 0V2z" fill="#3A2A1A"/><path d="M0-48v-16" stroke="#3A2A1A" stroke-width="2"/><path d="M0-64h16l-5 5 5 5H0z" fill="${top >= lv ? '#E84B4B' : '#FFE03C'}"/></g>`;
-    const done = top >= lv;
-    return `<g transform="translate(${p.x} ${p.y})"><circle r="12" fill="${done ? '#E84B4B' : '#FFD84A'}" stroke="#3A2A1A" stroke-width="2.5"/><text y="4.5" text-anchor="middle" font-size="13" font-weight="800" fill="${done ? '#fff' : '#3A2A1A'}">${lv}</text></g>`; }).join('');
+  const B = CONFIG.breakathon, map = root.querySelector('.map'); if (!map) return;
+  const top = Number(map.dataset.top || 0), stops = root.querySelector('#stops');
+  if (stops) stops.innerHTML = PLATFORMS.slice(1, -1).map((p, i) => { const lv = i + 1, done = top >= lv;   // a numbered block on each platform
+    return `<g transform="translate(${p.x + p.w - 22} ${p.y - 22})"><rect x="-13" y="-13" width="26" height="26" rx="4" fill="${done ? '#E84B4B' : '#FFC928'}" stroke="${done ? '#9E2B2B' : '#A8730A'}" stroke-width="2.5"/><text y="5" text-anchor="middle" font-size="15" font-weight="800" fill="${done ? '#fff' : '#5A3A00'}">${lv}</text></g>`; }).join('');
   const count = {}; root.querySelectorAll('.racer[data-lv]').forEach(el => count[el.dataset.lv] = (count[el.dataset.lv] || 0) + 1);
   requestAnimationFrame(() => root.querySelectorAll('.racer[data-lv]').forEach(el => {
-    const lv = Number(el.dataset.lv), k = Number(el.dataset.k), n = count[lv], p = at(lv), dx = (k - (n - 1) / 2) * 50, up = k % 2 ? 26 : 0;
-    el.style.left = `${(p.x + dx) / 10}%`; el.style.top = `${(p.y - 18 - up + 50) / 5.1}%`;   // stand just above the stop, so its number shows
+    const lv = Math.min(Number(el.dataset.lv), B.levels), p = PLATFORMS[Math.min(lv, PLATFORMS.length - 1)], k = Number(el.dataset.k), n = count[el.dataset.lv];
+    const step = Math.min(56, (p.w - 70) / Math.max(1, n - 1)), x = p.x + p.w / 2 - 14 + (k - (n - 1) / 2) * step;
+    el.style.left = `${x / 10}%`; el.style.top = `${(p.y + 14) / (VB_H / 100)}%`;   // feet on the grass
   }));
 }
 /** Tapping a racer shows their card and highlights their row in the table. */
