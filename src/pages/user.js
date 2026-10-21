@@ -33,9 +33,9 @@ function endBreak(auto){const a=rec()?.active;if(!a)return;const key=a.slot;
   closeTimer();showResult(key,auto)}
 function showResult(key,auto){const p=P(now()),i=p.findIndex(s=>s.key===key),s=p[i],n=p[i+1];let body;
   if(auto)body=`Your break was left running for ${CONFIG.forgotToStopMinutes} minutes, so we closed it automatically. Your manager will see it flagged.`;
-  else if(s.over>0)body=`You used your full ${tidy(s.allowed)} min of ${s.label}, plus ${fmtMin(s.over)} over. `+(n?`That's come off ${n.label}, which is now ${tidy(n.allowed)} min. Sorry mate, hope you don't mind 😅`:'There\'s no later break to take it from, so it\'s been noted for your manager.');
-  else if(s.left>=10)body=`${tidy(s.used/60)} of ${tidy(s.allowed)} min used. You still have ${fmtMin(s.left)} of ${s.label}. Hit Resume whenever 👌`;
-  else body='Right on time. Nicely done 👌';
+  else if(s.over>0)body=`You used your full ${tidy(s.allowed)} min of ${s.label}, plus ${fmtMin(s.over)} over. `+(n?`That's come off ${n.label}, which is now ${tidy(n.allowed)} min. Sorry mate, hope you don't mind.`:'There\'s no later break to take it from, so it\'s been noted for your manager.');
+  else if(s.left>=10)body=`${tidy(s.used/60)} of ${tidy(s.allowed)} min used. You still have ${fmtMin(s.left)} of ${s.label}. Hit Resume whenever`;
+  else body='Right on time. Nicely done';
   $('#rTitle').textContent=s.done?`${s.label} done`:`${s.label} paused`;$('#rBody').textContent=body;$('#resOv').classList.remove('hidden');$('#rOk').focus()}
 $('#rOk').addEventListener('click',()=>$('#resOv').classList.add('hidden'));
 function openTimer(){$('#timerOv').classList.remove('hidden');$('#tStop').focus();tick()}
@@ -47,8 +47,8 @@ function renderBars(at){const r=rec(),p=P(at),anyA=!!r.active;
   $('#brkSum').textContent=`${Math.round(used/60)} of ${tidy(tot)} min used today`;
   setHtml($('#bars'),p.map((s,i)=>{
     const fill=s.allowed>0?Math.min(100,s.used/(s.allowed*60)*100):(s.used>0?100:0);
-    const st=s.act?(s.over?`+${fmtMin(s.over)} over`:`In progress · ${Math.ceil(s.left/60)} min left`):s.done?(s.over?`Done · +${fmtMin(s.over)} over`:'Done ✓'):s.used>0?`Paused · ${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
-    const src=p.slice(0,i).reverse().find(x=>x.over>0),note=s.deducted>0&&src?`<small>${esc(s.label)} is ${tidy(s.allowed)} min because ${esc(src.label)} ran ${fmtMin(src.over)} over. Sorry mate 😅</small>`:s.adjust?`<small class="mgr">${s.adjust>0?'+':''}${s.adjust} min from your manager</small>`:'';
+    const st=s.act?(s.over?`+${fmtMin(s.over)} over`:`In progress · ${Math.ceil(s.left/60)} min left`):s.done?(s.over?`Done · +${fmtMin(s.over)} over`:'Done'):s.used>0?`Paused · ${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
+    const src=p.slice(0,i).reverse().find(x=>x.over>0),note=s.deducted>0&&src?`<small>${esc(s.label)} is ${tidy(s.allowed)} min because ${esc(src.label)} ran ${fmtMin(src.over)} over. Sorry mate.</small>`:s.adjust?`<small class="mgr">${s.adjust>0?'+':''}${s.adjust} min from your manager</small>`:'';
     const btn=s.act?`<button class="btn teal" data-slot="${s.key}">Open timer</button>`:s.done||s.allowed<=0?`<button class="btn ghost" disabled>${s.allowed<=0?'No time left':'Done'}</button>`:`<button class="btn yellow" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
     return `<div class="bcol${s.act?' live':''}"><b>${esc(s.label)}</b><div class="tube${s.over?' over':''}" role="meter" aria-label="${esc(s.label)}: ${Math.round(s.used/60)} of ${tidy(s.allowed)} minutes used" aria-valuemin="0" aria-valuemax="${tidy(s.allowed)}" aria-valuenow="${Math.min(tidy(s.allowed),Math.round(s.used/60))}"><i style="height:${fill}%"></i><span class="mins">${Math.floor(s.used/60)}/${tidy(s.allowed)}</span></div><div class="st">${st}</div>${note}${btn}</div>`}).join(''))}
 
@@ -63,7 +63,7 @@ function renderShift(at){const r=rec(),p=P(at),start=r.shiftStart,end=r.shiftEnd
   const ang=(fn*360-90)*Math.PI/180;$('#nowMark').innerHTML=fn>0&&fn<1?`<circle cx="${110+90*Math.cos(ang)}" cy="${110+90*Math.sin(ang)}" r="9" style="fill:var(--ink);stroke:var(--surface);stroke-width:4"/>`:'';
   if(at<start){$('#worked').textContent=hhmm(start);$('#workedLbl').textContent='your shift starts at';return}
   $('#worked').textContent=hms((Math.min(at,end)-start)/1000);
-  $('#workedLbl').textContent=at>=end?'Shift complete 🎉':`worked · ${hms((end-at)/1000)} to go`}
+  $('#workedLbl').textContent=at>=end?'Shift complete':`worked · ${hms((end-at)/1000)} to go`}
 
 function renderAll(){const r=rec();if(!r)return;$('#who').textContent=r.name;$('#startIn').value=hhmm(r.shiftStart);$('#endIn').value=r.shiftEnd?hhmm(r.shiftEnd):'';
   document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',!!r.shiftEnd&&r.shiftEnd-r.shiftStart===Number(c.dataset.len)*36e5));
@@ -77,7 +77,7 @@ function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new
   $('#sTaken').innerHTML=`${p.filter(s=>s.done).length} <small>of ${p.length}</small>`;$('#sUsed').innerHTML=`${Math.round(used/60)} <small>of ${tidy(allowed)} min</small>`;$('#sUsed').classList.toggle('bad',p.some(s=>s.over));
   if(end){const left=Math.max(0,(end-at)/1000),unused=p.reduce((a,s)=>a+(s.done?0:s.left),0);$('#sLeft').textContent=durHM(left);$('#sWork').textContent=durHM(Math.max(0,left-unused))}else{$('#sLeft').textContent='–';$('#sWork').textContent='–'}
   const j=jokeFor(at,r,pct);if($('#joke').textContent!==j.text){$('#joke').textContent=j.text;$('#pepK').textContent=j.kicker;const bb=$('#bubble');bb.classList.remove('pop');void bb.offsetWidth;bb.classList.add('pop')}
-  const act=p.find(s=>s.act),mood=act?(act.over>0?'worried':'sleepy'):pct>=100?'wow':'happy';const bk=mood+code+(mine?mine.colour+mine.accessory:'');if($('#buddy').dataset.mood!==bk){$('#buddy').dataset.mood=bk;$('#buddy').innerHTML=avatar(code,{mood,look:mine,body:true})}
+  
   if(r.active){const i=p.findIndex(s=>s.key===r.active.slot),s=p[i],n=p[i+1],tot=s.allowed*60,left=tot-s.used,ratio=tot?left/tot:-1;
     const ph=left<=0?'over':ratio<=1/3?'red':ratio<=2/3?'amber':'green',sh=left>=0?Math.ceil(left):Math.floor(-left);
     $('#timerBox').className='dialog timer '+ph;$('#tName').textContent=`${s.label} · ${tidy(s.allowed)} min${s.used-(at-r.active.start)/1000>1?' (resumed)':''}`;$('#tDigits').textContent=(left<0?'−':'')+mmss(sh);
@@ -92,10 +92,10 @@ function drawLook(){if(tab!=='race')return;setHtml($('#prize'),prizeHTML(mine,pi
 $('#prize').addEventListener('click',async e=>{const b=e.target.closest('[data-prize]');if(!b)return;const k=b.dataset.prize;
   if(k==='look'||k==='cancel'){picking=k==='look';return drawLook()}
   if(!confirm(`Take a ${CONFIG.breakathon.rewardMinutes} min extra break as your prize? Your team lead will add it to your day.`))return;
-  try{await claimReward(code,'break');toast('Prize claimed 🎉 Your team lead will add your extra break.')}catch(err){toast(err.message)}await loadMine();drawRace()});
+  try{await claimReward(code,'break');toast('Prize claimed. Your team lead will add your extra break.')}catch(err){toast(err.message)}await loadMine();drawRace()});
 $('#look').addEventListener('click',async e=>{const b=e.target.closest('.sw');if(!b||b.disabled)return;
   const kind=b.dataset.colour?'colour':'accessory',key=b.dataset.colour||b.dataset.accessory,item=(kind==='colour'?'colour:':'acc:')+key;
-  try{if(b.classList.contains('locked')){if(!picking)return;if(!confirm(`Unlock ${itemName(item)} as your prize? It's yours for good.`))return;await claimReward(code,'look',item);picking=false;toast(`You unlocked ${itemName(item)} 🎉`)}
+  try{if(b.classList.contains('locked')){if(!picking)return;if(!confirm(`Unlock ${itemName(item)} as your prize? It's yours for good.`))return;await claimReward(code,'look',item);picking=false;toast(`You unlocked ${itemName(item)}.`)}
     else{const look={colour:mine?.colour||'teal',accessory:mine?.accessory||'none',[kind]:key};await setLook(code,look.colour,look.accessory)}}
   catch(err){toast(err.message)}await loadMine();drawRace()});
 async function drawRace(){if(tab!=='race')return;try{
