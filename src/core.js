@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=30c8b36143';
-import * as api from './backend/api.js?v=30c8b36143';
-import { PILOT_USERS } from './pilot.js?v=30c8b36143';
+import { CONFIG } from './config.js?v=3c62140785';
+import * as api from './backend/api.js?v=3c62140785';
+import { PILOT_USERS } from './pilot.js?v=3c62140785';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -96,35 +96,49 @@ export function slotsFor(db, code, date = dayKey()){
 /* The name a person sees for a slot, whether or not it applies today (used for history rows and the custom break list). */
 export const labelFor = (db, code, key) => db.names?.[code]?.[key] || CONFIG.defaultSlots.find(s => s.key === key)?.label || CONFIG.customLabels[key] || key;
 /* A slot can be taken in several sittings; it only closes when all its minutes are used.
-   Overrun comes off the NEXT slot. */
+   The day's breaks are one pot. When a break runs past its own minutes, the extra comes out of the other breaks that still
+   have time: the ones after it first (Break 1 -> Break 2 -> Lunch -> OH breaks), then from the start (a long Lunch taken
+   first comes off Break 1, then Break 2). Sittings are worked through in the order they happened. Someone is only OVER once
+   the whole day's allowance (including any OH break) is used up. */
 export function plan(rec, adj, now, slots){
-  let carry = 0;
-  return slots.map(s => {
-    const adjust = adj?.[s.key] || 0, raw = s.minutes + adjust - carry, allowed = Math.max(0, raw), deducted = carry;
-    const segs = (rec?.breaks || []).filter(b => b.slot === s.key);
-    const act = rec?.active?.slot === s.key ? rec.active : null;
-    const used = segs.reduce((a,b) => a + (b.end - b.start)/1000, 0) + (act ? (now - act.start)/1000 : 0);
-    let over = Math.max(0, used - allowed*60); if (over < CONFIG.overToleranceMinutes*60) over = 0;
-    const left = Math.max(0, allowed*60 - used);
-    /* overBase = minutes over the NORMAL allowance. This is what the manager totals use, so an overrun that is
-       passed on to the next break is not counted again there. `over` (against the reduced allowance) only drives the timer. */
-    let overBase = Math.max(0, used - (s.minutes + adjust)*60); if (overBase < CONFIG.overToleranceMinutes*60) overBase = 0;
-    carry = over/60 + Math.max(0, -raw); /* overrun the next slot couldn't absorb keeps rolling forward */
-    return { ...s, base: s.minutes + adjust, adjust, allowed, deducted, segs, act, used, over, overBase, left, done: !act && used > 0 && left < 10 };
+  const tol = CONFIG.overToleranceMinutes*60;
+  const S = slots.map(s => { const adjust = adj?.[s.key] || 0, base = s.minutes + adjust;
+    return { ...s, base, adjust, cap: Math.max(0, base)*60, segs: (rec?.breaks || []).filter(b => b.slot === s.key),
+      act: rec?.active?.slot === s.key ? rec.active : null, used: 0, lent: 0, borrowed: 0, over: 0, from: [], to: [] }; });
+  const sittings = [...(rec?.breaks || []).map(b => ({ slot:b.slot, start:b.start, secs:(b.end - b.start)/1000 })),
+    ...(rec?.active ? [{ slot:rec.active.slot, start:rec.active.start, secs:Math.max(0, (now - rec.active.start)/1000) }] : [])]
+    .sort((x, y) => x.start - y.start);
+  const note = (list, label, secs) => { const e = list.find(x => x.label === label); e ? e.secs += secs : list.push({ label, secs }); };
+  for (const r of sittings) { const i = S.findIndex(s => s.key === r.slot); if (i < 0) continue;
+    const s = S[i], own = Math.min(r.secs, s.cap); let need = r.secs - own; s.used += r.secs; s.cap -= own;
+    for (const o of [...S.slice(i + 1), ...S.slice(0, i)]) { if (need <= 0) break;
+      const take = Math.min(need, o.cap); if (take <= 0) continue;
+      o.cap -= take; o.lent += take; s.borrowed += take; need -= take; note(s.from, o.label, take); note(o.to, s.label, take); }
+    s.over += need; }
+  const spare = S.reduce((t, s) => t + s.cap, 0);
+  return S.map(({ cap, lent, ...s }) => {
+    const allowed = Math.max(0, s.base) - lent/60, over = s.over < tol ? 0 : s.over;
+    /* overBase = minutes past this break's OWN allowance (whether or not other breaks covered it); Breakathon uses it */
+    let overBase = Math.max(0, s.used - Math.max(0, s.base)*60); if (overBase < tol) overBase = 0;
+    return { ...s, allowed, deducted: lent/60, over, overBase, left: cap, spare, done: !s.act && s.used > 0 && cap < 10 };
   });
 }
 
 /* ---------------- Breakathon (weekly punctuality) ----------------
-   A break counts when it was used; it is on time when it stayed within its OWN allowance (+ any manager adjustment).
-   Minutes passed on to the next break are not counted twice (that is plan()'s overBase). Same maths as breakathon() in db/schema.sql. */
+   Same rule as the bars: a day only goes wrong once the whole day's break time is used up.
+   On a day that stayed within its total, every break taken is on time and the day is clean.
+   On a day that went past it, the breaks that ran past their own minutes are not on time, and the minutes past the
+   day's total count against you. Same maths as breakathon() in db/schema.sql. */
 export function weekScore(db, code, from, to){
   const B = CONFIG.breakathon; let breaks = 0, onTime = 0, overSec = 0, cleanDays = 0;
   for (const [day, byCode] of Object.entries(db.days || {})) {
     if (day < from || day > to || !byCode[code]) continue;
-    const p = plan({ ...byCode[code], active:null }, db.adj?.[day]?.[code], 0, slotsFor(db, code, day)).filter(s => s.segs.length);
+    const all = plan({ ...byCode[code], active:null }, db.adj?.[day]?.[code], 0, slotsFor(db, code, day)), p = all.filter(s => s.segs.length);
     if (!p.length) continue;
-    breaks += p.length; onTime += p.filter(s => !s.overBase).length; overSec += p.reduce((a,s) => a + s.overBase, 0);
-    if (p.every(s => !s.overBase)) cleanDays++;
+    const cap = all.reduce((a,s) => a + Math.max(0, s.base)*60, 0), used = all.reduce((a,s) => a + s.used, 0);
+    let dayOver = Math.max(0, used - cap); if (dayOver < CONFIG.overToleranceMinutes*60) dayOver = 0;
+    breaks += p.length; onTime += dayOver ? p.filter(s => !s.overBase).length : p.length; overSec += dayOver;
+    if (!dayOver) cleanDays++;
   }
   const overMinutes = Math.round(overSec/60);
   return { breaks, onTime, cleanDays, overMinutes, points: Math.max(0, onTime*B.pointsOnTime + cleanDays*B.pointsCleanDay - overMinutes*B.penaltyPerMinuteOver) };
@@ -146,8 +160,8 @@ export function weekOf(date = dayKey(), weeksBack = 0){
 /** One person's state today. p = plan() for today. Statuses: off (not clocked in), onbreak, over, taken, none. */
 export function statusOf(rec, p, at){
   if (!rec) return { key:'off', label:'Not clocked in' };
-  const act = p.find(s => s.act), overToday = p.some(s => s.overBase > 0);
-  if (act) return act.left <= 0 && act.used > act.allowed*60 + CONFIG.overToleranceMinutes*60
+  const act = p.find(s => s.act), overToday = p.some(s => s.over > 0);
+  if (act) return act.over > 0
     ? { key:'over', label:`Over on ${act.label}`, onBreak:true, slot:act }
     : { key:'onbreak', label:`On ${act.label}`, onBreak:true, slot:act };
   if (overToday) return { key:'over', label:'Went over today' };
@@ -169,7 +183,7 @@ export function teamPulse(team, at){
   const inn = team.filter(t => t.rec), out = [];
   if (!inn.length) return [{ tone:'info', text:'Nobody has clocked in yet today.' }];
   for (const t of inn) { const a = t.p.find(s => s.act); if (!a) continue;
-    const over = a.used - a.allowed*60;
+    const over = a.over;
     if (over >= 5*60) out.push({ tone:'bad', text:`${t.name} is ${Math.round(over/60)} min over on ${a.label}. Go wake ${t.name} up.` });
     else if (over > CONFIG.overToleranceMinutes*60) out.push({ tone:'bad', text:`${t.name} has just gone over on ${a.label}.` });
   }

@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=30c8b36143';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=30c8b36143';
-import { myRewards, claimReward, setLook } from '../core.js?v=30c8b36143';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=30c8b36143';
-import { jokeFor } from '../jokes.js?v=30c8b36143';
-import { esc, setHtml } from '../dom.js?v=30c8b36143';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=30c8b36143';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=30c8b36143';
-import { toast } from '../chrome.js?v=30c8b36143';
+import { CONFIG } from '../config.js?v=3c62140785';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=3c62140785';
+import { myRewards, claimReward, setLook } from '../core.js?v=3c62140785';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=3c62140785';
+import { jokeFor } from '../jokes.js?v=3c62140785';
+import { esc, setHtml } from '../dom.js?v=3c62140785';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=3c62140785';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=3c62140785';
+import { toast } from '../chrome.js?v=3c62140785';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -33,35 +33,46 @@ function endBreak(auto){const a=rec()?.active;if(!a)return;const key=a.slot;
   commit(r=>{const x=r.active;if(!x)return;r.breaks.push({slot:x.slot,start:x.start,end:auto?x.start+CONFIG.forgotToStopMinutes*6e4:now(),...(auto?{flag:'forgot'}:{})});r.active=null});
   document.title='breakpoint';showResult(key,auto)}
 /* after a break: a short message that doesn't get in the way */
-function showResult(key,auto){const p=P(now()),i=p.findIndex(s=>s.key===key),s=p[i],n=p[i+1];let body;
+function showResult(key,auto){const p=P(now()),s=p.find(x=>x.key===key);let body;
   if(auto)body=`Your break was left running for ${CONFIG.forgotToStopMinutes} minutes, so we closed it. Your manager will see it flagged.`;
-  else if(s.over>0)body=`${s.label}: ${fmtMin(s.over)} over. `+(n?`That's come off ${n.label}, which is now ${tidy(n.allowed)} min. Sorry mate.`:'There was no later break to take it from, so your manager will see it.');
+  else if(s.over>0)body=`${s.label}: ${fmtMin(s.over)} past today's break time, so your manager will see it.`;
+  else if(s.borrowed>0)body=`${s.label} ran ${fmtMin(s.borrowed)} long, so that came off ${names(s.from)}. You have ${fmtMin(s.spare)} of break time left today.`;
   else if(s.left>=10)body=`Welcome back. You still have ${fmtMin(s.left)} of ${s.label} for later.`;
   else body=`Welcome back. ${s.label} done, right on time.`;
   toast(body,7000)}
+const names=list=>list.map(x=>x.label).join(list.length===2?' and ':', ').replace(/, ([^,]*)$/,' and $1');
+/* the break that a running one borrows from next: the ones after it first, then from the start */
+const lender=(p,s)=>{const i=p.indexOf(s);return [...p.slice(i+1),...p.slice(0,i)].find(x=>x.left>0)};
 
-/* ---------- the break bars: one row per break (plus any OH break the manager adds). The running one grows and talks. ---------- */
-function liveLine(s,n,at){const left=s.allowed*60-s.used,m=Math.floor(s.used/60);
-  if(left<=0)return n?`${fmtMin(-left)} over. That's coming off ${n.label}. Leg it!`:`${fmtMin(-left)} over. There's no break after this to take it from, so your manager will see it.`;
-  if(left<=60)return 'Under a minute left. Put the biscuit down and head back.';
-  if(left<=s.allowed*60/3)return `${m} min done, only ${Math.ceil(left/60)} left. Start heading back.`;
+/* ---------- the break bars: one row per break (plus any OH break the manager adds). The running one grows and talks.
+   Going past a break's own minutes borrows from the others (amber); only going past the whole day's break time is red. ---------- */
+function liveLine(s,p,at){const m=Math.floor(s.used/60),n=lender(p,s);
+  if(s.over>0)return `${fmtMin(s.over)} past today's break time. Your manager can see this one. Run!`;
+  if(s.left<=0)return `${s.label} is used up, so this is coming off ${n?n.label:'your other breaks'}. ${Math.ceil(s.spare/60)} min of break time left today. Leg it!`;
+  if(s.left<=60)return n?`Under a minute left. After that it comes off ${n.label}.`:'Under a minute left, and it\'s your last break time today. Head back.';
+  if(s.left<=s.allowed*60/3)return `${m} min done, only ${Math.ceil(s.left/60)} left. Start heading back.`;
   if(s.used<60)return "Clock's running. Enjoy it, you've earned it.";
-  return `${m} min done, ${Math.ceil(left/60)} min to go. Back at ${hhmm(at+left*1000)}.`}
+  return `${m} min done, ${Math.ceil(s.left/60)} min to go. Back at ${hhmm(at+s.left*1000)}.`}
 function renderBars(at){const r=rec(),p=P(at),anyA=!!r.active;
   const tot=p.reduce((a,s)=>a+s.base,0),used=p.reduce((a,s)=>a+s.used,0);
   $('#brkSum').textContent=`${Math.round(used/60)} of ${tidy(tot)} min used today`;
-  setHtml($('#bars'),p.map((s,i)=>{
-    const cap=Math.max(s.allowed*60,1),fill=s.allowed>0?Math.min(100,s.used/cap*100):(s.used>0?100:0),over=s.over>0;
-    const src=p.slice(0,i).reverse().find(x=>x.over>0),note=s.deducted>0&&src?`<small class="bad">${tidy(s.allowed)} min today because ${esc(src.label)} ran ${fmtMin(src.over)} over. Sorry mate.</small>`:s.adjust?`<small>${s.adjust>0?'+':''}${s.adjust} min from your manager</small>`:'';
-    if(s.act){const left=s.allowed*60-s.used,sh=left>=0?Math.ceil(left):Math.floor(-left);
-      return `<div class="brow on${over?' over':''}"><div class="bl"><b>${esc(s.label)}</b><span>${tidy(s.allowed)} min</span></div>
-        <div class="btrack big" role="timer" aria-label="${esc(s.label)}: ${left>=0?mmss(sh)+' left':mmss(sh)+' over'}"><i style="width:${over?100:fill}%"></i><span class="bt">${left<0?'−':''}${mmss(sh)} <small>${left>=0?'left':'over'}</small></span><span class="bu">${mmss(s.used)} / ${mmss(s.allowed*60)}</span></div>
-        <div class="br"><button class="btn teal" id="tStop">I'm back</button></div><p class="say">${esc(liveLine(s,p[i+1],at))}</p></div>`}
-    const st=s.done?(over?`Done · +${fmtMin(s.over)} over`:'Done'):s.used>0?`${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
-    const btn=s.done||s.allowed<=0?`<button class="btn ghost sm" disabled>${s.allowed<=0?'No time left':'Done'}</button>`:`<button class="btn yellow sm" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
-    return `<div class="brow${s.done?' done':''}${over?' over':''}"><div class="bl"><b>${esc(s.label)}</b><span>${st}</span></div>
+  setHtml($('#bars'),p.map(s=>{
+    const cap=s.allowed*60,over=s.over>0,borrow=!over&&s.borrowed>0,fill=cap>0?Math.min(100,s.used/cap*100):(s.used>0?100:0),
+      cls=over?' over':borrow?' borrow':'';
+    const notes=[s.borrowed>0?`<small class="${over?'bad':'warn'}">${fmtMin(s.borrowed)} came out of ${esc(names(s.from))}.</small>`:'',
+      over?`<small class="bad">${fmtMin(s.over)} past today's break time.</small>`:'',
+      s.deducted>0?`<small class="warn">${fmtMin(s.deducted*60)} went to ${esc(names(s.to))}, so this one is ${tidy(s.allowed)} min today.</small>`:'',
+      s.adjust?`<small>${s.adjust>0?'+':''}${s.adjust} min from your manager.</small>`:''].filter(Boolean).join(' ');
+    if(s.act){const mode=over?'over':s.left>0?'own':'borrow',secs=mode==='over'?s.over:mode==='own'?s.left:s.spare,
+        word=mode==='over'?'over':mode==='own'?'left':`left · from ${lender(p,s)?.label||'other breaks'}`;
+      return `<div class="brow on${cls||(mode==='borrow'?' borrow':'')}"><div class="bl"><b>${esc(s.label)}</b><span>${tidy(s.allowed)} min</span></div>
+        <div class="btrack big" role="timer" aria-label="${esc(s.label)}: ${mmss(Math.ceil(secs))} ${word}"><i style="width:${mode==='own'?fill:100}%"></i><span class="bt">${mode==='over'?'−':''}${mmss(Math.ceil(secs))} <small>${esc(word)}</small></span><span class="bu">${mmss(s.used)} / ${mmss(cap)}</span></div>
+        <div class="br"><button class="btn teal" id="tStop">I'm back</button></div><p class="say">${esc(liveLine(s,p,at))}</p></div>`}
+    const st=s.done?(over?`Done · ${fmtMin(s.over)} over`:borrow?`Done · ${fmtMin(s.borrowed)} borrowed`:'Done'):s.used>0?`${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
+    const btn=s.done||s.allowed<=0?`<button class="btn ghost sm" disabled>${s.allowed<=0&&!s.used?'No time left':'Done'}</button>`:`<button class="btn yellow sm" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
+    return `<div class="brow${s.done?' done':''}${cls}"><div class="bl"><b>${esc(s.label)}</b><span>${st}</span></div>
       <div class="btrack" role="meter" aria-label="${esc(s.label)}: ${Math.round(s.used/60)} of ${tidy(s.allowed)} minutes used" aria-valuemin="0" aria-valuemax="${tidy(s.allowed)}" aria-valuenow="${Math.min(tidy(s.allowed),Math.round(s.used/60))}"><i style="width:${fill}%"></i><span class="bu">${Math.floor(s.used/60)} / ${tidy(s.allowed)} min</span></div>
-      <div class="br">${btn}</div>${note?`<p class="say">${note}</p>`:''}</div>`}).join(''))}
+      <div class="br">${btn}</div>${notes?`<p class="say">${notes}</p>`:''}</div>`}).join(''))}
 
 /* ---------- the shift pie: worked, breaks, over and still to go, with the time ticking to the second ---------- */
 const C=2*Math.PI*90,arc=(a,b,col)=>b>a?`<circle cx="110" cy="110" r="90" stroke="${col}" stroke-dasharray="${(b-a)*C} ${C}" stroke-dashoffset="${-a*C}"/>`:'';
@@ -89,7 +100,7 @@ function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new
   if(end){const left=Math.max(0,(end-at)/1000),unused=p.reduce((a,s)=>a+(s.done?0:s.left),0);$('#sLeft').textContent=durHM(left);$('#sWork').textContent=durHM(Math.max(0,left-unused))}else{$('#sLeft').textContent='–';$('#sWork').textContent='–'}
   const j=jokeFor(at,r,pct);if($('#joke').textContent!==j.text){$('#joke').textContent=j.text;$('#pepK').textContent=j.kicker;const bb=$('#bubble');bb.classList.remove('pop');void bb.offsetWidth;bb.classList.add('pop')}
   
-  if(r.active){const s=p.find(x=>x.act),left=s.allowed*60-s.used,sh=left>=0?Math.ceil(left):Math.floor(-left);document.title=`${left<0?'−':''}${mmss(sh)} · ${s.label}`}}
+  if(r.active){const s=p.find(x=>x.act);document.title=s.over>0?`−${mmss(Math.ceil(s.over))} · ${s.label}`:`${mmss(Math.ceil(s.left>0?s.left:s.spare))} · ${s.label}`}}
 
 /* ---------- Breakathon ---------- */
 let week=0,raceT=null,mine=null,picking=false;

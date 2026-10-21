@@ -1,10 +1,10 @@
-import { CONFIG } from '../config.js?v=30c8b36143';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=30c8b36143';
-import { teamLooks, teamRewards } from '../core.js?v=30c8b36143';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=30c8b36143';
-import { esc, setHtml } from '../dom.js?v=30c8b36143';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js?v=30c8b36143';
-import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=30c8b36143';
+import { CONFIG } from '../config.js?v=3c62140785';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=3c62140785';
+import { teamLooks, teamRewards } from '../core.js?v=3c62140785';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=3c62140785';
+import { esc, setHtml } from '../dom.js?v=3c62140785';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js?v=3c62140785';
+import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=3c62140785';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -20,7 +20,7 @@ $('#demo').addEventListener('click',()=>{db=load();const at=now();let i=0;
   for(const [c,name] of Object.entries(U)){const d=(db.days[TODAY]??={});
     if(!d[c]&&i%5!==4){const st=Math.floor((at-(3+i*.4)*36e5)/6e4)*6e4,r={name,shiftStart:st,shiftEnd:st+9*36e5,breaks:[],active:null},b1=st+90*6e4;
       if(i%5===0)r.breaks.push({slot:'break1',start:b1,end:b1+14*6e4});if(i%5===1)r.breaks.push({slot:'break1',start:b1,end:b1+17*6e4});
-      if(i%5===3){r.breaks.push({slot:'break1',start:b1,end:b1+15*6e4});r.active={slot:'break2',start:at-(i===3?19:5)*6e4}}d[c]=r}
+      if(i%5===3){r.breaks.push({slot:'break1',start:b1,end:b1+15*6e4});if(i===3)r.breaks.push({slot:'lunch',start:b1+60*6e4,end:b1+90*6e4});r.active={slot:'break2',start:at-(i===3?19:5)*6e4}}d[c]=r}
     for(let k=1;k<=6;k++){const t=new Date();t.setDate(t.getDate()-k);const dk=dayKey(t);if(db.days[dk]?.[c])continue;t.setHours(9,0,0,0);const s=t.getTime(),o=(x)=>((i+k)%(i+3)===0?x:0);
       (db.days[dk]??={})[c]={name,shiftStart:s,shiftEnd:s+9*36e5,active:null,breaks:[{slot:'break1',start:s+90*6e4,end:s+(105+o(3))*6e4},{slot:'lunch',start:s+240*6e4,end:s+(270+o(4))*6e4},{slot:'break2',start:s+420*6e4,end:s+(435+(i===4?2:0))*6e4}]}}
     i++}save(db);render(true)});
@@ -35,7 +35,7 @@ function draw(){const {c,date}=det,r=db.days[date]?.[c],p=plan(r,db.adj[date]?.[
   $('#dBody').innerHTML=`<div class="field"><label for="dDate">Day</label><select id="dDate">${dates.map(d=>`<option ${d===date?'selected':''}>${d}</option>`).join('')}</select></div>
   <h3>Shift</h3>${r?`<div class="row"><div class="field"><label for="dSs">Start</label><input type="time" id="dSs" value="${hhmm(r.shiftStart)}"></div><div class="field"><label for="dSe">End</label><input type="time" id="dSe" value="${r.shiftEnd?hhmm(r.shiftEnd):''}"></div></div>${r.shiftEnd?'':'<p class="hint">No end time set yet.</p>'}`:'<p class="hint">Not started on this day.</p>'}
   <h3>Break history</h3>${r&&(r.breaks.length||r.active)?`<div class="scroll"><table><thead><tr><th>Break</th><th>Started</th><th>Ended</th><th>Length</th><th></th></tr></thead><tbody>${r.breaks.map((b,i)=>`<tr><td>${L(b.slot)}</td><td><input type="time" data-i="${i}" data-f="start" value="${hhmm(b.start)}" aria-label="Start of ${L(b.slot)}"></td><td><input type="time" data-i="${i}" data-f="end" value="${hhmm(b.end)}" aria-label="End of ${L(b.slot)}"></td><td>${tidy((b.end-b.start)/6e4)} min${b.flag?' · auto-closed':''}</td><td><button class="btn ghost sm" data-rm="${i}">Remove</button></td></tr>`).join('')}${r.active?`<tr><td>${L(r.active.slot)}</td><td>${hhmm(r.active.start)}</td><td colspan="3">In progress</td></tr>`:''}</tbody></table></div>`:'<p class="hint">No breaks recorded for this day.</p>'}
-  <h3>Allowances for this day</h3><div class="scroll"><table><tbody>${p.map(s=>`<tr><td><b>${esc(s.label)}</b></td><td>${tidy(s.used/60)} / ${tidy(s.allowed)} min${s.over?` <span class="bad">(+${tidy(s.over/60)} over)</span>`:''}</td><td>${adjUI(c,s,date,U[c])}</td></tr>`).join('')}</tbody></table></div>
+  <h3>Allowances for this day</h3><div class="scroll"><table><tbody>${p.map(s=>`<tr><td><b>${esc(s.label)}</b></td><td>${tidy(s.used/60)} / ${tidy(s.allowed)} min${s.over?` <span class="bad">(+${tidy(s.over/60)} over)</span>`:s.borrowed?` <span class="of">(+${tidy(s.borrowed/60)} from ${esc(s.from.map(x=>x.label).join(', '))})</span>`:''}</td><td>${adjUI(c,s,date,U[c])}</td></tr>`).join('')}</tbody></table></div>
   ${r?`<h3>Log a missed break</h3><div class="row"><div class="field"><label for="lSlot">Break</label><select id="lSlot">${p.map(s=>`<option value="${s.key}">${esc(s.label)}</option>`).join('')}</select></div><div class="field"><label for="lS">Start</label><input type="time" id="lS"></div><div class="field"><label for="lE">End</label><input type="time" id="lE"></div><button class="btn teal sm" id="lAdd">Add</button></div>`:''}
   <h3>Custom breaks for ${N}</h3>${cust.length?cust.map(x=>`<p style="margin:4px 0"><b>${L(x.key)}</b> · ${x.minutes} min · ${x.scope==='daily'?'every day':x.scope==='today'?'only '+x.date:x.days.map(d=>DN[d]).join(', ')} <button class="btn ghost sm" data-cdel="${x.key}">Remove</button></p>`).join(''):'<p class="hint">None yet.</p>'}
   <div class="row" style="margin-top:10px"><div class="field"><label for="cKey">Break</label><select id="cKey">${Object.entries(CONFIG.customLabels).map(([k,v])=>`<option value="${k}">${esc(db.names?.[c]?.[k]?`${db.names[c][k]} (${v})`:v)}</option>`).join('')}</select></div><div class="field"><label for="cMin">Minutes</label><input type="number" id="cMin" value="15" min="1" max="120" style="width:80px"></div><button class="btn teal sm" id="cAdd">Add custom break</button></div>
@@ -100,17 +100,18 @@ function renderDash(at,force){if(tab!=='dash'&&!force)return;const sig=JSON.stri
   setHtml($('#cards'),list.length?list.map(t=>card(t,at)).join(''):`<tr><td colspan="7" class="empty"><span class="av" style="width:44px;height:44px;display:inline-block;vertical-align:middle;margin-right:8px">${avatar('pip',{mood:'sleepy',look:{colour:'teal'}})}</span>Nobody here right now.</td></tr>`)}
 function card({c,name,rec:r,p,st},at){
   const shift=r?(r.shiftEnd?`${hhmm(r.shiftStart)}–${hhmm(r.shiftEnd)}`:`from ${hhmm(r.shiftStart)}`):'–',pct=r&&r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;
-  const status=st.onBreak?`<span class="st ${st.key}" data-live data-left="${st.slot.allowed*60-st.slot.used}" data-label="${esc(st.slot.label)}">${esc(liveText(st.slot.label,st.slot.allowed*60-st.slot.used))}</span>`:`<span class="st ${st.key}">${esc(st.label)}</span>`;
-  const brk=s=>s?`<td class="b${s.over||s.overBase?' over':s.act?' act':''}"><div class="tr"><i style="width:${s.allowed?Math.min(100,s.used/(s.allowed*60)*100):s.used?100:0}%"></i></div><span>${Math.round(s.used/60)} / ${tidy(s.allowed)} min</span></td>`:'<td>–</td>';
+  const status=st.onBreak?`<span class="st ${st.key}" data-live data-left="${ownLeft(st.slot)}" data-spare="${spareLeft(st.slot)}" data-label="${esc(st.slot.label)}">${esc(liveText(st.slot.label,ownLeft(st.slot),spareLeft(st.slot)))}</span>`:`<span class="st ${st.key}">${esc(st.label)}</span>`;
+  /* amber = ran past its own minutes but the person's other breaks covered it; red only once the day's total is used up */
+  const brk=s=>s?`<td class="b${s.over?' over':s.borrowed?' borrow':s.act?' act':''}"><div class="tr"><i style="width:${s.allowed?Math.min(100,s.used/(s.allowed*60)*100):s.used?100:0}%"></i></div><span>${Math.round(s.used/60)} / ${tidy(s.allowed)} min${s.over?` · ${Math.round(s.over/60)||'<1'} over`:s.borrowed?` · +${Math.round(s.borrowed/60)||'<1'} from ${s.from.length>1?'others':esc(s.from[0].label)}`:''}</span></td>`:'<td>–</td>';
   const extra=p.slice(3),ex=extra.length?`${extra.filter(s=>s.used>0).length}/${extra.length} used`:'–';
   return `<tr class="${st.key}"><td><div class="person"><span class="av">${avatar(c,{look:LOOKS[c],mood:st.key==='over'?'worried':st.onBreak?'sleepy':'happy'})}</span><span><b>${esc(name)}</b><small>${c}</small></span></div></td><td>${status}</td><td>${shift}${r&&r.shiftEnd?`<div class="mini" title="${Math.floor(pct)}% of the shift done"><i style="width:${pct}%"></i></div>`:''}</td>${r?[0,1,2].map(i=>brk(p[i])).join(''):'<td>–</td><td>–</td><td>–</td>'}<td>${ex}</td></tr>`}
 $('#filters').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b)return;filter=b.dataset.f;renderDash(now(),true)});
 
 /* ---------- export: one row per person, day and break, for the pilot write-up ---------- */
 const csvCell=v=>{let t=String(v??'');if(/^[=+\-@]/.test(t))t="'"+t;return /[",\n]/.test(t)?`"${t.replace(/"/g,'""')}"`:t};
-$('#csv').addEventListener('click',()=>{db=load();const out=[['date','code','name','break','sittings','minutes_used','allowance_minutes','minutes_over','auto_closed']];
+$('#csv').addEventListener('click',()=>{db=load();const out=[['date','code','name','break','sittings','minutes_used','allowance_minutes','minutes_from_other_breaks','minutes_over_day_total','auto_closed']];
   for(const day of Object.keys(db.days).sort())for(const [c,r] of Object.entries(db.days[day])){const p=plan({...r,active:null},db.adj[day]?.[c],now(),slotsFor(db,c,day));
-    for(const s of p)if(s.segs.length)out.push([day,c,U[c]||r.name,s.label,s.segs.map(b=>`${hhmm(b.start)}-${hhmm(b.end)}`).join(' '),tidy(s.used/60),s.base,tidy(s.overBase/60),s.segs.some(b=>b.flag)?'yes':''])}
+    for(const s of p)if(s.segs.length)out.push([day,c,U[c]||r.name,s.label,s.segs.map(b=>`${hhmm(b.start)}-${hhmm(b.end)}`).join(' '),tidy(s.used/60),s.base,tidy(s.borrowed/60),tidy(s.over/60),s.segs.some(b=>b.flag)?'yes':''])}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.map(x=>x.map(csvCell).join(',')).join('\r\n')],{type:'text/csv'}));a.download=`breaks-${TODAY}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)});
 
 /* ---------- Breakathon, and the weekly reward ---------- */
@@ -135,13 +136,16 @@ function render(force){const at=now();if(dayKey(new Date(at))!==TODAY)TODAY=dayK
   const day=db.days[TODAY]||{},adj=db.adj[TODAY]||{};CONFIG.defaultSlots.forEach((s,i)=>$('#h'+i).textContent=`${s.label} (${s.minutes} min)`);
   $('#rows').innerHTML=Object.entries(U).map(([c,name])=>{const r=day[c],p=plan(r,adj[c],at,slotsFor(db,c,TODAY));let shift='<span style="color:var(--muted)">Not started</span>',pct=0,status='<span class="pill">Not started</span>';
     if(r){shift=r.shiftEnd?`${hhmm(r.shiftStart)} – ${hhmm(r.shiftEnd)}`:`${hhmm(r.shiftStart)} – <span style="color:var(--muted)">no end set</span>`;pct=r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;status=pct>=100?'<span class="pill">Finished</span>':'<span class="pill work">Working</span>';
-      if(r.active){const s=p.find(x=>x.act);status=`<span class="pill brk" data-live data-left="${s.allowed*60-s.used}" data-label="${esc(s.label)}"></span>`}}
+      if(r.active){const s=p.find(x=>x.act);status=`<span class="pill brk" data-live data-left="${ownLeft(s)}" data-spare="${spareLeft(s)}" data-label="${esc(s.label)}"></span>`}}
     const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(at-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell">${nm}${main}${adjUI(c,s,TODAY,name)}</td>`}).join('');
     return `<tr><td class="person"><b>${esc(name)}</b><span>${c}${p.length>3?` · +${p.length-3} custom`:''}</span></td><td>${shift}</td><td><div class="mini"><i style="width:${pct}%"></i></div>${r&&r.shiftEnd?Math.floor(pct)+'%':'–'}</td><td>${status}</td>${cells}<td><button class="btn ghost sm" data-det="${c}">View more</button></td></tr>`}).join('');
   liveTick()}
-const liveText=(label,left)=>`${label} · ${left>=0?mmss(Math.ceil(left))+' left':'−'+mmss(Math.floor(-left))+' over'}`;
-function liveTick(){const at=now();$$('[data-live]').forEach(el=>{const t=Number(el.dataset.rt||(el.dataset.rt=at)),r2=Number(el.dataset.left)-(at-t)/1000;
-    el.textContent=liveText(el.dataset.label,r2);el.classList.toggle('over',r2<0)});
+/* a running break: own = seconds left of its own minutes (negative = past them, borrowing from the person's other breaks),
+   spare = seconds until the whole day's break time is used up (negative = really over) */
+const ownLeft=s=>s.left>0?s.left:-(s.borrowed+s.over),spareLeft=s=>s.over>0?-s.over:s.spare;
+const liveText=(label,own,spare)=>`${label} · ${spare<0?mmss(Math.floor(-spare))+' over':own<0?mmss(Math.floor(-own))+' past · using other breaks':mmss(Math.ceil(own))+' left'}`;
+function liveTick(){const at=now();$$('[data-live]').forEach(el=>{const t=Number(el.dataset.rt||(el.dataset.rt=at)),gone=(at-t)/1000,own=Number(el.dataset.left)-gone,spare=Number(el.dataset.spare)-gone;
+    el.textContent=liveText(el.dataset.label,own,spare);el.classList.toggle('over',spare<0);el.classList.toggle('borrow',own<0&&spare>=0)});
   $$('[data-cell]').forEach(el=>el.textContent=mmss(Number(el.dataset.prior)+(at-Number(el.dataset.start))/1000))}
 let t1,t2,clock,tabsReady=false;
 function boot(){if(!mgr||!MANAGER_CODES[mgr])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');$('#who').textContent=MANAGER_CODES[mgr];if(CONFIG.backend==='api'){$('#demo')?.remove();$('#clear')?.remove()}db=load();purge(db);save(db);render(true);

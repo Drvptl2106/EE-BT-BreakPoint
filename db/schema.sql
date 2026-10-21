@@ -323,18 +323,30 @@ language sql stable security definer set search_path = public as $$
   used as (select s.user_id, s.day, b.slot_key, sum(extract(epoch from b.ended_at - b.started_at)) as secs
            from shifts s join team t on t.id = s.user_id join break_segments b on b.shift_id = s.id
            where s.day between p_from and p_to group by 1, 2, 3),
-  slot as (select u.user_id, u.day,
-                  greatest(0, u.secs - 60 * (case u.slot_key when 'break1' then 15 when 'break2' then 15 when 'lunch' then 30   -- = CONFIG.defaultSlots
-                                             else c.minutes end + coalesce(a.minutes, 0))) as over_raw
-           from used u
-           left join custom_break_rules c on c.user_id = u.user_id and c.slot_key = u.slot_key
-           left join adjustments a on a.user_id = u.user_id and a.day = u.day and a.slot_key = u.slot_key
-           where u.slot_key in ('break1', 'break2', 'lunch') or c.minutes is not null),
-  per_day as (select user_id, day, count(*) as n, count(*) filter (where over_raw < 24) as ok,
-                     sum(case when over_raw < 24 then 0 else over_raw end) as over_s
+  -- the breaks that apply to each person on each day they worked, with their minutes (= slotsFor in src/core.js)
+  slots as (select s.user_id, s.day, d.slot_key, d.minutes
+            from shifts s join team t on t.id = s.user_id
+            cross join (values ('break1', 15), ('break2', 15), ('lunch', 30)) as d(slot_key, minutes)   -- = CONFIG.defaultSlots
+            where s.day between p_from and p_to
+            union all
+            select s.user_id, s.day, c.slot_key, c.minutes
+            from shifts s join team t on t.id = s.user_id join custom_break_rules c on c.user_id = s.user_id
+            where s.day between p_from and p_to
+              and (c.scope = 'daily' or (c.scope = 'today' and c.day = s.day)
+                   or (c.scope = 'days' and extract(dow from s.day)::int = any(c.weekdays)))),
+  slot as (select sl.user_id, sl.day, greatest(0, sl.minutes + coalesce(a.minutes, 0)) * 60 as cap, u.secs
+           from slots sl
+           left join adjustments a on a.user_id = sl.user_id and a.day = sl.day and a.slot_key = sl.slot_key
+           left join used u on u.user_id = sl.user_id and u.day = sl.day and u.slot_key = sl.slot_key),
+  -- the day's breaks are one pot (= plan() in src/core.js): the day only goes over once its total is used up (24 s grace)
+  per_day as (select user_id, day, count(secs) as n, count(secs) filter (where secs - cap < 24) as ok_own,
+                     greatest(0, coalesce(sum(secs), 0) - sum(cap)) as over_raw
               from slot group by 1, 2),
-  tot as (select user_id, sum(n) as breaks, sum(ok) as on_time, count(*) filter (where ok = n) as clean, round(sum(over_s) / 60) as over_m
-          from per_day group by 1)
+  scored as (select user_id, n, case when over_raw < 24 then n else ok_own end as ok,
+                    case when over_raw < 24 then 0 else over_raw end as over_s
+             from per_day where n > 0),
+  tot as (select user_id, sum(n) as breaks, sum(ok) as on_time, count(*) filter (where over_s = 0) as clean, round(sum(over_s) / 60) as over_m
+          from scored group by 1)
   select t.code, t.name, coalesce(x.breaks, 0)::int, coalesce(x.on_time, 0)::int, coalesce(x.clean, 0)::int,
          case when (select role from me) in ('manager', 'admin') then coalesce(x.over_m, 0)::int end,
          greatest(0, coalesce(x.on_time, 0) * 10 + coalesce(x.clean, 0) * 5 - coalesce(x.over_m, 0) * 2)::int,
