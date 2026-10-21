@@ -19,6 +19,8 @@ const COLOUR_KEYS = Object.keys(LOOKS.colours);
 const hash = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 /** A well-mixed hash (FNV-1a), so neighbouring codes like EE-001 and EE-002 still get different shapes. */
 const mix = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; };
+/** Numbered codes (EE-001, EE-002 ...) rotate evenly through the options so a team never clumps; anything else is hashed. */
+const pick = (code, salt, k, step) => { const n = String(code).match(/(\d+)$/); return n ? (Number(n[1]) * step + salt.length) % k : mix(code + salt) % k; };
 /** The colour someone's mascot actually shows ('auto' or unknown = picked from their code, so a team looks varied). */
 export const colourOf = (code, colour) => LOOKS.colours[colour] ? colour : COLOUR_KEYS[hash(code) % COLOUR_KEYS.length];
 const shade = (hex, f) => '#' + [1, 3, 5].map(i => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f)))).map(v => v.toString(16).padStart(2, '0')).join('');
@@ -26,7 +28,10 @@ const shade = (hex, f) => '#' + [1, 3, 5].map(i => Math.max(0, Math.min(255, Mat
 function ensureDefs() {
   if (typeof document === 'undefined' || document.getElementById('bt-mascot-defs')) return;
   const grads = Object.entries(LOOKS.colours).map(([k, [, c]]) => `<radialGradient id="bt-g-${k}" cx="40%" cy="30%" r="80%"><stop offset="0" stop-color="${shade(c, 1.07)}"/><stop offset=".7" stop-color="${c}"/><stop offset="1" stop-color="${shade(c, .9)}"/></radialGradient>`).join('');
-  document.body.insertAdjacentHTML('beforeend', `<svg id="bt-mascot-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${grads}</defs></svg>`);
+  // the felt: fine speckles of light, kept inside the shape
+  document.body.insertAdjacentHTML('beforeend', `<svg id="bt-mascot-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${grads}
+    <filter id="bt-felt" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="2" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.1 -.55" result="a"/><feComposite in="a" in2="SourceAlpha" operator="in"/></filter></defs></svg>`);
 }
 /* Five pebble shapes. top = where the head is (for hats), y = eye line, w = how far apart the eyes sit, x = face centre. */
 const SHAPES = [
@@ -44,32 +49,51 @@ const ACC = {   // f = the chosen shape
   scarf: f => `<path d="M${f.x - 17} ${f.y + 15}q17 6 34 0v5q-17 6-34 0z" fill="#E8434F"/><path d="M${f.x + 8} ${f.y + 19}l2 8 4.5-1.6-2-7.4z" fill="#B92F3A"/>`,
   boots: () => '<rect x="19" y="57.5" width="10" height="5.5" rx="2.6" fill="#8B5A2B"/><rect x="35" y="57.5" width="10" height="5.5" rx="2.6" fill="#8B5A2B"/><path d="M20.5 59h7M36.5 59h7" stroke="#C99A62" stroke-width="1.1"/>',
 };
-/** The mascot. look = { colour, accessory }. mood: happy | sleepy | worried | wow. */
+/* Each person has a fixed personality face (picked from their code), like a family where everyone is a bit different:
+   bright, bored, sly (with lashes), dreamy (pink lids), cheeky (side-eye and a lopsided grin).
+   A mood, when there is one, sits on top: sleepier lids on a break, wide eyes and an "o" when over, a happy squint when done. */
+const FACES = [
+  { name: 'bright', lid: 0,   dx: 0,    dy: -.8, mouth: 'smile' },
+  { name: 'bored',  lid: .5,  dx: 0,    dy: .8,  mouth: 'flat' },
+  { name: 'sly',    lid: .42, dx: 2.2,  dy: .4,  mouth: 'smirk', lashes: true },
+  { name: 'dreamy', lid: .38, dx: -.6,  dy: -1,  mouth: 'smile', pink: true },
+  { name: 'cheeky', lid: 0,   dx: -2.2, dy: 0,   mouth: 'grin', odd: true },
+];
+/** The mascot. look = { colour, accessory }. mood: happy (their own face) | sleepy | worried | wow. */
 export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
   ensureDefs();
-  const col = colourOf(code, look?.colour), f = SHAPES[mix(code + 'shape') % SHAPES.length], lid = shade(LOOKS.colours[col][1], .82);
-  const L = f.x - f.w, R = f.x + f.w, y = f.y, look2 = mix(code + 'eyes') % 3 - 1;   // each one glances a little differently
-  const white = (x, r = 6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#1B1B1B" stroke-opacity=".12" stroke-width=".8"/>`;
-  const pupil = (x, r = 2.9) => `<circle cx="${x + look2 * 1.2}" cy="${y + .6}" r="${r}" fill="#141414"/><circle cx="${x + look2 * 1.2 + .9}" cy="${y - .4}" r=".8" fill="#fff"/>`;
-  const eyes = {
-    happy: white(L) + white(R) + pupil(L) + pupil(R),
-    sleepy: white(L) + white(R) + pupil(L, 2.6) + pupil(R, 2.6)
-      + `<path d="M${L - 6.4} ${y + .6}a6.4 6.4 0 0 1 12.8 0z" fill="${lid}"/><path d="M${R - 6.4} ${y + .6}a6.4 6.4 0 0 1 12.8 0z" fill="${lid}"/>`
-      + `<path d="M${L - 6} ${y + .6}h12M${R - 6} ${y + .6}h12" stroke="#1B1B1B" stroke-width="1.2" stroke-linecap="round"/>`,
-    worried: white(L, 6.6) + white(R, 6.6) + `<circle cx="${L}" cy="${y}" r="2.3" fill="#141414"/><circle cx="${R}" cy="${y}" r="2.3" fill="#141414"/>`,
-    wow: `<path d="M${L - 5} ${y + 1.5}q5-6 10 0M${R - 5} ${y + 1.5}q5-6 10 0" stroke="#141414" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
-  }[mood] || '';
-  const my = y + 10.5, mouth = {
-    happy: `<path d="M${f.x - 3} ${my}q3 2.6 6 0" stroke="#141414" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
-    sleepy: `<path d="M${f.x - 2.5} ${my + .5}h5" stroke="#141414" stroke-width="1.5" stroke-linecap="round"/>`,
-    worried: `<ellipse cx="${f.x}" cy="${my + .5}" rx="1.6" ry="2.1" fill="#141414"/>`,
-    wow: `<path d="M${f.x - 4} ${my - .5}q4 4.2 8 0" stroke="#141414" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
-  }[mood] || '';
-  const acc = ACC[look?.accessory]?.(f) || '';
+  const col = colourOf(code, look?.colour), f = SHAPES[pick(code, 'shape', SHAPES.length, 3)], face = FACES[pick(code, 'face', FACES.length, 1)];
+  const e = 6.4, y = f.y - 1.5, gap = e + .5, L = f.x - gap, R = f.x + gap;
+  const lidCol = face.pink ? '#F2A7BA' : shade(LOOKS.colours[col][1], .84);
+  const m = mood === 'happy' ? null : mood;
+  const lidAmt = m === 'sleepy' ? .64 : m === 'worried' || m === 'wow' ? 0 : face.lid;
+  const er = (side) => m === 'worried' ? e + .5 : face.odd && !m ? (side < 0 ? e - .4 : e + .5) : e;
+  const pr = m === 'worried' ? 2.2 : 3.2, dx = m ? 0 : face.dx, dy = m === 'sleepy' ? 1.6 : m ? 0 : face.dy;
+  const eye = (x, side) => {
+    const r = er(side);
+    if (m === 'wow') return `<path d="M${x - 5.2} ${y + 1.8}q5.2-6.4 10.4 0" stroke="#141414" stroke-width="2.3" fill="none" stroke-linecap="round"/>`;
+    let g = `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#1B1B1B" stroke-opacity=".14" stroke-width=".8"/>`
+      + `<circle cx="${x + dx}" cy="${y + dy}" r="${pr}" fill="#141414"/><circle cx="${x + dx + 1}" cy="${y + dy - 1.1}" r="${pr * .3}" fill="#fff"/>`;
+    if (lidAmt > 0) {   // the eyelid: the top part of the eye, cut by a straight line
+      const yl = y - r + 2 * r * lidAmt, hw = Math.sqrt(Math.max(0, r * r - (yl - y) ** 2)) + .3;
+      g += `<path d="M${x - hw} ${yl}A${r + .3} ${r + .3} 0 ${yl > y ? 1 : 0} 1 ${x + hw} ${yl}z" fill="${lidCol}"/><path d="M${x - hw} ${yl}H${x + hw}" stroke="#141414" stroke-width="1.3" stroke-linecap="round"/>`;
+      if (face.lashes && !m) { const o = side * hw; g += `<path d="M${x + o} ${yl}l${side * 2.6} -1.6M${x + o - side * 1.6} ${yl - .3}l${side * 1.8} -2.4" stroke="#141414" stroke-width="1" stroke-linecap="round"/>`; }
+    }
+    return g;
+  };
+  const my = y + 11, X = f.x;
+  const mouth = m === 'sleepy' ? `<path d="M${X - 2.5} ${my}h5" stroke="#141414" stroke-width="1.5" stroke-linecap="round"/>`
+    : m === 'worried' ? `<ellipse cx="${X}" cy="${my + .4}" rx="1.7" ry="2.2" fill="#141414"/>`
+    : m === 'wow' ? `<path d="M${X - 4.2} ${my - .6}q4.2 4.6 8.4 0" stroke="#141414" stroke-width="1.7" fill="none" stroke-linecap="round"/>`
+    : { smile: `<path d="M${X - 3} ${my}q3 2.6 6 0" stroke="#141414" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+        flat: `<path d="M${X - 4} ${my + .4}h8" stroke="#141414" stroke-width="1.5" stroke-linecap="round"/>`,
+        smirk: `<path d="M${X - 2.5} ${my + .6}q3.4 1.4 5.6-1.6" stroke="#141414" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+        grin: `<path d="M${X - 4} ${my - .4}q3.4 4.4 7.6-.8" stroke="#141414" stroke-width="1.6" fill="none" stroke-linecap="round"/>` }[face.mouth];
+  const acc = ACC[look?.accessory]?.({ ...f, y, w: gap }) || '';
   return `<svg viewBox="0 0 64 64" aria-hidden="true" style="overflow:visible">
     <ellipse cx="32" cy="61" rx="22" ry="2.6" fill="#000" opacity=".12"/>
-    ${look?.accessory === 'boots' ? acc : ''}<path d="${f.d}" fill="url(#bt-g-${col})"/>
-    ${eyes}${mouth}${look?.accessory !== 'boots' ? acc : ''}
+    ${look?.accessory === 'boots' ? acc : ''}<path d="${f.d}" fill="url(#bt-g-${col})"/><path d="${f.d}" fill="#fff" filter="url(#bt-felt)" opacity=".55"/>
+    ${eye(L, -1)}${eye(R, 1)}${mouth}${look?.accessory !== 'boots' ? acc : ''}
     ${crown ? `<path d="M${f.x - 8} ${f.top - 1}l3.8-6.5 4.2 4.2 4.2-4.2 3.8 6.5z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.1" stroke-linejoin="round"/>` : ''}</svg>`;
 }
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
