@@ -285,17 +285,18 @@ create trigger break_names_audit after insert or update or delete on break_names
 -- Same maths as weekScore() in src/core.js: a break is on time when it stays within its OWN allowance (+ adjustment),
 -- 24 seconds of grace (= CONFIG.overToleranceMinutes); points = 10 per on-time break + 5 per clean day - 2 per minute over.
 -- ---------- mascots and prizes ----------
--- Everyone's mascot starts the same (teal, no accessory). Last week's Breakathon champion picks ONE prize:
--- an extra break (the team lead then gives it) or a new look (one colour or accessory, kept for good).
+-- Everyone's mascot wears headphones and has their own colour from day one (picked for them, changeable any time).
+-- Last week's Breakathon champion picks ONE prize: an extra break (the team lead then gives it) or a new accessory, kept for good.
 -- Nobody writes these tables directly: the functions below check you really won, claim once a week, and only wear what you unlocked.
 create table if not exists avatars (
   user_id uuid primary key references profiles(id) on delete cascade,
-  colour text not null default 'teal', accessory text not null default 'none');
+  colour text not null default 'auto', accessory text not null default 'none');   -- 'auto' = a colour picked from the code
+alter table avatars alter column colour set default 'auto';
 create table if not exists rewards (
   user_id uuid not null references profiles(id) on delete cascade,
   week date not null,                                        -- the Monday of the week that was won
   choice text not null check (choice in ('break', 'look')),
-  item text,                                                 -- for a look: 'colour:pink', 'acc:headset' ...
+  item text,                                                 -- for a look: 'acc:scarf', 'acc:boots' ...
   at timestamptz not null default now(),
   primary key (user_id, week));
 alter table avatars enable row level security; alter table rewards enable row level security;
@@ -305,10 +306,12 @@ create policy "read own or team" on rewards for select to authenticated using (u
 revoke all on avatars, rewards from anon, authenticated;
 grant select on avatars, rewards to authenticated;
 
--- = LOOKS in src/race.js. The first colour and 'none' are free for everyone.
+-- = LOOKS in src/race.js. Colours are free for everyone; accessories (except 'none') are prizes.
+create or replace function look_colours() returns text[] language sql immutable as $$
+  select array['auto','teal','blue','pink','yellow','purple','green','orange','coral','sky','lilac']
+$$;
 create or replace function look_items() returns text[] language sql immutable as $$
-  select array['colour:teal','colour:blue','colour:pink','colour:yellow','colour:purple','colour:green','colour:orange',
-               'acc:none','acc:headset','acc:cap','acc:bow','acc:glasses','acc:scarf','acc:flower']
+  select array['acc:none','acc:cap','acc:scarf','acc:boots','acc:bow','acc:glasses','acc:sprout']
 $$;
 create or replace function week_start(d date) returns date language sql immutable as $$ select d - (extract(isodow from d)::int - 1) $$;
 drop function if exists breakathon(date, date);
@@ -335,7 +338,7 @@ language sql stable security definer set search_path = public as $$
   select t.code, t.name, coalesce(x.breaks, 0)::int, coalesce(x.on_time, 0)::int, coalesce(x.clean, 0)::int,
          case when (select role from me) in ('manager', 'admin') then coalesce(x.over_m, 0)::int end,
          greatest(0, coalesce(x.on_time, 0) * 10 + coalesce(x.clean, 0) * 5 - coalesce(x.over_m, 0) * 2)::int,
-         coalesce(a.colour, 'teal'), coalesce(a.accessory, 'none')
+         coalesce(a.colour, 'auto'), coalesce(a.accessory, 'none')
   from team t left join tot x on x.user_id = t.id left join avatars a on a.user_id = t.id
   order by 7 desc, 4 desc, 2
 $$;
@@ -350,7 +353,7 @@ create or replace function last_week_champion() returns uuid language sql stable
 $$;
 create or replace function my_rewards() returns json language sql stable security definer set search_path = public as $$
   select json_build_object(
-    'colour', coalesce((select colour from avatars where user_id = auth.uid()), 'teal'),
+    'colour', coalesce((select colour from avatars where user_id = auth.uid()), 'auto'),
     'accessory', coalesce((select accessory from avatars where user_id = auth.uid()), 'none'),
     'unlocked', coalesce((select json_agg(item order by at) from rewards where user_id = auth.uid() and choice = 'look'), '[]'::json),
     'week', week_start(current_date) - 7,
@@ -365,26 +368,25 @@ begin
   if auth.uid() is null or last_week_champion() is distinct from auth.uid() then raise exception 'Only last week''s champion can claim the prize.'; end if;
   if exists (select 1 from rewards where user_id = auth.uid() and week = w) then raise exception 'You have already claimed last week''s prize.'; end if;
   if p_choice = 'look' then
-    if p_item is null or not p_item = any(look_items()) or p_item in ('colour:teal', 'acc:none')
+    if p_item is null or not p_item = any(look_items()) or p_item = 'acc:none'
        or exists (select 1 from rewards where user_id = auth.uid() and item = p_item) then
-      raise exception 'Pick a colour or accessory you don''t have yet.';
+      raise exception 'Pick an accessory you don''t have yet.';
     end if;
   elsif p_choice <> 'break' then raise exception 'Pick a break or a new look.';
   end if;
   insert into rewards(user_id, week, choice, item) values (auth.uid(), w, p_choice, case when p_choice = 'look' then p_item end);
   if p_choice = 'look' then                                  -- wear it straight away
     insert into avatars(user_id) values (auth.uid()) on conflict (user_id) do nothing;
-    update avatars set colour = case when p_item like 'colour:%' then substr(p_item, 8) else colour end,
-                       accessory = case when p_item like 'acc:%' then substr(p_item, 5) else accessory end where user_id = auth.uid();
+    update avatars set accessory = substr(p_item, 5) where user_id = auth.uid();
   end if;
 end $$;
 create or replace function set_look(p_colour text, p_accessory text) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if auth.uid() is null then raise exception 'Sign in first.'; end if;
-  if not (p_colour = 'teal' or exists (select 1 from rewards where user_id = auth.uid() and item = 'colour:' || p_colour))
-     or not (p_accessory = 'none' or exists (select 1 from rewards where user_id = auth.uid() and item = 'acc:' || p_accessory)) then
-    raise exception 'You can only wear colours and accessories you have unlocked.';
+  if not p_colour = any(look_colours()) then raise exception 'That colour isn''t available.'; end if;
+  if not (p_accessory = 'none' or exists (select 1 from rewards where user_id = auth.uid() and item = 'acc:' || p_accessory)) then
+    raise exception 'You can only wear accessories you have unlocked.';
   end if;
   insert into avatars(user_id, colour, accessory) values (auth.uid(), p_colour, p_accessory)
   on conflict (user_id) do update set colour = excluded.colour, accessory = excluded.accessory;

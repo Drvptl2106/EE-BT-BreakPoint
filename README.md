@@ -31,8 +31,9 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
 - The shift pie: time worked, breaks, overruns and time still to go, with the worked time ticking to the second.
 - A sales-floor pep talk that changes with the time of day, a live clock and a Live indicator.
 - **Breakathon:** everyone's mascot races across the island to Champion's Keep, this week and last week.
-- **Mascots and prizes:** everyone starts as the same fuzzy teal mascot (it also delivers the pep talk and reacts to your day).
-  Last week's champion picks a prize: a 15 min extra break, or a new colour or accessory that's theirs for good.
+- **Mascots and prizes:** everyone has a little hooded mascot with headphones in their own colour (any colour, any time). It delivers
+  the pep talk and reacts quietly to your day. Last week's champion picks a prize: a 15 min extra break, or an accessory
+  (cap, scarf, boots, bow, glasses, sprout) that's theirs for good.
 
 **Team leads**
 - **Dashboard** (view only): filters for everyone / on a break / running over / taken a break / no break yet / not clocked in,

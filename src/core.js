@@ -32,8 +32,8 @@ export const breakathon = async (from, to) => API ? api.breakathon(from, to)
   : teamScores(fakeLoad(), Object.keys(PILOT_USERS), from, to, true).map(r => ({ ...r, ...lookOf(fakeLooks().avatars[r.code]) }));
 
 /* Mascots and prizes. Database mode: the database decides (db/schema.sql). Demo mode: the same rules, kept in this browser. */
-const LOOKS_KEY = 'bt-looks:v1', FREE = ['colour:teal', 'acc:none'];
-const lookOf = a => ({ colour: a?.colour || 'teal', accessory: a?.accessory || 'none' });
+const LOOKS_KEY = 'bt-looks:v1', COLOURS = ['auto', 'teal', 'blue', 'pink', 'yellow', 'purple', 'green', 'orange', 'coral', 'sky', 'lilac'];   // = look_colours()
+const lookOf = a => ({ colour: a?.colour || 'auto', accessory: a?.accessory || 'none' });
 const fakeLooks = () => { try { return { avatars: {}, rewards: {}, ...JSON.parse(localStorage.getItem(LOOKS_KEY)) }; } catch { return { avatars: {}, rewards: {} }; } };
 const saveLooks = v => localStorage.setItem(LOOKS_KEY, JSON.stringify(v));
 const lastWeek = () => weekOf(dayKey(new Date(now())), 1);
@@ -50,15 +50,16 @@ export async function claimReward(code, choice, item) {
   const L = fakeLooks(), w = lastWeek().from;
   if (fakeChampion() !== code) throw new Error("Only last week's champion can claim the prize.");
   if (L.rewards[code]?.[w]) throw new Error("You have already claimed last week's prize.");
-  if (choice === 'look' && (!item || FREE.includes(item) || unlockedOf(L, code).includes(item))) throw new Error("Pick a colour or accessory you don't have yet.");
+  if (choice === 'look' && (!/^acc:\w+$/.test(item || '') || item === 'acc:none' || unlockedOf(L, code).includes(item))) throw new Error("Pick an accessory you don't have yet.");
   (L.rewards[code] ??= {})[w] = { choice, item: choice === 'look' ? item : null };
-  if (choice === 'look') { const [k, v] = item.split(':'); L.avatars[code] = { ...lookOf(L.avatars[code]), [k === 'colour' ? 'colour' : 'accessory']: v }; }
+  if (choice === 'look') L.avatars[code] = { ...lookOf(L.avatars[code]), accessory: item.slice(4) };
   saveLooks(L);
 }
 export async function setLook(code, colour, accessory) {
   if (API) return api.setLook(colour, accessory);
-  const L = fakeLooks(), ok = item => FREE.includes(item) || unlockedOf(L, code).includes(item);
-  if (!ok('colour:' + colour) || !ok('acc:' + accessory)) throw new Error('You can only wear colours and accessories you have unlocked.');
+  const L = fakeLooks();
+  if (!COLOURS.includes(colour)) throw new Error("That colour isn't available.");
+  if (accessory !== 'none' && !unlockedOf(L, code).includes('acc:' + accessory)) throw new Error('You can only wear accessories you have unlocked.');
   L.avatars[code] = { colour, accessory }; saveLooks(L);
 }
 export const teamLooks = async () => API ? api.teamLooks() : fakeLooks().avatars;
