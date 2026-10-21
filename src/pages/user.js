@@ -3,8 +3,8 @@ import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js';
 import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js';
 import { jokeFor } from '../jokes.js';
 import { esc, setHtml } from '../dom.js';
-import { startClock, setLive, setupTabs, setupPassword } from '../chrome.js';
-import { raceHTML } from '../race.js';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js';
+import { raceHTML, placeRacers, wireRacers, avatar } from '../race.js';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -74,7 +74,8 @@ function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new
   const used=p.reduce((a,s)=>a+s.used,0),allowed=p.reduce((a,s)=>a+s.base,0);
   $('#sTaken').innerHTML=`${p.filter(s=>s.done).length} <small>of ${p.length}</small>`;$('#sUsed').innerHTML=`${Math.round(used/60)} <small>of ${tidy(allowed)} min</small>`;$('#sUsed').classList.toggle('bad',p.some(s=>s.over));
   if(end){const left=Math.max(0,(end-at)/1000),unused=p.reduce((a,s)=>a+(s.done?0:s.left),0);$('#sLeft').textContent=durHM(left);$('#sWork').textContent=durHM(Math.max(0,left-unused))}else{$('#sLeft').textContent='–';$('#sWork').textContent='–'}
-  const j=jokeFor(at,r,pct);if($('#joke').textContent!==j.text){$('#joke').textContent=j.text;$('#pepK').textContent=j.kicker}
+  const j=jokeFor(at,r,pct);if($('#joke').textContent!==j.text){$('#joke').textContent=j.text;$('#pepK').textContent=j.kicker;const bb=$('#bubble');bb.classList.remove('pop');void bb.offsetWidth;bb.classList.add('pop')}
+  const act=p.find(s=>s.act),mood=act?(act.over>0?'worried':'sleepy'):pct>=100?'wow':'happy';if($('#buddy').dataset.mood!==mood+code){$('#buddy').dataset.mood=mood+code;$('#buddy').innerHTML=avatar(code,{mood})}
   if(r.active){const i=p.findIndex(s=>s.key===r.active.slot),s=p[i],n=p[i+1],tot=s.allowed*60,left=tot-s.used,ratio=tot?left/tot:-1;
     const ph=left<=0?'over':ratio<=1/3?'red':ratio<=2/3?'amber':'green',sh=left>=0?Math.ceil(left):Math.floor(-left);
     $('#timerBox').className='dialog timer '+ph;$('#tName').textContent=`${s.label} · ${tidy(s.allowed)} min${s.used-(at-r.active.start)/1000>1?' (resumed)':''}`;$('#tDigits').textContent=(left<0?'−':'')+mmss(sh);
@@ -87,7 +88,7 @@ let week=0,raceT=null;
 async function drawRace(){if(tab!=='race')return;try{
     const [rows,last]=await Promise.all([breakathon(weekOf(TODAY,week).from,weekOf(TODAY,week).to),breakathon(weekOf(TODAY,1).from,weekOf(TODAY,1).to)]);
     const champion=last[0]?.points>0?last[0]:null;
-    setHtml($('#race'),raceHTML({rows,me:code,isManager:false,champion}))}
+    setHtml($('#race'),raceHTML({rows,me:code,isManager:false,champion}));placeRacers($('#race'))}
   catch(err){$('#race').innerHTML=`<p class="empty">${esc(err.message)}</p>`}}
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);document.querySelectorAll('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 
@@ -96,5 +97,5 @@ function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.ad
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});
-setupPassword();
+setupPassword();setupTheme();wireRacers($('#race'));
 (async()=>{if(API)$('#pw').classList.remove('hidden');try{await init();if(API){const m=me();code=m&&m.role==='agent'?m.code:null}boot()}catch(err){showGate();$('#gateErr').textContent=err.message}})();

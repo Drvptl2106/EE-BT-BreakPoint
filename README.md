@@ -57,12 +57,13 @@ audit trail nobody can edit. Breakathon gives agents names and points only, neve
 
 ```
 index.html, manager.html     the two pages (and their content-security policy)
-src/config.js                every adjustable value: breaks, OH break names, Breakathon points and reward, colours live in styles.css
+src/config.js                every adjustable value: breaks, OH break names, Breakathon points and reward
 src/core.js                  break rules, Breakathon scoring, dashboard status and team pulse
 src/backend/api.js           the Supabase connection, clock sync and plain-English errors
 src/pages/user.js, manager.js   one script per page
 src/chrome.js                header: live clock, Live pill, tabs, change password
-src/race.js                  the Breakathon race and its characters
+src/race.js                  the Breakathon island map and the characters (also the pep-talk buddy)
+src/theme.js                 applies the saved light/dark choice before the page draws
 src/jokes.js                 the pep talks          src/dom.js, pilot.js, styles.css
 scripts/create_logins.mjs    creates everyone's login and profile
 db/schema.sql                the database (safe to re-run)      db/cleanup_job.sql   nightly 14-day cleanup

@@ -56,3 +56,13 @@ export function setupPassword() {
     finally { b.disabled = false; }
   });
 }
+/** Sun/moon button: switches light and dark. Starts from the device setting; the choice is remembered on this device. */
+export function setupTheme() {
+  const btn = $('#themeBtn'); if (!btn) return;
+  const root = document.documentElement, sysDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : sysDark();
+  const paint = () => { btn.textContent = isDark() ? '☀️' : '🌙'; btn.setAttribute('aria-label', isDark() ? 'Switch to light mode' : 'Switch to dark mode'); };
+  btn.addEventListener('click', () => { const t = isDark() ? 'light' : 'dark'; root.dataset.theme = t; try { localStorage.setItem('bt-theme', t); } catch {} paint(); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', paint);
+  paint();
+}
