@@ -154,5 +154,5 @@ test('team pulse: who is over, who is still waiting, and who has gone too long w
   assert.match(text, /warn: Jordan has been working 4h 00m without a break/);
   assert.match(text, /Almost everyone has had Break 1\. Still to go: Jordan and Mo\./);
   assert.match(text, /1 on a break right now · 4 working · 1 not clocked in/);
-  assert.match(teamPulse([done('Alex'), done('Priya')], NOW).map(m => m.text).join(), /Everyone clocked in has had Break 1/);
+  assert.match(teamPulse([done('Alex'), done('Priya')], NOW).map(m => m.text).join(), /Everyone clocked in has had Break 1\./);
 });

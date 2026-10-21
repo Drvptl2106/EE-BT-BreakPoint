@@ -167,19 +167,19 @@ const names = list => list.length <= 3 ? list.join(list.length === 2 ? ' and ' :
 /** Plain-English team summary for the manager. team = [{ name, rec, p }] for everyone; returns [{ tone: bad|warn|good|info, text }]. */
 export function teamPulse(team, at){
   const inn = team.filter(t => t.rec), out = [];
-  if (!inn.length) return [{ tone:'info', text:'Nobody has clocked in yet today. Quiet before the storm ☕' }];
+  if (!inn.length) return [{ tone:'info', text:'Nobody has clocked in yet today.' }];
   for (const t of inn) { const a = t.p.find(s => s.act); if (!a) continue;
     const over = a.used - a.allowed*60;
-    if (over >= 5*60) out.push({ tone:'bad', text:`${t.name} is ${Math.round(over/60)} min over on ${a.label}. Go wake ${t.name} up 😴` });
-    else if (over > CONFIG.overToleranceMinutes*60) out.push({ tone:'bad', text:`${t.name} has just gone over on ${a.label}. A friendly nudge? ⏰` });
+    if (over >= 5*60) out.push({ tone:'bad', text:`${t.name} is ${Math.round(over/60)} min over on ${a.label}. Go wake ${t.name} up.` });
+    else if (over > CONFIG.overToleranceMinutes*60) out.push({ tone:'bad', text:`${t.name} has just gone over on ${a.label}.` });
   }
   for (const t of inn) if (!t.p.some(s => s.used > 0) && at - t.rec.shiftStart >= CONFIG.noBreakWarnHours*36e5)
-    out.push({ tone:'warn', text:`${t.name} has been working ${durHM((at - t.rec.shiftStart)/1000)} without a break. Worth a check-in 👀` });
+    out.push({ tone:'warn', text:`${t.name} has been working ${durHM((at - t.rec.shiftStart)/1000)} without a break. Worth a check-in.` });
   for (const slot of CONFIG.defaultSlots) {
     const st = inn.map(t => ({ t, s: t.p.find(x => x.key === slot.key) })).filter(x => x.s);
     const done = st.filter(x => x.s.used > 0 && !x.s.act), waiting = st.filter(x => !x.s.used);
     if (!st.length || !done.length) continue;
-    if (!waiting.length && done.length === st.length) out.push({ tone:'good', text:`Everyone clocked in has had ${slot.label} 🎉` });
+    if (!waiting.length && done.length === st.length) out.push({ tone:'good', text:`Everyone clocked in has had ${slot.label}.` });
     else if (done.length >= Math.ceil(st.length*0.6)) out.push({ tone:'info', text:`Almost everyone has had ${slot.label}. Still to go: ${names(waiting.map(x => x.t.name))}.` });
   }
   const onB = inn.filter(t => t.p.some(s => s.act)).length, off = team.length - inn.length;
