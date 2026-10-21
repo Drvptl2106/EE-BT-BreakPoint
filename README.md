@@ -30,7 +30,7 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
 - Going over takes the extra minutes off the next break (Break 1 → Break 2 → Lunch → OH breaks), with a friendly note.
 - The shift pie: time worked, breaks, overruns and time still to go, with the worked time ticking to the second.
 - A sales-floor pep talk that changes with the time of day, a live clock and a Live indicator.
-- **Breakathon:** everyone's mascot races across the island to Champion's Keep, this week and last week.
+- **Breakathon:** a party-game obstacle course (Hold Music Spinner, Upgrade Bounce, Discount Hammer, Hexa-Lunch) where everyone's mascot races to the finish; the top three qualify. Tap obstacles and racers.
 - **Mascots and prizes:** everyone has a little hooded mascot with headphones in their own colour (any colour, any time). It delivers
   the pep talk and reacts quietly to your day. Last week's champion picks a prize: a 15 min extra break, or an accessory
   (cap, scarf, boots, bow, glasses, sprout) that's theirs for good.

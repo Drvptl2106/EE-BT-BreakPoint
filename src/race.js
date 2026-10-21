@@ -98,41 +98,48 @@ export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
 }
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
 
-/* ---------------- the island ---------------- */
+/* ---------------- the obstacle course ----------------
+   A bright, silly obstacle course in the spirit of a party game show: a striped track over pink slime, moving obstacles
+   named after the job, and a FINISH arch with confetti. Racers run along it; the further, the more punctual points.
+   Tap an obstacle for its joke, tap a racer for their score. Everything stands still for people who prefer less motion. */
 const ROAD = 'M70 392 C150 400 200 330 250 318 S350 352 420 330 S470 240 540 236 S650 284 700 236 S730 150 800 140 S880 128 905 96';
-const tree = (x, y, s = 1, col = '#2F7D3A') => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-3" y="4" width="6" height="12" rx="2" fill="#6B4A2B"/><circle r="13" fill="${col}"/><circle cx="-5" cy="-5" r="5" fill="#fff" opacity=".18"/></g>`;
-const pine = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-2.5" y="8" width="5" height="9" fill="#6B4A2B"/><path d="M0-18L13 10H-13z" fill="#245C33"/><path d="M0-18L5-8H-5z" fill="#fff" opacity=".25"/></g>`;
-const MAP = `<svg viewBox="0 0 1000 460" aria-hidden="true">
-  <rect width="1000" height="460" fill="#5B8FD6"/>
-  ${[60, 150, 420, 880].map((y, i) => `<path class="wave" style="animation-delay:-${i}s" d="M${20 + i * 230} ${y} q12-8 24 0 t24 0" stroke="#8FB6EA" stroke-width="3" fill="none" stroke-linecap="round"/>`).join('')}
-  <path d="M40 420 C20 330 60 250 140 230 C170 140 300 70 450 80 C560 40 700 50 800 60 C900 40 975 110 965 200 C990 290 930 380 820 410 C690 450 520 440 400 445 C260 452 90 460 40 420z" fill="#EBD8A0"/>
-  <path d="M62 405 C48 330 84 262 156 246 C190 160 310 96 452 104 C562 66 698 74 796 84 C890 70 950 128 940 205 C962 282 910 360 812 388 C690 424 520 418 402 422 C266 428 104 434 62 405z" fill="#58A84E"/>
-  <path d="M62 405 C48 330 84 262 156 246 C190 200 230 190 260 205 C250 270 200 300 170 330 C150 360 120 400 62 405z" fill="#7B57C9"/>
-  <path d="M452 104 C562 66 698 74 796 84 C820 130 760 170 700 160 C640 150 600 120 540 140 C500 150 470 140 452 104z" fill="#C9874A"/>
-  <path d="M640 300 C700 290 760 300 780 340 C800 380 740 400 690 395 C640 390 610 360 615 335 C618 315 625 303 640 300z" fill="#3E7FD0" stroke="#9CC4F2" stroke-width="5"/>
-  <path d="M330 110 C340 170 300 210 330 260 C350 300 400 300 420 360 C430 390 420 410 430 430" stroke="#3E7FD0" stroke-width="16" fill="none" stroke-linecap="round"/>
-  <path d="M330 110 C340 170 300 210 330 260 C350 300 400 300 420 360 C430 390 420 410 430 430" stroke="#7FB0EC" stroke-width="4" fill="none" stroke-dasharray="10 14" stroke-linecap="round"/>
-  ${[[575, 118], [612, 106], [650, 120], [690, 100]].map(([x, y]) => `<path d="M${x - 28} ${y + 22}L${x} ${y - 24}L${x + 28} ${y + 22}z" fill="#8C7A6B"/><path d="M${x} ${y - 24}l10 16-10-4-10 4z" fill="#fff"/>`).join('')}
-  <path d="${ROAD}" stroke="#B88A55" stroke-width="30" fill="none" stroke-linecap="round"/>
-  <path id="road" d="${ROAD}" stroke="#EAD09A" stroke-width="22" fill="none" stroke-linecap="round"/>
-  <path d="${ROAD}" stroke="#fff" stroke-opacity=".55" stroke-width="2.5" fill="none" stroke-dasharray="10 12"/>
-  <rect x="395" y="322" width="44" height="34" rx="4" fill="#8B5A2B" transform="rotate(-18 417 339)"/><path d="M398 330l40-14M402 344l40-14" stroke="#5E3A1A" stroke-width="2" transform="rotate(0)"/>
-  ${[[110, 300], [135, 335], [95, 360], [190, 280], [215, 300]].map(([x, y]) => tree(x, y, 1, '#4B2F8F')).join('')}
-  ${[[300, 400], [480, 400], [520, 380], [560, 330], [360, 200], [230, 380], [760, 210], [850, 230], [880, 300], [820, 330], [500, 180], [460, 300], [600, 410]].map(([x, y], i) => tree(x, y, i % 3 ? 1 : 1.2)).join('')}
-  ${[[880, 180], [910, 220], [780, 90], [740, 120], [260, 150], [290, 130]].map(([x, y]) => pine(x, y)).join('')}
-  <g transform="translate(905 88)"><rect x="-42" y="-10" width="84" height="44" fill="#E9E2D2" stroke="#8A7F6A" stroke-width="2"/>
-    <rect x="-52" y="-34" width="24" height="68" fill="#DCD3BF" stroke="#8A7F6A" stroke-width="2"/><rect x="28" y="-34" width="24" height="68" fill="#DCD3BF" stroke="#8A7F6A" stroke-width="2"/>
-    <path d="M-56-34h32l-16-20zM24-34h32l-16-20z" fill="#0E6E77"/><path d="M-12 34v-22a12 12 0 0124 0v22z" fill="#6B4A2B"/>
-    <path d="M-40-34v-6M-44-34v-4" stroke="#8A7F6A"/><line x1="40" y1="-54" x2="40" y2="-80" stroke="#555" stroke-width="2"/><path class="flagw" d="M40-80h24l-6 7 6 7H40z" fill="#FFE03C"/>
-    <path d="M-8-30h16v5a8 8 0 01-16 0zM-8-28h-4a4 4 0 004 6M8-28h4a4 4 0 01-4 6M-2-17h4v4h-4zM-6-13h12v3H-6z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.2" stroke-linejoin="round"/></g>
-  <g transform="translate(58 378)"><rect x="-4" y="-46" width="5" height="50" fill="#555"/><rect x="34" y="-46" width="5" height="50" fill="#555"/>
-    <rect x="-4" y="-50" width="43" height="16" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="17.5" y="-38" text-anchor="middle" font-size="11" font-weight="800" fill="#1B1B1B">START</text></g>
-  <text class="lbl" x="92" y="268">Warm-up Woods</text><text class="lbl" x="500" y="300">On-time Meadows</text>
-  <text class="lbl" x="560" y="182">Upgrade Peaks</text><text class="lbl" x="640" y="365">Lunch Lagoon</text><text class="lbl" x="790" y="50">Champion's Keep</text>
-  <g class="cloud" opacity=".85"><ellipse cx="0" cy="40" rx="42" ry="14" fill="#fff"/><ellipse cx="22" cy="30" rx="26" ry="14" fill="#fff"/></g>
-  <g class="cloud c2" opacity=".7"><ellipse cx="0" cy="120" rx="34" ry="11" fill="#fff"/><ellipse cx="-16" cy="112" rx="20" ry="11" fill="#fff"/></g>
-  <g id="milestones"></g>
+const OBSTACLES = [   // f = how far along the course
+  { id: 'spinner', f: .2, name: 'Hold Music Spinner', joke: 'Duck under it like a customer dodging the satisfaction survey.' },
+  { id: 'bounce', f: .41, name: 'Upgrade Bounce', joke: 'Every jump is an upgrade. Every fall is "I\'ll think about it".' },
+  { id: 'hammer', f: .6, name: 'Discount Hammer', joke: 'Swings at anyone giving money away like they own the company.' },
+  { id: 'hex', f: .8, name: 'Hexa-Lunch', joke: 'The tiles sink if you stand still. Just like lunch breaks that run over.' },
+];
+const cloud = (x, y, s, cls = '') => `<g class="cloud ${cls}" transform="translate(${x} ${y}) scale(${s})"><ellipse rx="40" ry="14" fill="#fff"/><ellipse cx="-18" cy="-8" rx="20" ry="13" fill="#fff"/><ellipse cx="16" cy="-10" rx="24" ry="15" fill="#fff"/></g>`;
+const MAP = `<svg viewBox="0 -50 1000 510" aria-hidden="true">
+  <defs><linearGradient id="bt-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FD8FF"/><stop offset=".65" stop-color="#C9E9FF"/><stop offset="1" stop-color="#FFD3EC"/></linearGradient></defs>
+  <rect y="-50" width="1000" height="510" fill="url(#bt-sky)"/>
+  ${cloud(140, 70, 1)}${cloud(520, 50, .8, 'c2')}${cloud(760, 190, .7)}${cloud(330, 150, .6, 'c2')}
+  <g opacity=".55"><path d="M600 120h70l-8 14h-54z" fill="#B48CF2"/><path d="M180 200h60l-7 12h-46z" fill="#FFB86B"/><path d="M820 300h80l-9 14h-62z" fill="#7CD992"/></g>
+  <path class="slime" d="M0 420 q25-12 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 V460 H0z" fill="#FF6FB1"/>
+  <rect y="436" width="1000" height="24" fill="#F0479B"/>
+  <path d="${ROAD}" stroke="#6C3BB5" stroke-width="44" fill="none" stroke-linecap="round" transform="translate(0 11)"/>
+  <path d="${ROAD}" stroke="#FF8CC6" stroke-width="44" fill="none" stroke-linecap="round"/>
+  <path d="${ROAD}" stroke="#FFD84A" stroke-width="44" fill="none" stroke-dasharray="28 28"/>
+  <path d="${ROAD}" stroke="#fff" stroke-opacity=".75" stroke-width="44" fill="none" stroke-dasharray="2 54" stroke-dashoffset="-27"/>
+  <path id="road" d="${ROAD}" fill="none"/>
+  <g transform="translate(70 392)"><rect x="-30" y="-64" width="8" height="66" rx="3" fill="#6C3BB5"/><rect x="22" y="-64" width="8" height="66" rx="3" fill="#6C3BB5"/>
+    <rect x="-34" y="-78" width="68" height="20" rx="10" fill="#fff" stroke="#6C3BB5" stroke-width="3"/><text y="-63.5" text-anchor="middle" font-size="12" font-weight="800" fill="#6C3BB5">START</text>
+    ${[0, 1, 2].map(i => `<circle class="lamp l${i}" cx="${-12 + i * 12}" cy="-48" r="4" fill="#FFD84A" stroke="#6C3BB5" stroke-width="1.5"/>`).join('')}</g>
+  <g transform="translate(905 96)"><rect x="-46" y="-80" width="12" height="86" rx="4" fill="#6C3BB5"/><rect x="34" y="-80" width="12" height="86" rx="4" fill="#6C3BB5"/>
+    <path d="M-52-80q52-42 104 0v18q-52-38-104 0z" fill="#fff" stroke="#6C3BB5" stroke-width="3"/>
+    <g>${[...Array(12)].map((_, i) => `<rect x="${-48 + i * 8}" y="${-84 + (i % 2) * 6}" width="8" height="6" fill="#1B1B1B" opacity=".85"/>`).join('')}</g>
+    <text y="-66" text-anchor="middle" font-size="14" font-weight="900" fill="#6C3BB5" letter-spacing="1">FINISH</text>
+    <path d="M-8-112h16v5a8 8 0 01-16 0zM-8-110h-4a4 4 0 004 6M8-110h4a4 4 0 01-4 6M-2-99h4v4h-4zM-6-95h12v3H-6z" fill="#FFD84A" stroke="#A8860A" stroke-width="1.2" stroke-linejoin="round"/>
+    ${[...Array(14)].map((_, i) => `<rect class="confetti" x="${-60 + i * 9}" y="-130" width="4" height="7" rx="1" fill="${['#FF5C8A', '#FFD84A', '#5B8DEF', '#3CCB8C', '#B48CF2'][i % 5]}" style="animation-delay:-${(i * .37).toFixed(2)}s"/>`).join('')}</g>
+  <g id="obstacles"></g>
 </svg>`;
+/* the moving parts, drawn at their spot on the course */
+const OBSTACLE_ART = {
+  spinner: '<g class="spin"><rect x="-46" y="-5" width="92" height="10" rx="5" fill="#5B3BD6"/><rect x="-46" y="-5" width="92" height="4" rx="2" fill="#8F72FF"/></g><circle r="8" fill="#FFD84A" stroke="#5B3BD6" stroke-width="3"/>',
+  bounce: [-24, 0, 24].map((x, i) => `<g transform="translate(${x} 0)"><ellipse rx="11" ry="4.5" fill="#E0B200"/><ellipse class="pad" style="animation-delay:-${i * .25}s" cy="-3" rx="11" ry="4.5" fill="#FFE03C" stroke="#fff" stroke-width="1.5"/></g>`).join(''),
+  hammer: '<rect x="-38" y="-86" width="7" height="86" rx="3" fill="#6C3BB5"/><rect x="31" y="-86" width="7" height="86" rx="3" fill="#6C3BB5"/><rect x="-42" y="-90" width="84" height="9" rx="4.5" fill="#8F72FF" stroke="#6C3BB5" stroke-width="2"/><g class="swing"><line x1="0" y1="-82" x2="0" y2="-20" stroke="#5B3BD6" stroke-width="4"/><rect x="-24" y="-28" width="48" height="24" rx="10" fill="#FF5C8A" stroke="#C93A66" stroke-width="2.5"/><rect x="-24" y="-28" width="48" height="8" rx="4" fill="#fff" opacity=".35"/></g>',
+  hex: [-30, -10, 10, 30].map((x, i) => `<path class="hexa" style="animation-delay:-${i * .7}s" transform="translate(${x} ${i % 2 ? 6 : -4})" d="M-9 0l4.5-8h9L9 0l-4.5 8h-9z" fill="${i % 2 ? '#5B8DEF' : '#3CCB8C'}" stroke="#fff" stroke-width="1.5"/>`).join(''),
+};
 
 /** rows: ranked [{ code, name, breaks, onTime, cleanDays, overMinutes, points }]. Call placeRacers() after inserting. */
 export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
@@ -147,33 +154,42 @@ export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
   let prev = -1;
   const runners = rows.map((r, i) => { let f = Math.min(.97, r.points / goal); if (prev >= 0 && prev - f < .05) f = Math.max(0, prev - .05); prev = f;
     return `<button class="racer${r.code === me ? ' me' : ''}" data-f="${f}" data-code="${esc(r.code)}" style="left:7%;top:85%" aria-label="${esc(r.name)}, ${r.points} points, rank ${i + 1}">
-      <span class="av">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span><span class="tag">${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
+      <span class="av"><span class="trip" style="animation-delay:-${(i * 1.7) % 7}s">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span></span><span class="tag">${i < 3 && r.points > 0 ? '<i>Qualified</i>' : ''}${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
       <span class="tip"><b>${i + 1}. ${esc(r.name)}</b><br>${r.points} points · ${r.onTime}/${r.breaks} on time${r.cleanDays ? ` · ${r.cleanDays} clean day${r.cleanDays > 1 ? 's' : ''}` : ''}${isManager ? `<br>${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
   const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>Racer</th><th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
     `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays || '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
-  return `${champ}<div class="map" data-goal="${goal}">${MAP}<div class="racers">${runners || ''}</div></div>
+  const obstacles = OBSTACLES.map(o => `<button class="obst" data-ob="${o.id}" data-f="${o.f}" style="left:50%;top:50%"><span class="pill">${esc(o.name)}</span><span class="tip"><b>${esc(o.name)}</b><br>${esc(o.joke)}</span></button>`).join('');
+  return `${champ}<div class="mapwrap"><div class="map" data-goal="${goal}">${MAP}<div class="racers">${obstacles}${runners || ''}</div></div></div>
     ${rows.length ? '' : '<p class="empty">Nobody in the race yet.</p>'}${table}
-    <p class="hint">Everyone runs to Champion's Keep (${goal} points). ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see their score.</p>`;
+    <p class="hint">Everyone races to the finish (${goal} points). The top three qualify. ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see their score, or an obstacle for its story.</p>`;
 }
 
-/** Sends each racer running along the road to their spot, and puts milestone flags on the road. Safe to call repeatedly. */
+/** Puts the obstacles on the course and sends each racer running to their spot. Safe to call repeatedly. */
 export function placeRacers(root) {
   const road = root.querySelector('#road'); if (!road?.getTotalLength) return;
-  const L = road.getTotalLength(), at = f => road.getPointAtLength(L * f), goal = Number(root.querySelector('.map')?.dataset.goal || 50);
-  const ms = root.querySelector('#milestones');
-  if (ms && !ms.childElementCount) ms.innerHTML = [.25, .5, .75].map(f => { const p = at(f);
-    return `<g transform="translate(${p.x} ${p.y - 14})"><line y1="0" y2="-26" stroke="#5E3A1A" stroke-width="2.5"/><path d="M0-26h18l-4 5 4 5H0z" fill="#FFE03C" stroke="#A8860A"/><text x="2" y="-29" font-size="13" font-weight="800" fill="#fff" stroke="#000" stroke-width="3" paint-order="stroke">${Math.round(goal * f)}</text></g>`; }).join('');
+  const L = road.getTotalLength(), at = f => road.getPointAtLength(L * f);
+  const ob = root.querySelector('#obstacles');
+  if (ob && !ob.childElementCount) ob.innerHTML = OBSTACLES.map(o => { const p = at(o.f); return `<g transform="translate(${p.x} ${p.y})"><g class="ob-${o.id}" data-art="${o.id}">${OBSTACLE_ART[o.id]}</g></g>`; }).join('');
+  root.querySelectorAll('.obst[data-f]').forEach(el => { const p = at(Number(el.dataset.f)); el.style.left = `${p.x / 10}%`; el.style.top = `${(p.y + 34 + 50) / 5.1}%`; });
   requestAnimationFrame(() => root.querySelectorAll('.racer[data-f]').forEach((el, i) => {
-    const p = at(Number(el.dataset.f)), wobble = (i % 2 ? 1 : -1) * 9;
-    el.style.left = `${p.x / 10}%`; el.style.top = `${(p.y + wobble) / 4.6}%`;
+    const p = at(Number(el.dataset.f)), wobble = (i % 2 ? 1 : -1) * 12;
+    el.style.left = `${p.x / 10}%`; el.style.top = `${(p.y + wobble + 50) / 5.1}%`;
   }));
 }
 /** Tapping a racer shows their card and highlights their row in the table. */
 export function wireRacers(root) {
   root.addEventListener('click', e => {
+    const o = e.target.closest('.obst');
+    if (o) {   // an obstacle: show its joke and give it a wobble
+      const on = !o.classList.contains('sel');
+      root.querySelectorAll('.obst.sel').forEach(x => x.classList.remove('sel')); if (on) o.classList.add('sel');
+      const art = root.querySelector(`[data-art="${o.dataset.ob}"]`); art?.classList.remove('poke'); void art?.getBBox(); art?.classList.add('poke');
+      return;
+    }
     const r = e.target.closest('.racer'); if (!r) return;
     const on = !r.classList.contains('sel');
     root.querySelectorAll('.racer.sel').forEach(x => x.classList.remove('sel')); root.querySelectorAll('tr.hl').forEach(x => x.classList.remove('hl'));
+    r.classList.remove('jump'); void r.offsetWidth; r.classList.add('jump');   // a happy little jump
     if (on) { r.classList.add('sel'); root.querySelector(`tr[data-code="${CSS.escape(r.dataset.code)}"]`)?.classList.add('hl'); }
   });
 }
