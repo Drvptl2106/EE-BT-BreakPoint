@@ -90,14 +90,20 @@ const teamNow=at=>Object.entries(U).map(([c,name])=>{const r=db.days[TODAY]?.[c]
 function renderDash(at,force){if(tab!=='dash'&&!force)return;const sig=JSON.stringify(db)+filter+Math.floor(at/1e4);if(!force&&sig===lastDash)return;lastDash=sig;
   const team=teamNow(at),f=FILTERS.find(x=>x.key===filter),list=team.filter(t=>f.test(t.st,t.p));
   setHtml($('#filters'),FILTERS.map(x=>{const n=team.filter(t=>x.test(t.st,t.p)).length;return `<button class="fbtn${x.key==='over'&&n?' bad':''}" data-f="${x.key}" aria-pressed="${filter===x.key}"><span>${x.label}</span><b>${n}</b></button>`}).join(''));
-  setHtml($('#pulse'),teamPulse(team.map(t=>({name:t.name,rec:t.rec,p:t.p})),at).map(m=>`<li class="${m.tone}">${esc(m.text)}</li>`).join(''));
+  const pulse=teamPulse(team.map(t=>({name:t.name,rec:t.rec,p:t.p})),at);
+  setHtml($('#pulse'),pulse.map(m=>`<li class="${m.tone}">${esc(m.text)}</li>`).join(''));
+  // the mascot peeking over the summary reacts to the team: worried if someone's over, sparkly if everyone's had their breaks
+  const mood=pulse.some(m=>m.tone==='bad')?'worried':pulse.some(m=>m.tone==='good')&&!pulse.some(m=>m.tone==='warn')?'wow':team.some(t=>t.st.onBreak)?'happy':'happy';
+  if($('#peek').dataset.mood!==mood){$('#peek').dataset.mood=mood;$('#peek').innerHTML=avatar('team',{mood,look:{colour:'teal'}})}
+  CONFIG.defaultSlots.forEach((x,i)=>$('#t'+i).textContent=`${x.label} (${x.minutes})`);
   $('#cardsH').textContent=`${f.label} (${list.length})`;
-  setHtml($('#cards'),list.length?list.map(t=>card(t,at)).join(''):'<p class="empty">Nobody here right now.</p>')}
+  setHtml($('#cards'),list.length?list.map(t=>card(t,at)).join(''):`<tr><td colspan="7" class="empty"><span class="av" style="width:44px;height:44px;display:inline-block;vertical-align:middle;margin-right:8px">${avatar('team',{mood:'sleepy',look:{colour:'teal'}})}</span>Nobody here right now.</td></tr>`)}
 function card({c,name,rec:r,p,st},at){
-  const shift=r?(r.shiftEnd?`${hhmm(r.shiftStart)}–${hhmm(r.shiftEnd)}`:`since ${hhmm(r.shiftStart)}`):'not clocked in',pct=r&&r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;
-  const pill=st.onBreak?`<span class="pill ${st.key}" data-live data-left="${st.slot.allowed*60-st.slot.used}" data-label="${esc(st.slot.label)}">${esc(liveText(st.slot.label,st.slot.allowed*60-st.slot.used))}</span>`:`<span class="pill ${st.key}">${esc(st.label)}</span>`;
-  const bars=r?p.map(s=>`<div class="hb${s.over||s.overBase?' over':s.act?' act':''}"><span>${esc(s.label)}</span><div class="tr"><i style="width:${s.allowed?Math.min(100,s.used/(s.allowed*60)*100):s.used?100:0}%"></i></div><span>${Math.round(s.used/60)}/${tidy(s.allowed)}m</span></div>`).join(''):'';
-  return `<article class="pcard ${st.key}"><div class="top">${avatar(c,{look:LOOKS[c],mood:st.key==='over'?'worried':st.onBreak?'sleepy':'happy'}).replace('<svg','<svg style="width:40px;height:40px;flex:none"')}<div><b>${esc(name)}</b><span>${c}</span></div>${pill}</div>${r?`<div class="hint" style="margin:0">Shift ${shift}</div>`:''}${bars}${r&&r.shiftEnd?`<div class="mini" style="width:100%" title="Shift ${Math.floor(pct)}% done"><i style="width:${pct}%"></i></div>`:''}</article>`}
+  const shift=r?(r.shiftEnd?`${hhmm(r.shiftStart)}–${hhmm(r.shiftEnd)}`:`from ${hhmm(r.shiftStart)}`):'–',pct=r&&r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;
+  const status=st.onBreak?`<span class="st ${st.key}" data-live data-left="${st.slot.allowed*60-st.slot.used}" data-label="${esc(st.slot.label)}">${esc(liveText(st.slot.label,st.slot.allowed*60-st.slot.used))}</span>`:`<span class="st ${st.key}">${esc(st.label)}</span>`;
+  const brk=s=>s?`<td class="b${s.over||s.overBase?' over':s.act?' act':''}"><div class="tr"><i style="width:${s.allowed?Math.min(100,s.used/(s.allowed*60)*100):s.used?100:0}%"></i></div><span>${Math.round(s.used/60)} / ${tidy(s.allowed)} min</span></td>`:'<td>–</td>';
+  const extra=p.slice(3),ex=extra.length?`${extra.filter(s=>s.used>0).length}/${extra.length} used`:'–';
+  return `<tr class="${st.key}"><td><div class="person"><span class="av">${avatar(c,{look:LOOKS[c],mood:st.key==='over'?'worried':st.onBreak?'sleepy':'happy'})}</span><span><b>${esc(name)}</b><small>${c}</small></span></div></td><td>${status}</td><td>${shift}${r&&r.shiftEnd?`<div class="mini" title="${Math.floor(pct)}% of the shift done"><i style="width:${pct}%"></i></div>`:''}</td>${r?[0,1,2].map(i=>brk(p[i])).join(''):'<td>–</td><td>–</td><td>–</td>'}<td>${ex}</td></tr>`}
 $('#filters').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b)return;filter=b.dataset.f;renderDash(now(),true)});
 
 /* ---------- export: one row per person, day and break, for the pilot write-up ---------- */

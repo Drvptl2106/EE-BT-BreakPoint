@@ -30,7 +30,7 @@ with sync_playwright() as p:
     ok(m.locator('#tab-dash button[data-u], #tab-dash input').count() == 0, 'dashboard has no edit controls')
     ok(len(m.inner_text('#pulse')) > 20, 'team pulse has something to say')
     m.click('[data-f="onbreak"]')
-    ok(m.locator('#cards .pcard').count() == int(m.text_content('[data-f="onbreak"] b')), 'filter shows only the people on a break')
+    ok(m.locator('#cards tr').count() == int(m.text_content('[data-f="onbreak"] b')), 'filter shows only the people on a break')
 
     # ---- manager: Manage tab, add an OH break, rename it, edit the shift ----
     m.click('[data-tab="manage"]'); m.click('button[data-det="EE-001"]')

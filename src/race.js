@@ -5,10 +5,11 @@ import { CONFIG } from './config.js';
 import { esc } from './dom.js';
 
 /* ---------------- the mascot ----------------
-   A little figure with a big rounded hood, a face window, calm eyes and contact-centre headphones (everyone has those).
-   Everyone has their own colour from day one ('auto' = picked from their code; changeable any time).
-   Breakathon champions unlock accessories (db/schema.sql: look_colours(), look_items(), claim_reward(), set_look()).
-   Moods are deliberately subtle: eyes closed on a break, a small frown and a sweat drop when over, sparkly eyes when done. */
+   A little device-like buddy: a rounded head in the person's colour with a dark screen for a face, glowing EE-yellow eyes,
+   and headphones (everyone has those). Flat shapes on purpose: clean at 28px on the map and at 160px on the agent page.
+   Small places show the head only; the agent's buddy and the mascot panel show the whole figure ({ body: true }).
+   Moods are calm and live on the screen: happy, sleepy (eyes off, on a break), worried (running over), wow (shift done).
+   Everyone has their own colour from day one; Breakathon champions unlock accessories (db/schema.sql: look_items()). */
 export const LOOKS = {
   colours: { teal: ['Teal', '#17A09F'], blue: ['Blue', '#4A7FE8'], pink: ['Pink', '#F08BB4'], yellow: ['Sunshine', '#F2C230'], purple: ['Purple', '#9A80F0'],
              green: ['Mint', '#45C08A'], orange: ['Orange', '#F49B52'], coral: ['Coral', '#EE7468'], sky: ['Sky', '#5CC2E8'], lilac: ['Lilac', '#C79AE0'] },
@@ -19,45 +20,53 @@ const hash = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>>
 /** The colour someone's mascot actually shows ('auto' or unknown = picked from their code, so a team looks varied). */
 export const colourOf = (code, colour) => LOOKS.colours[colour] ? colour : COLOUR_KEYS[hash(code) % COLOUR_KEYS.length];
 const shade = (hex, f) => '#' + [1, 3, 5].map(i => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f)))).map(v => v.toString(16).padStart(2, '0')).join('');
-/** Soft vinyl-toy shading for each colour, added to the page once and shared by every mascot. */
+/** Shading and the eye glow, added to the page once and shared by every mascot. */
 function ensureDefs() {
   if (typeof document === 'undefined' || document.getElementById('bt-mascot-defs')) return;
-  const grads = Object.entries(LOOKS.colours).map(([k, [, c]]) => `<radialGradient id="bt-g-${k}" cx="36%" cy="26%" r="80%"><stop offset="0" stop-color="${shade(c, 1.22)}"/><stop offset=".6" stop-color="${c}"/><stop offset="1" stop-color="${shade(c, .78)}"/></radialGradient>`).join('');
+  const grads = Object.entries(LOOKS.colours).map(([k, [, c]]) => `<linearGradient id="bt-g-${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c, 1.12)}"/><stop offset="1" stop-color="${shade(c, .86)}"/></linearGradient>`).join('');
   document.body.insertAdjacentHTML('beforeend', `<svg id="bt-mascot-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${grads}
-    <radialGradient id="bt-face" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFF8EE"/><stop offset="1" stop-color="#F3E6D6"/></radialGradient></defs></svg>`);
+    <linearGradient id="bt-screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#222A2D"/><stop offset="1" stop-color="#0D1112"/></linearGradient>
+    <filter id="bt-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs></svg>`);
 }
-const ACC = {   // drawn over the body and face, under the headphones
-  cap: { front: '<path d="M13.5 17Q13 3 32 3T50.5 17q-18.5-4-37 0z" fill="#E8434F"/><path d="M12 17.5q20-5.5 40 0-1.5 4.5-20 4-18.5.5-20-4z" fill="#B92F3A"/><circle cx="32" cy="3.4" r="1.7" fill="#B92F3A"/><path d="M32 4v11" stroke="#B92F3A" stroke-width=".8" opacity=".6"/>' },
-  scarf: { front: '<path d="M19 41q13 5 26 0v4.5q-13 5-26 0z" fill="#E8434F"/><path d="M38 44l2.5 9 4.5-1.5-2.5-8.5z" fill="#B92F3A"/><path d="M21 43q11 4 22 0" stroke="#fff" stroke-width=".9" stroke-dasharray="1.6 2.4" fill="none" opacity=".7"/>' },
-  boots: { front: '<path d="M24 56.5h7.5v4.5q0 1.5-1.5 1.5h-7.5q-1.5 0-1.5-1.5v-1q0-3.5 3-3.5zM40 56.5h-7.5v4.5q0 1.5 1.5 1.5h7.5q1.5 0 1.5-1.5v-1q0-3.5-3-3.5z" fill="#8B5A2B"/><path d="M24 57.5h7.5M32.5 57.5H40" stroke="#C99A62" stroke-width="1.4"/>' },
-  bow: { front: '<path d="M44 7l-6-4.5v9zM44 7l6-4.5v9z" fill="#FF5C8A" stroke="#C93A66" stroke-width="1" stroke-linejoin="round"/><circle cx="44" cy="7" r="2" fill="#C93A66"/>' },
-  glasses: { front: '<circle cx="24.5" cy="29" r="4.6" fill="#fff" fill-opacity=".18" stroke="#2B2B2B" stroke-width="1.4"/><circle cx="39.5" cy="29" r="4.6" fill="#fff" fill-opacity=".18" stroke="#2B2B2B" stroke-width="1.4"/><path d="M29.1 28.5q2.9-1.6 5.8 0" stroke="#2B2B2B" stroke-width="1.4" fill="none"/>' },
-  sprout: { front: '<path d="M32 3V-2" stroke="#2E8B57" stroke-width="1.6" stroke-linecap="round"/><path d="M32-1q0-5 6-5-1 5-6 5z" fill="#45C08A"/><path d="M32-1q0-4-5-4 1 4 5 4z" fill="#2E8B57"/>' },
+const Y = '#FFE03C';
+const SCREEN = {   // what the face screen shows for each mood (drawn in the head's coordinates)
+  happy: `<ellipse cx="24" cy="31" rx="3.6" ry="4.2" fill="${Y}"/><ellipse cx="40" cy="31" rx="3.6" ry="4.2" fill="${Y}"/><path d="M28 38.5q4 3 8 0" stroke="${Y}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+  sleepy: `<g opacity=".6"><path d="M20.5 32h7M36.5 32h7" stroke="${Y}" stroke-width="2.4" stroke-linecap="round"/><path d="M30 39h4" stroke="${Y}" stroke-width="2" stroke-linecap="round"/></g><text x="44" y="25" font-size="6" font-weight="800" fill="${Y}" opacity=".8">z</text>`,
+  worried: `<ellipse cx="24" cy="32" rx="3.2" ry="3.6" fill="${Y}"/><ellipse cx="40" cy="32" rx="3.2" ry="3.6" fill="${Y}"/><path d="M20 27l6.5-1.8M44 27l-6.5-1.8" stroke="${Y}" stroke-width="1.6" stroke-linecap="round"/><path d="M28 39.5q2-1.6 4 0t4 0" stroke="${Y}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+  wow: `<path d="M20 32.5q4-6.5 8 0M36 32.5q4-6.5 8 0" stroke="${Y}" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M27.5 37h9q0 4.5-4.5 4.5T27.5 37z" fill="${Y}"/>`,
 };
-/** The mascot. look = { colour, accessory }. mood: happy (default), sleepy (on a break), worried (running over), wow (shift done). */
-export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
+const ACC = {   // drawn over the head (and body), under the headphones unless noted
+  cap: '<path d="M13 19Q13 5.5 32 5.5T51 19z" fill="#E8434F"/><path d="M11.5 19.5h41q-.5 3.5-20.5 3.5t-20.5-3.5z" fill="#B92F3A"/><circle cx="32" cy="6" r="1.6" fill="#B92F3A"/>',
+  glasses: '<rect x="17" y="26" width="13.5" height="10" rx="4.5" fill="#0B2E22" fill-opacity=".82" stroke="#2E7D5B" stroke-width="1.6"/><rect x="33.5" y="26" width="13.5" height="10" rx="4.5" fill="#0B2E22" fill-opacity=".82" stroke="#2E7D5B" stroke-width="1.6"/><path d="M30.5 29h3" stroke="#2E7D5B" stroke-width="1.6"/><path d="M19.5 28.5l3-1.2" stroke="#fff" stroke-opacity=".5" stroke-width="1.2" stroke-linecap="round"/>',
+  bow: '<path d="M47 11l-6-4.5v9zM47 11l6-4.5v9z" fill="#FF5C8A" stroke="#C93A66" stroke-width="1" stroke-linejoin="round"/><circle cx="47" cy="11" r="2" fill="#C93A66"/>',
+  sprout: '<path d="M32 9V4" stroke="#2E8B57" stroke-width="1.6" stroke-linecap="round"/><path d="M32 5q0-5 6-5-1 5-6 5z" fill="#45C08A"/><path d="M32 5q0-4-5-4 1 4 5 4z" fill="#2E8B57"/>',
+  scarf: '<path d="M18 52.5q14 4.5 28 0v4.5q-14 4.5-28 0z" fill="#E8434F"/><path d="M38 56l2 7 4-1.4-2-6.6z" fill="#B92F3A"/>',
+  boots: '',   // drawn on the legs (body only)
+};
+/** The mascot. look = { colour, accessory }. mood: happy | sleepy | worried | wow. body: also draw the little body. */
+export function avatar(code, { look, crown = false, mood = 'happy', body = false } = {}) {
   ensureDefs();
-  const col = colourOf(code, look?.colour), fill = `url(#bt-g-${col})`, dark = shade(LOOKS.colours[col][1], .7), acc = ACC[look?.accessory];
-  const eye = (x) => mood === 'sleepy' ? `<path d="M${x - 2.6} 29.5q2.6 1.8 5.2 0" stroke="#1A1A1A" stroke-width="1.5" fill="none" stroke-linecap="round"/>`
-    : `<ellipse cx="${x}" cy="29" rx="2.7" ry="3.5" fill="#141414"/><circle cx="${x + .9}" cy="27.6" r="${mood === 'wow' ? 1.25 : .9}" fill="#fff"/>${mood === 'wow' ? `<circle cx="${x - .9}" cy="30.4" r=".55" fill="#fff"/>` : ''}`;
-  const mouth = { happy: '<path d="M30.6 34.4q1.4 1.1 2.8 0" stroke="#5A3A30" stroke-width="1.1" fill="none" stroke-linecap="round"/>',
-    sleepy: '<ellipse cx="32" cy="34.6" rx=".9" ry=".7" fill="#5A3A30"/>',
-    worried: '<path d="M30.6 35.2q1.4-1.1 2.8 0" stroke="#5A3A30" stroke-width="1.1" fill="none" stroke-linecap="round"/><path d="M47.5 19q1.6 2.6 0 3.6-1.6-1 0-3.6z" fill="#7CC8F0"/>',
-    wow: '<ellipse cx="32" cy="34.8" rx="1.3" ry="1.1" fill="#5A3A30"/><path d="M12 9l.8 1.8 1.8.8-1.8.8-.8 1.8-.8-1.8-1.8-.8 1.8-.8zM53 12l.6 1.3 1.3.6-1.3.6-.6 1.3-.6-1.3-1.3-.6 1.3-.6z" fill="#FFE03C"/>' }[mood] || '';
-  return `<svg viewBox="0 0 64 64" aria-hidden="true" style="overflow:visible">
-    <ellipse cx="32" cy="62.6" rx="12" ry="1.9" fill="#000" opacity=".14"/>
-    <rect x="25.5" y="52" width="5.5" height="9.5" rx="2.6" fill="${fill}"/><rect x="33" y="52" width="5.5" height="9.5" rx="2.6" fill="${fill}"/>
-    <ellipse cx="21.5" cy="47" rx="3" ry="6" transform="rotate(14 21.5 47)" fill="${fill}"/><ellipse cx="42.5" cy="47" rx="3" ry="6" transform="rotate(-14 42.5 47)" fill="${fill}"/>
-    <path d="M24 46q0-7 8-7t8 7v6q0 4.5-8 4.5T24 52z" fill="${fill}"/>
-    <ellipse cx="32" cy="22.5" rx="21.5" ry="19.5" fill="${fill}"/>
-    <ellipse cx="25" cy="10" rx="7" ry="3.6" fill="#fff" opacity=".28" transform="rotate(-18 25 10)"/>
-    <rect x="15" y="21" width="34" height="19" rx="9.5" fill="url(#bt-face)" stroke="${dark}" stroke-opacity=".35" stroke-width="1"/>
-    <ellipse cx="20" cy="34" rx="2.6" ry="1.5" fill="#FFAA98" opacity=".65"/><ellipse cx="44" cy="34" rx="2.6" ry="1.5" fill="#FFAA98" opacity=".65"/>
-    ${eye(24.5)}${eye(39.5)}${mouth}${acc ? acc.front : ''}
-    <path d="M11 24Q10 2.5 32 2.5T53 24" stroke="#2A2D2E" stroke-width="2.8" fill="none" stroke-linecap="round"/>
-    <rect x="6.5" y="19" width="7" height="12" rx="3.2" fill="#2A2D2E"/><rect x="50.5" y="19" width="7" height="12" rx="3.2" fill="#2A2D2E"/>
-    <rect x="8.3" y="21.5" width="3.4" height="7" rx="1.6" fill="#FFE03C"/><rect x="52.3" y="21.5" width="3.4" height="7" rx="1.6" fill="#FFE03C"/>
-    ${crown ? '<path d="M24.5 -3l3.8 3.8L32-4.5l3.7 5.3L39.5-3v6h-15z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.1" stroke-linejoin="round"/>' : ''}</svg>`;
+  const col = colourOf(code, look?.colour), fill = `url(#bt-g-${col})`, dark = shade(LOOKS.colours[col][1], .62), acc = look?.accessory;
+  const head = `
+    <rect x="8" y="10" width="48" height="44" rx="17" fill="${fill}"/>
+    <rect x="8" y="10" width="48" height="44" rx="17" fill="none" stroke="#000" stroke-opacity=".08"/>
+    <path d="M20 13.5h24" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>
+    <rect x="13.5" y="18" width="37" height="30" rx="11" fill="url(#bt-screen)"/>
+    <path d="M19 21h26" stroke="#fff" stroke-opacity=".07" stroke-width="3" stroke-linecap="round"/>
+    <g filter="url(#bt-glow)">${SCREEN[mood] || SCREEN.happy}</g>
+    ${acc === 'scarf' || acc === 'boots' ? '' : ACC[acc] || ''}
+    <path d="M9 27Q9 3.5 32 3.5T55 27" stroke="#2A2D2E" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <rect x="3" y="24" width="7" height="14" rx="3.5" fill="#2A2D2E"/><rect x="54" y="24" width="7" height="14" rx="3.5" fill="#2A2D2E"/>
+    <circle cx="6.5" cy="31" r="1.6" fill="${Y}"/><circle cx="57.5" cy="31" r="1.6" fill="${Y}"/>
+    ${crown ? '<path d="M24 1.5l3.8 3.8L32-1l4.2 6.3L40 1.5v6.5H24z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.1" stroke-linejoin="round"/>' : ''}`;
+  if (!body) return `<svg viewBox="0 -2 64 60" aria-hidden="true" style="overflow:visible">${head}${acc === 'scarf' ? ACC.scarf.replace(/52\.5|57|56|63|61\.6|62\.6/g, m => String(Number(m) - 1.5)) : ''}</svg>`;
+  const legs = acc === 'boots'
+    ? `<rect x="24" y="68" width="7" height="8" rx="2.5" fill="#8B5A2B"/><rect x="33" y="68" width="7" height="8" rx="2.5" fill="#8B5A2B"/><path d="M24 70.5h7M33 70.5h7" stroke="#C99A62" stroke-width="1.2"/>`
+    : `<rect x="25" y="68" width="6" height="8" rx="3" fill="${dark}"/><rect x="33" y="68" width="6" height="8" rx="3" fill="${dark}"/>`;
+  return `<svg viewBox="0 -2 64 82" aria-hidden="true" style="overflow:visible">
+    <ellipse cx="32" cy="77.5" rx="13" ry="2" fill="#000" opacity=".14"/>${legs}
+    <rect x="17.5" y="55" width="5.5" height="13" rx="2.75" fill="${dark}" transform="rotate(12 20 56)"/><rect x="41" y="55" width="5.5" height="13" rx="2.75" fill="${dark}" transform="rotate(-12 44 56)"/>
+    <rect x="22" y="51" width="20" height="20" rx="8" fill="${dark}"/>${acc === 'scarf' ? ACC.scarf : ''}${head}</svg>`;
 }
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
 
@@ -105,7 +114,7 @@ export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
   const btn = grant && prize?.choice === 'break' ? `<button class="btn yellow" id="grantBtn" ${grant.done ? 'disabled' : ''}>${grant.done ? 'Extra break given ✓' : `Give the ${B.rewardMinutes} min break`}</button>` : '';
   const champ = champion
     ? `<div class="champ"><span style="width:50px;height:50px;flex:none">${avatar(champion.code, { crown: true, mood: 'wow', look: lookOf(champion) })}</span><div>Last week's champion: <b>${esc(champion.name)}</b>${champion.code === me ? ' (that\'s you! 🎉)' : ''}<br><span style="opacity:.85;font-size:14px">${champion.points} points · ${prizeTxt}</span></div>${btn}</div>`
-    : `<div class="champ"><div>🏆 No champion from last week yet. This week is wide open.</div></div>`;
+    : `<div class="champ"><div>${isManager ? '' : '🏆 '}No champion from last week yet. This week is wide open.</div></div>`;
   // runners bunched on the same score step aside a little so nobody hides behind someone else
   let prev = -1;
   const runners = rows.map((r, i) => { let f = Math.min(.97, r.points / goal); if (prev >= 0 && prev - f < .05) f = Math.max(0, prev - .05); prev = f;
@@ -113,10 +122,10 @@ export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
       <span class="av">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span><span class="tag">${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
       <span class="tip"><b>${i + 1}. ${esc(r.name)}</b><br>${r.points} points · ${r.onTime}/${r.breaks} on time${r.cleanDays ? ` · 🔥 ${r.cleanDays} clean day${r.cleanDays > 1 ? 's' : ''}` : ''}${isManager ? `<br>${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
   const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>Racer</th><th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
-    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i < 3 && r.points > 0 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays ? '🔥 ' + r.cleanDays : '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${!isManager && i < 3 && r.points > 0 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays ? (isManager ? '' : '🔥 ') + r.cleanDays : '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
   return `${champ}<div class="map" data-goal="${goal}">${MAP}<div class="racers">${runners || ''}</div></div>
     ${rows.length ? '' : '<p class="empty">Nobody in the race yet.</p>'}${table}
-    <p class="hint">Everyone runs to Champion's Keep 🏰 (${goal} points). ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner gets a ${B.rewardMinutes} min extra break 🏆 Tap a racer to see their score.</p>`;
+    <p class="hint">Everyone runs to Champion's Keep${isManager ? '' : ' 🏰'} (${goal} points). ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory${isManager ? '.' : ' 🏆'} Tap a racer to see their score.</p>`;
 }
 
 /** Sends each racer running along the road to their spot, and puts milestone flags on the road. Safe to call repeatedly. */
@@ -157,8 +166,8 @@ export function lookPanelHTML(code, mine, picking) {
   const sw = (kind, key, label, inner) => { const item = `${kind === 'colour' ? 'colour' : 'acc'}:${key}`, open = has(item), on = cur[kind] === key;
     return `<button class="sw${on ? ' on' : ''}${open ? '' : ' locked'}${!open && picking ? ' pick' : ''}" data-${kind}="${key}" aria-pressed="${on}" ${!open && !picking ? 'disabled' : ''} title="${esc(open ? label : picking ? `Unlock ${label}` : `${label}: win a week of Breakathon to unlock`)}">${inner}${open ? '' : '<i>🔒</i>'}<small>${esc(label)}</small></button>`; };
   return `<section class="panel"><div class="phead"><h2>Your mascot</h2><span class="hint">Pick any colour. Win a week of Breakathon to unlock accessories.</span></div>
-    <div class="lookgrid"><div class="lookprev">${avatar(code, { look: cur, mood: 'wow' })}</div><div>
+    <div class="lookgrid"><div class="lookprev">${avatar(code, { look: cur, mood: 'wow', body: true })}</div><div>
     <h3 style="margin-top:0">Colour</h3><div class="swatches">${Object.entries(LOOKS.colours).map(([k, [l, c]]) => sw('colour', k, l, `<span class="dot" style="background:${c}"></span>`)).join('')}</div>
-    <h3>Accessories <small style="font:500 13px var(--body);color:var(--muted)">(prizes)</small></h3><div class="swatches">${Object.entries(LOOKS.accessories).map(([k, [l, e]]) => sw('accessory', k, l, `<span class="mini-av">${avatar(code, { look: { colour: cur.colour, accessory: k } })}</span>`)).join('')}</div>
+    <h3>Accessories <small style="font:500 13px var(--body);color:var(--muted)">(prizes)</small></h3><div class="swatches">${Object.entries(LOOKS.accessories).map(([k, [l, e]]) => sw('accessory', k, l, `<span class="mini-av">${avatar(code, { look: { colour: cur.colour, accessory: k }, body: true })}</span>`)).join('')}</div>
     </div></div></section>`;
 }
