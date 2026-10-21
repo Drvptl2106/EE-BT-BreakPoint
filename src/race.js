@@ -5,68 +5,72 @@ import { CONFIG } from './config.js';
 import { esc } from './dom.js';
 
 /* ---------------- the mascot ----------------
-   A little device-like buddy: a rounded head in the person's colour with a dark screen for a face, glowing EE-yellow eyes,
-   and headphones (everyone has those). Flat shapes on purpose: clean at 28px on the map and at 160px on the agent page.
-   Small places show the head only; the agent's buddy and the mascot panel show the whole figure ({ body: true }).
-   Moods are calm and live on the screen: happy, sleepy (eyes off, on a break), worried (running over), wow (shift done).
-   Everyone has their own colour from day one; Breakathon champions unlock accessories (db/schema.sql: look_items()). */
+   A soft felt pebble with big googly eyes and a tiny mouth. No body, no fuss: personality comes from the SHAPE
+   (each person gets one of five, picked from their code) and the eyelids. Moods: happy, sleepy (half-closed lids, on a break),
+   worried (wide eyes, little "o", running over), wow (happy squint, shift done).
+   Everyone has their own colour from day one; Breakathon champions unlock accessories (db/schema.sql: look_items()).
+   The 'body' option is accepted for older callers and ignored. */
 export const LOOKS = {
-  colours: { teal: ['Teal', '#17A09F'], blue: ['Blue', '#4A7FE8'], pink: ['Pink', '#F08BB4'], yellow: ['Sunshine', '#F2C230'], purple: ['Purple', '#9A80F0'],
-             green: ['Mint', '#45C08A'], orange: ['Orange', '#F49B52'], coral: ['Coral', '#EE7468'], sky: ['Sky', '#5CC2E8'], lilac: ['Lilac', '#C79AE0'] },
+  colours: { teal: ['Teal', '#2FB5B0'], blue: ['Blue', '#8DB2F2'], pink: ['Pink', '#F370B0'], yellow: ['Sunshine', '#F7D65E'], purple: ['Lilac', '#BBA8EC'],
+             green: ['Lime', '#9DD35C'], orange: ['Peach', '#F8AE6E'], coral: ['Blush', '#F7C3CD'], sky: ['Sky', '#93D5EE'], lilac: ['Plum', '#C98BD8'] },
   accessories: { none: ['Nothing', ''], cap: ['Cap', '🧢'], scarf: ['Scarf', '🧣'], boots: ['Boots', '🥾'], bow: ['Bow', '🎀'], glasses: ['Glasses', '👓'], sprout: ['Sprout', '🌱'] },
 };
 const COLOUR_KEYS = Object.keys(LOOKS.colours);
 const hash = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+/** A well-mixed hash (FNV-1a), so neighbouring codes like EE-001 and EE-002 still get different shapes. */
+const mix = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; };
 /** The colour someone's mascot actually shows ('auto' or unknown = picked from their code, so a team looks varied). */
 export const colourOf = (code, colour) => LOOKS.colours[colour] ? colour : COLOUR_KEYS[hash(code) % COLOUR_KEYS.length];
 const shade = (hex, f) => '#' + [1, 3, 5].map(i => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f)))).map(v => v.toString(16).padStart(2, '0')).join('');
-/** Shading and the eye glow, added to the page once and shared by every mascot. */
+/** Soft felt shading per colour, added to the page once and shared by every mascot. */
 function ensureDefs() {
   if (typeof document === 'undefined' || document.getElementById('bt-mascot-defs')) return;
-  const grads = Object.entries(LOOKS.colours).map(([k, [, c]]) => `<linearGradient id="bt-g-${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c, 1.12)}"/><stop offset="1" stop-color="${shade(c, .86)}"/></linearGradient>`).join('');
-  document.body.insertAdjacentHTML('beforeend', `<svg id="bt-mascot-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${grads}
-    <linearGradient id="bt-screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#222A2D"/><stop offset="1" stop-color="#0D1112"/></linearGradient>
-    <filter id="bt-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs></svg>`);
+  const grads = Object.entries(LOOKS.colours).map(([k, [, c]]) => `<radialGradient id="bt-g-${k}" cx="40%" cy="30%" r="80%"><stop offset="0" stop-color="${shade(c, 1.07)}"/><stop offset=".7" stop-color="${c}"/><stop offset="1" stop-color="${shade(c, .9)}"/></radialGradient>`).join('');
+  document.body.insertAdjacentHTML('beforeend', `<svg id="bt-mascot-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${grads}</defs></svg>`);
 }
-const Y = '#FFE03C';
-const SCREEN = {   // what the face screen shows for each mood (drawn in the head's coordinates)
-  happy: `<ellipse cx="24" cy="31" rx="3.6" ry="4.2" fill="${Y}"/><ellipse cx="40" cy="31" rx="3.6" ry="4.2" fill="${Y}"/><path d="M28 38.5q4 3 8 0" stroke="${Y}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
-  sleepy: `<g opacity=".6"><path d="M20.5 32h7M36.5 32h7" stroke="${Y}" stroke-width="2.4" stroke-linecap="round"/><path d="M30 39h4" stroke="${Y}" stroke-width="2" stroke-linecap="round"/></g><text x="44" y="25" font-size="6" font-weight="800" fill="${Y}" opacity=".8">z</text>`,
-  worried: `<ellipse cx="24" cy="32" rx="3.2" ry="3.6" fill="${Y}"/><ellipse cx="40" cy="32" rx="3.2" ry="3.6" fill="${Y}"/><path d="M20 27l6.5-1.8M44 27l-6.5-1.8" stroke="${Y}" stroke-width="1.6" stroke-linecap="round"/><path d="M28 39.5q2-1.6 4 0t4 0" stroke="${Y}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
-  wow: `<path d="M20 32.5q4-6.5 8 0M36 32.5q4-6.5 8 0" stroke="${Y}" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M27.5 37h9q0 4.5-4.5 4.5T27.5 37z" fill="${Y}"/>`,
+/* Five pebble shapes. top = where the head is (for hats), y = eye line, w = how far apart the eyes sit, x = face centre. */
+const SHAPES = [
+  { d: 'M32 12C48 12 58 25 58 41c0 13-10 19-26 19S6 54 6 41C6 25 16 12 32 12z', top: 12, x: 32, y: 32, w: 7.5 },          // round pebble
+  { d: 'M32 4c11 0 18 9 18 22v19c0 10-7 15-18 15S14 55 14 45V26C14 13 21 4 32 4z', top: 4, x: 32, y: 21, w: 6.8 },           // tall
+  { d: 'M32 7c9 0 14 8 14 17 0 6 11 11 11 22 0 9-10 14-25 14S7 55 7 46c0-11 11-16 11-22 0-9 5-17 14-17z', top: 7, x: 32, y: 22, w: 6.5 }, // pear
+  { d: 'M32 13c6 0 10 6 15 15 6 11 11 17 11 23 0 7-11 9-26 9S6 58 6 51c0-6 5-12 11-23 5-9 9-15 15-15z', top: 13, x: 32, y: 37, w: 7 },  // soft triangle
+  { d: 'M27 6c12-2 23 8 23 21 0 6 8 12 8 21 0 8-10 12-26 12S6 56 6 47c0-9 4-14 6-20C14 15 17 8 27 6z', top: 6, x: 30, y: 23, w: 7 },     // leaning bean
+];
+const ACC = {   // f = the chosen shape
+  cap: f => `<path d="M${f.x - 14} ${f.top + 9}Q${f.x - 13} ${f.top - 4} ${f.x} ${f.top - 4}T${f.x + 14} ${f.top + 9}z" fill="#E8434F"/><path d="M${f.x - 2} ${f.top + 7.5}h18q.5 3.2-5 3.6H${f.x - 2}z" fill="#B92F3A"/><circle cx="${f.x}" cy="${f.top - 3.6}" r="1.6" fill="#B92F3A"/>`,
+  bow: f => `<g transform="translate(${f.x + 10} ${f.top + 4}) rotate(18)"><path d="M0 0l-6-4.5v9zM0 0l6-4.5v9z" fill="#FF5C8A" stroke="#C93A66" stroke-width="1" stroke-linejoin="round"/><circle r="2" fill="#C93A66"/></g>`,
+  sprout: f => `<path d="M${f.x} ${f.top + 1}V${f.top - 4}" stroke="#2E8B57" stroke-width="1.6" stroke-linecap="round"/><path d="M${f.x} ${f.top - 3}q0-5 6-5-1 5-6 5z" fill="#45C08A"/><path d="M${f.x} ${f.top - 3}q0-4-5-4 1 4 5 4z" fill="#2E8B57"/>`,
+  glasses: f => `<circle cx="${f.x - f.w}" cy="${f.y}" r="7.3" fill="#fff" fill-opacity=".12" stroke="#2B2B2B" stroke-width="1.5"/><circle cx="${f.x + f.w}" cy="${f.y}" r="7.3" fill="#fff" fill-opacity=".12" stroke="#2B2B2B" stroke-width="1.5"/><path d="M${f.x - f.w + 7.3} ${f.y - 1}q${f.w - 7.3} -2 ${2 * (f.w - 7.3) + .6} 0" stroke="#2B2B2B" stroke-width="1.5" fill="none"/>`,
+  scarf: f => `<path d="M${f.x - 17} ${f.y + 15}q17 6 34 0v5q-17 6-34 0z" fill="#E8434F"/><path d="M${f.x + 8} ${f.y + 19}l2 8 4.5-1.6-2-7.4z" fill="#B92F3A"/>`,
+  boots: () => '<rect x="19" y="57.5" width="10" height="5.5" rx="2.6" fill="#8B5A2B"/><rect x="35" y="57.5" width="10" height="5.5" rx="2.6" fill="#8B5A2B"/><path d="M20.5 59h7M36.5 59h7" stroke="#C99A62" stroke-width="1.1"/>',
 };
-const ACC = {   // drawn over the head (and body), under the headphones unless noted
-  cap: '<path d="M13 19Q13 5.5 32 5.5T51 19z" fill="#E8434F"/><path d="M11.5 19.5h41q-.5 3.5-20.5 3.5t-20.5-3.5z" fill="#B92F3A"/><circle cx="32" cy="6" r="1.6" fill="#B92F3A"/>',
-  glasses: '<rect x="17" y="26" width="13.5" height="10" rx="4.5" fill="#0B2E22" fill-opacity=".82" stroke="#2E7D5B" stroke-width="1.6"/><rect x="33.5" y="26" width="13.5" height="10" rx="4.5" fill="#0B2E22" fill-opacity=".82" stroke="#2E7D5B" stroke-width="1.6"/><path d="M30.5 29h3" stroke="#2E7D5B" stroke-width="1.6"/><path d="M19.5 28.5l3-1.2" stroke="#fff" stroke-opacity=".5" stroke-width="1.2" stroke-linecap="round"/>',
-  bow: '<path d="M47 11l-6-4.5v9zM47 11l6-4.5v9z" fill="#FF5C8A" stroke="#C93A66" stroke-width="1" stroke-linejoin="round"/><circle cx="47" cy="11" r="2" fill="#C93A66"/>',
-  sprout: '<path d="M32 9V4" stroke="#2E8B57" stroke-width="1.6" stroke-linecap="round"/><path d="M32 5q0-5 6-5-1 5-6 5z" fill="#45C08A"/><path d="M32 5q0-4-5-4 1 4 5 4z" fill="#2E8B57"/>',
-  scarf: '<path d="M18 52.5q14 4.5 28 0v4.5q-14 4.5-28 0z" fill="#E8434F"/><path d="M38 56l2 7 4-1.4-2-6.6z" fill="#B92F3A"/>',
-  boots: '',   // drawn on the legs (body only)
-};
-/** The mascot. look = { colour, accessory }. mood: happy | sleepy | worried | wow. body: also draw the little body. */
-export function avatar(code, { look, crown = false, mood = 'happy', body = false } = {}) {
+/** The mascot. look = { colour, accessory }. mood: happy | sleepy | worried | wow. */
+export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
   ensureDefs();
-  const col = colourOf(code, look?.colour), fill = `url(#bt-g-${col})`, dark = shade(LOOKS.colours[col][1], .62), acc = look?.accessory;
-  const head = `
-    <rect x="8" y="10" width="48" height="44" rx="17" fill="${fill}"/>
-    <rect x="8" y="10" width="48" height="44" rx="17" fill="none" stroke="#000" stroke-opacity=".08"/>
-    <path d="M20 13.5h24" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>
-    <rect x="13.5" y="18" width="37" height="30" rx="11" fill="url(#bt-screen)"/>
-    <path d="M19 21h26" stroke="#fff" stroke-opacity=".07" stroke-width="3" stroke-linecap="round"/>
-    <g filter="url(#bt-glow)">${SCREEN[mood] || SCREEN.happy}</g>
-    ${acc === 'scarf' || acc === 'boots' ? '' : ACC[acc] || ''}
-    <path d="M9 27Q9 3.5 32 3.5T55 27" stroke="#2A2D2E" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-    <rect x="3" y="24" width="7" height="14" rx="3.5" fill="#2A2D2E"/><rect x="54" y="24" width="7" height="14" rx="3.5" fill="#2A2D2E"/>
-    <circle cx="6.5" cy="31" r="1.6" fill="${Y}"/><circle cx="57.5" cy="31" r="1.6" fill="${Y}"/>
-    ${crown ? '<path d="M24 1.5l3.8 3.8L32-1l4.2 6.3L40 1.5v6.5H24z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.1" stroke-linejoin="round"/>' : ''}`;
-  if (!body) return `<svg viewBox="0 -2 64 60" aria-hidden="true" style="overflow:visible">${head}${acc === 'scarf' ? ACC.scarf.replace(/52\.5|57|56|63|61\.6|62\.6/g, m => String(Number(m) - 1.5)) : ''}</svg>`;
-  const legs = acc === 'boots'
-    ? `<rect x="24" y="68" width="7" height="8" rx="2.5" fill="#8B5A2B"/><rect x="33" y="68" width="7" height="8" rx="2.5" fill="#8B5A2B"/><path d="M24 70.5h7M33 70.5h7" stroke="#C99A62" stroke-width="1.2"/>`
-    : `<rect x="25" y="68" width="6" height="8" rx="3" fill="${dark}"/><rect x="33" y="68" width="6" height="8" rx="3" fill="${dark}"/>`;
-  return `<svg viewBox="0 -2 64 82" aria-hidden="true" style="overflow:visible">
-    <ellipse cx="32" cy="77.5" rx="13" ry="2" fill="#000" opacity=".14"/>${legs}
-    <rect x="17.5" y="55" width="5.5" height="13" rx="2.75" fill="${dark}" transform="rotate(12 20 56)"/><rect x="41" y="55" width="5.5" height="13" rx="2.75" fill="${dark}" transform="rotate(-12 44 56)"/>
-    <rect x="22" y="51" width="20" height="20" rx="8" fill="${dark}"/>${acc === 'scarf' ? ACC.scarf : ''}${head}</svg>`;
+  const col = colourOf(code, look?.colour), f = SHAPES[mix(code + 'shape') % SHAPES.length], lid = shade(LOOKS.colours[col][1], .82);
+  const L = f.x - f.w, R = f.x + f.w, y = f.y, look2 = mix(code + 'eyes') % 3 - 1;   // each one glances a little differently
+  const white = (x, r = 6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#1B1B1B" stroke-opacity=".12" stroke-width=".8"/>`;
+  const pupil = (x, r = 2.9) => `<circle cx="${x + look2 * 1.2}" cy="${y + .6}" r="${r}" fill="#141414"/><circle cx="${x + look2 * 1.2 + .9}" cy="${y - .4}" r=".8" fill="#fff"/>`;
+  const eyes = {
+    happy: white(L) + white(R) + pupil(L) + pupil(R),
+    sleepy: white(L) + white(R) + pupil(L, 2.6) + pupil(R, 2.6)
+      + `<path d="M${L - 6.4} ${y + .6}a6.4 6.4 0 0 1 12.8 0z" fill="${lid}"/><path d="M${R - 6.4} ${y + .6}a6.4 6.4 0 0 1 12.8 0z" fill="${lid}"/>`
+      + `<path d="M${L - 6} ${y + .6}h12M${R - 6} ${y + .6}h12" stroke="#1B1B1B" stroke-width="1.2" stroke-linecap="round"/>`,
+    worried: white(L, 6.6) + white(R, 6.6) + `<circle cx="${L}" cy="${y}" r="2.3" fill="#141414"/><circle cx="${R}" cy="${y}" r="2.3" fill="#141414"/>`,
+    wow: `<path d="M${L - 5} ${y + 1.5}q5-6 10 0M${R - 5} ${y + 1.5}q5-6 10 0" stroke="#141414" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+  }[mood] || '';
+  const my = y + 10.5, mouth = {
+    happy: `<path d="M${f.x - 3} ${my}q3 2.6 6 0" stroke="#141414" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+    sleepy: `<path d="M${f.x - 2.5} ${my + .5}h5" stroke="#141414" stroke-width="1.5" stroke-linecap="round"/>`,
+    worried: `<ellipse cx="${f.x}" cy="${my + .5}" rx="1.6" ry="2.1" fill="#141414"/>`,
+    wow: `<path d="M${f.x - 4} ${my - .5}q4 4.2 8 0" stroke="#141414" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+  }[mood] || '';
+  const acc = ACC[look?.accessory]?.(f) || '';
+  return `<svg viewBox="0 0 64 64" aria-hidden="true" style="overflow:visible">
+    <ellipse cx="32" cy="61" rx="22" ry="2.6" fill="#000" opacity=".12"/>
+    ${look?.accessory === 'boots' ? acc : ''}<path d="${f.d}" fill="url(#bt-g-${col})"/>
+    ${eyes}${mouth}${look?.accessory !== 'boots' ? acc : ''}
+    ${crown ? `<path d="M${f.x - 8} ${f.top - 1}l3.8-6.5 4.2 4.2 4.2-4.2 3.8 6.5z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.1" stroke-linejoin="round"/>` : ''}</svg>`;
 }
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
 

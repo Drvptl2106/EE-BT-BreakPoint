@@ -94,10 +94,10 @@ function renderDash(at,force){if(tab!=='dash'&&!force)return;const sig=JSON.stri
   setHtml($('#pulse'),pulse.map(m=>`<li class="${m.tone}">${esc(m.text)}</li>`).join(''));
   // the mascot peeking over the summary reacts to the team: worried if someone's over, sparkly if everyone's had their breaks
   const mood=pulse.some(m=>m.tone==='bad')?'worried':pulse.some(m=>m.tone==='good')&&!pulse.some(m=>m.tone==='warn')?'wow':team.some(t=>t.st.onBreak)?'happy':'happy';
-  if($('#peek').dataset.mood!==mood){$('#peek').dataset.mood=mood;$('#peek').innerHTML=avatar('team',{mood,look:{colour:'teal'}})}
+  if($('#peek').dataset.mood!==mood){$('#peek').dataset.mood=mood;$('#peek').innerHTML=avatar('pip',{mood,look:{colour:'teal'}})}
   CONFIG.defaultSlots.forEach((x,i)=>$('#t'+i).textContent=`${x.label} (${x.minutes})`);
   $('#cardsH').textContent=`${f.label} (${list.length})`;
-  setHtml($('#cards'),list.length?list.map(t=>card(t,at)).join(''):`<tr><td colspan="7" class="empty"><span class="av" style="width:44px;height:44px;display:inline-block;vertical-align:middle;margin-right:8px">${avatar('team',{mood:'sleepy',look:{colour:'teal'}})}</span>Nobody here right now.</td></tr>`)}
+  setHtml($('#cards'),list.length?list.map(t=>card(t,at)).join(''):`<tr><td colspan="7" class="empty"><span class="av" style="width:44px;height:44px;display:inline-block;vertical-align:middle;margin-right:8px">${avatar('pip',{mood:'sleepy',look:{colour:'teal'}})}</span>Nobody here right now.</td></tr>`)}
 function card({c,name,rec:r,p,st},at){
   const shift=r?(r.shiftEnd?`${hhmm(r.shiftStart)}–${hhmm(r.shiftEnd)}`:`from ${hhmm(r.shiftStart)}`):'–',pct=r&&r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;
   const status=st.onBreak?`<span class="st ${st.key}" data-live data-left="${st.slot.allowed*60-st.slot.used}" data-label="${esc(st.slot.label)}">${esc(liveText(st.slot.label,st.slot.allowed*60-st.slot.used))}</span>`:`<span class="st ${st.key}">${esc(st.label)}</span>`;
