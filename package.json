@@ -11,7 +11,8 @@
     "test:security": "node --test tests/security/live.test.mjs",
     "test:all": "npm test && npm run test:db",
     "test:e2e": "python3 tests/e2e/smoke.py http://localhost:8080",
-    "logins": "node scripts/create_logins.mjs"
+    "logins": "node scripts/create_logins.mjs",
+    "stamp": "node scripts/stamp.mjs"
   },
   "license": "UNLICENSED"
 }

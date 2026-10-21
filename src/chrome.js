@@ -1,6 +1,6 @@
 // The parts both pages share: the live clock (to the second), the Live pill, tabs, a small toast and "change password".
-import { CONFIG } from './config.js';
-import { now, changePassword } from './core.js';
+import { CONFIG } from './config.js?v=30c8b36143';
+import { now, changePassword } from './core.js?v=30c8b36143';
 
 const $ = s => document.querySelector(s);
 const API = CONFIG.backend === 'api';
@@ -28,12 +28,12 @@ export function setupTabs(onChange) {
   show(location.hash.slice(1));
   return show;
 }
-export function toast(msg) {
+export function toast(msg, ms = 3500) {
   let el = $('#toast');
   if (!el) { el = document.createElement('div'); el.id = 'toast'; el.setAttribute('role', 'status');
-    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ee-black);color:#fff;padding:10px 16px;border-radius:12px;z-index:40;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.3)';
+    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);max-width:min(520px,calc(100% - 32px));text-align:center;background:var(--ee-black);color:#fff;padding:10px 16px;border-radius:12px;z-index:40;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.3)';
     document.body.appendChild(el); }
-  el.textContent = msg; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 3500);
+  el.textContent = msg; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, ms);
 }
 /** "Password" link in the header (database mode only): a small dialog to change your own password. */
 export function setupPassword() {

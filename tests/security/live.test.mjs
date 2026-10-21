@@ -7,7 +7,9 @@
 // anything of agent B's, and agents cannot read the audit trail. Without the variables it only runs the first two checks.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CONFIG } from '../../src/config.js';
+import { version } from '../../scripts/stamp.mjs';
+const V = version();   // the same module URLs the pages use (see scripts/stamp.mjs)
+const { CONFIG } = await import('../../src/config.js?v=' + V);
 
 const URL_ = String(process.env.SUPABASE_URL || CONFIG.supabaseUrl).trim().replace(/\/+$/, '');
 const KEY = String(CONFIG.supabaseKey).trim();

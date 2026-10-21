@@ -26,10 +26,12 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
 ## What it does
 
 **Agents (My day)**
-- One bar per break (Break 1, Break 2, Lunch, plus any **OH Break** the manager adds), filling up as it is used, with Start / Resume.
+- One horizontal bar per break (Break 1, Break 2, Lunch, plus any **OH Break** the manager adds), with Start / Resume.
+  The running break grows into a big loading bar with the countdown and a running commentary ("10 min done, only 5 left",
+  "2 min over, that's coming off Lunch"), and the rest of the page stays usable. The tab title shows the countdown too.
 - Going over takes the extra minutes off the next break (Break 1 → Break 2 → Lunch → OH breaks), with a friendly note.
 - The shift pie: time worked, breaks, overruns and time still to go, with the worked time ticking to the second.
-- A sales-floor pep talk that changes with the time of day, a live clock and a Live indicator.
+- A sales-floor pep talk that changes with the time of day (and is different every time you open the page), a live clock and a Live indicator.
 - **Breakathon:** a simple platform-game climb: every 25 points lifts your mascot one platform, the highest racer wins the week, and the star at the top (level 8) is a perfect week. Tap a racer to see how close they are to the next platform.
 - **Mascots and prizes:** everyone has a little hooded mascot with headphones in their own colour (any colour, any time). It delivers
   the pep talk and reacts quietly to your day. Last week's champion picks a prize: a 15 min extra break, or an accessory
@@ -68,12 +70,19 @@ src/chrome.js                header: live clock, Live pill, tabs, change passwor
 src/race.js                  the Breakathon island map and the characters (also the pep-talk buddy)
 src/theme.js                 applies the saved light/dark choice before the page draws
 src/jokes.js                 the pep talks          src/dom.js, pilot.js, styles.css
-scripts/create_logins.mjs    creates everyone's login and profile
+scripts/create_logins.mjs    creates everyone's login and profile      scripts/stamp.mjs   the version stamp
 db/schema.sql                the database (safe to re-run)      db/cleanup_job.sql   nightly 14-day cleanup
 tests/                       npm test (rules and set-up), npm run test:db (database security on a local Postgres),
                              npm run test:security (the live project), e2e/smoke.py (browser, demo mode)
 docs/                        ARCHITECTURE.md, DATABASE.md
 ```
+
+## Two bits of housekeeping
+
+- **Version stamp.** After changing anything in `src/` or the two pages, run `npm run stamp` before committing. It adds `?v=...`
+  to every file reference, so browsers load the new version instead of mixing old and new files. `npm test` fails if you forget.
+- **Keep-awake.** `.github/workflows/keep-awake.yml` pings the database once a day, because a free Supabase project pauses
+  after a week without traffic (a quiet holiday week would do it).
 
 ## Ground rules for this repo
 

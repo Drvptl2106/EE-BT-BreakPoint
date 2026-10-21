@@ -1,0 +1,18 @@
+# Free Supabase projects pause after a week with no traffic (for example over a long holiday).
+# This pings the database once a day so it stays awake. It uses only the publishable key, which is public anyway.
+name: keep-awake
+on:
+  schedule:
+    - cron: '17 6 * * *'   # every day at 06:17 UTC
+  workflow_dispatch:        # or run it by hand from the Actions tab
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping Supabase
+        run: |
+          URL=$(grep -oE "supabaseUrl: *'[^']+'" src/config.js | cut -d"'" -f2)
+          KEY=$(grep -oE "supabaseKey: *'[^']+'" src/config.js | cut -d"'" -f2)
+          curl -fsS -o /dev/null -w "auth %{http_code}\n" "$URL/auth/v1/settings" -H "apikey: $KEY"
+          curl -sS -o /dev/null -w "rest %{http_code}\n" "$URL/rest/v1/profiles?select=code&limit=1" -H "apikey: $KEY"
