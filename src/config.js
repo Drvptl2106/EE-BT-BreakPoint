@@ -56,5 +56,7 @@ export const CONFIG = {
     pointsCleanDay: 5,      // per day where every break was on time
     penaltyPerMinuteOver: 2,
     rewardMinutes: 15,      // the manager can give last week's champion an extra OH break of this length
+    pointsPerLevel: 25,     // the world map: every 25 points clears a level
+    levels: 8,              // ...and the castle is at level 8 (200 points, a very good week)
   },
 };

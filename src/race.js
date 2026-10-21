@@ -98,98 +98,76 @@ export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
 }
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
 
-/* ---------------- the obstacle course ----------------
-   A bright, silly obstacle course in the spirit of a party game show: a striped track over pink slime, moving obstacles
-   named after the job, and a FINISH arch with confetti. Racers run along it; the further, the more punctual points.
-   Tap an obstacle for its joke, tap a racer for their score. Everything stands still for people who prefer less motion. */
+/* ---------------- the world map ----------------
+   A simple overworld like an old platform game: three islands with cliff edges, a dotted path and numbered level stops
+   from START to the castle. Every CONFIG.breakathon.pointsPerLevel points clears a level; everyone stands on the level
+   they have reached, so you can see the standings at a glance. A stop turns red once anyone has cleared it. */
 const ROAD = 'M70 392 C150 400 200 330 250 318 S350 352 420 330 S470 240 540 236 S650 284 700 236 S730 150 800 140 S880 128 905 96';
-const OBSTACLES = [   // f = how far along the course
-  { id: 'spinner', f: .2, name: 'Hold Music Spinner', joke: 'Duck under it like a customer dodging the satisfaction survey.' },
-  { id: 'bounce', f: .41, name: 'Upgrade Bounce', joke: 'Every jump is an upgrade. Every fall is "I\'ll think about it".' },
-  { id: 'hammer', f: .6, name: 'Discount Hammer', joke: 'Swings at anyone giving money away like they own the company.' },
-  { id: 'hex', f: .8, name: 'Hexa-Lunch', joke: 'The tiles sink if you stand still. Just like lunch breaks that run over.' },
+const ISLANDS = [
+  'M28 330Q40 268 140 280L300 286Q385 270 452 300Q484 342 444 382L420 428Q300 444 160 440Q40 440 28 400Z',
+  'M478 228Q500 172 600 188L702 198Q762 204 762 250Q766 300 702 310L560 316Q484 312 478 270Z',
+  'M772 140Q768 66 862 58Q962 48 976 110Q986 170 930 186L820 192Q772 186 772 140Z',
 ];
-const cloud = (x, y, s, cls = '') => `<g class="cloud ${cls}" transform="translate(${x} ${y}) scale(${s})"><ellipse rx="40" ry="14" fill="#fff"/><ellipse cx="-18" cy="-8" rx="20" ry="13" fill="#fff"/><ellipse cx="16" cy="-10" rx="24" ry="15" fill="#fff"/></g>`;
+const tree = (x, y) => `<g transform="translate(${x} ${y})"><rect x="-2.5" y="2" width="5" height="9" rx="1.5" fill="#7A4A26"/><circle r="10" fill="#2E9E4F"/><circle cx="-3.5" cy="-3.5" r="3.5" fill="#fff" opacity=".22"/></g>`;
 const MAP = `<svg viewBox="0 -50 1000 510" aria-hidden="true">
-  <defs><linearGradient id="bt-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FD8FF"/><stop offset=".65" stop-color="#C9E9FF"/><stop offset="1" stop-color="#FFD3EC"/></linearGradient></defs>
-  <rect y="-50" width="1000" height="510" fill="url(#bt-sky)"/>
-  ${cloud(140, 70, 1)}${cloud(520, 50, .8, 'c2')}${cloud(760, 190, .7)}${cloud(330, 150, .6, 'c2')}
-  <g opacity=".55"><path d="M600 120h70l-8 14h-54z" fill="#B48CF2"/><path d="M180 200h60l-7 12h-46z" fill="#FFB86B"/><path d="M820 300h80l-9 14h-62z" fill="#7CD992"/></g>
-  <path class="slime" d="M0 420 q25-12 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 V460 H0z" fill="#FF6FB1"/>
-  <rect y="436" width="1000" height="24" fill="#F0479B"/>
-  <path d="${ROAD}" stroke="#6C3BB5" stroke-width="44" fill="none" stroke-linecap="round" transform="translate(0 11)"/>
-  <path d="${ROAD}" stroke="#FF8CC6" stroke-width="44" fill="none" stroke-linecap="round"/>
-  <path d="${ROAD}" stroke="#FFD84A" stroke-width="44" fill="none" stroke-dasharray="28 28"/>
-  <path d="${ROAD}" stroke="#fff" stroke-opacity=".75" stroke-width="44" fill="none" stroke-dasharray="2 54" stroke-dashoffset="-27"/>
-  <path id="road" d="${ROAD}" fill="none"/>
-  <g transform="translate(70 392)"><rect x="-30" y="-64" width="8" height="66" rx="3" fill="#6C3BB5"/><rect x="22" y="-64" width="8" height="66" rx="3" fill="#6C3BB5"/>
-    <rect x="-34" y="-78" width="68" height="20" rx="10" fill="#fff" stroke="#6C3BB5" stroke-width="3"/><text y="-63.5" text-anchor="middle" font-size="12" font-weight="800" fill="#6C3BB5">START</text>
-    ${[0, 1, 2].map(i => `<circle class="lamp l${i}" cx="${-12 + i * 12}" cy="-48" r="4" fill="#FFD84A" stroke="#6C3BB5" stroke-width="1.5"/>`).join('')}</g>
-  <g transform="translate(905 96)"><rect x="-46" y="-80" width="12" height="86" rx="4" fill="#6C3BB5"/><rect x="34" y="-80" width="12" height="86" rx="4" fill="#6C3BB5"/>
-    <path d="M-52-80q52-42 104 0v18q-52-38-104 0z" fill="#fff" stroke="#6C3BB5" stroke-width="3"/>
-    <g>${[...Array(12)].map((_, i) => `<rect x="${-48 + i * 8}" y="${-84 + (i % 2) * 6}" width="8" height="6" fill="#1B1B1B" opacity=".85"/>`).join('')}</g>
-    <text y="-66" text-anchor="middle" font-size="14" font-weight="900" fill="#6C3BB5" letter-spacing="1">FINISH</text>
-    <path d="M-8-112h16v5a8 8 0 01-16 0zM-8-110h-4a4 4 0 004 6M8-110h4a4 4 0 01-4 6M-2-99h4v4h-4zM-6-95h12v3H-6z" fill="#FFD84A" stroke="#A8860A" stroke-width="1.2" stroke-linejoin="round"/>
-    ${[...Array(14)].map((_, i) => `<rect class="confetti" x="${-60 + i * 9}" y="-130" width="4" height="7" rx="1" fill="${['#FF5C8A', '#FFD84A', '#5B8DEF', '#3CCB8C', '#B48CF2'][i % 5]}" style="animation-delay:-${(i * .37).toFixed(2)}s"/>`).join('')}</g>
-  <g id="obstacles"></g>
+  <rect y="-50" width="1000" height="510" fill="#4FA3E0"/>
+  ${[[60, -10], [300, 40], [620, 10], [520, 400], [880, 300], [180, 220], [960, 420], [700, 380]].map(([x, y]) => `<path d="M${x} ${y}q6-5 12 0t12 0" stroke="#A9D6F5" stroke-width="2.5" fill="none" stroke-linecap="round"/>`).join('')}
+  ${ISLANDS.map(d => `<path d="${d}" fill="#B5743E" transform="translate(0 26)"/><path d="${d}" fill="#D08A4C" transform="translate(0 13)"/>`).join('')}
+  ${ISLANDS.map(d => `<path d="${d}" fill="#6CC04A"/><path d="${d}" fill="none" stroke="#4E9E33" stroke-width="3"/>`).join('')}
+  <path d="M460 270l44-22M462 288l44-22" stroke="#7A4A26" stroke-width="4"/><path d="M466 266l6 16M478 260l6 16M490 254l6 16" stroke="#A86B3C" stroke-width="5"/>
+  <path d="M752 186l34-30M766 196l34-30" stroke="#7A4A26" stroke-width="4"/><path d="M762 180l8 12M772 171l8 12M782 162l8 12" stroke="#A86B3C" stroke-width="5"/>
+  ${[[110, 425], [330, 418], [200, 300], [380, 300], [620, 300], [735, 285], [950, 160], [830, 178], [520, 210]].map(([x, y]) => tree(x, y)).join('')}
+  <path id="road" d="${ROAD}" stroke="#F7E7B4" stroke-width="12" fill="none" stroke-linecap="round" opacity=".55"/>
+  <path d="${ROAD}" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray=".1 13"/>
+  <g id="stops"></g>
 </svg>`;
-/* the moving parts, drawn at their spot on the course */
-const OBSTACLE_ART = {
-  spinner: '<g class="spin"><rect x="-46" y="-5" width="92" height="10" rx="5" fill="#5B3BD6"/><rect x="-46" y="-5" width="92" height="4" rx="2" fill="#8F72FF"/></g><circle r="8" fill="#FFD84A" stroke="#5B3BD6" stroke-width="3"/>',
-  bounce: [-24, 0, 24].map((x, i) => `<g transform="translate(${x} 0)"><ellipse rx="11" ry="4.5" fill="#E0B200"/><ellipse class="pad" style="animation-delay:-${i * .25}s" cy="-3" rx="11" ry="4.5" fill="#FFE03C" stroke="#fff" stroke-width="1.5"/></g>`).join(''),
-  hammer: '<rect x="-38" y="-86" width="7" height="86" rx="3" fill="#6C3BB5"/><rect x="31" y="-86" width="7" height="86" rx="3" fill="#6C3BB5"/><rect x="-42" y="-90" width="84" height="9" rx="4.5" fill="#8F72FF" stroke="#6C3BB5" stroke-width="2"/><g class="swing"><line x1="0" y1="-82" x2="0" y2="-20" stroke="#5B3BD6" stroke-width="4"/><rect x="-24" y="-28" width="48" height="24" rx="10" fill="#FF5C8A" stroke="#C93A66" stroke-width="2.5"/><rect x="-24" y="-28" width="48" height="8" rx="4" fill="#fff" opacity=".35"/></g>',
-  hex: [-30, -10, 10, 30].map((x, i) => `<path class="hexa" style="animation-delay:-${i * .7}s" transform="translate(${x} ${i % 2 ? 6 : -4})" d="M-9 0l4.5-8h9L9 0l-4.5 8h-9z" fill="${i % 2 ? '#5B8DEF' : '#3CCB8C'}" stroke="#fff" stroke-width="1.5"/>`).join(''),
-};
+const levelOf = points => Math.min(CONFIG.breakathon.levels, Math.floor(Math.max(0, points) / CONFIG.breakathon.pointsPerLevel));
 
 /** rows: ranked [{ code, name, breaks, onTime, cleanDays, overMinutes, points }]. Call placeRacers() after inserting. */
 export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
-  const B = CONFIG.breakathon, goal = Math.max(50, Math.ceil((rows[0]?.points || 0) * 1.12));
+  const B = CONFIG.breakathon, top = levelOf(rows[0]?.points || 0);
   const prizeTxt = !prize ? `prize: a ${B.rewardMinutes} min extra break or a new accessory` : !prize.choice ? 'still choosing their prize'
     : prize.choice === 'break' ? `picked a ${B.rewardMinutes} min extra break` : `unlocked ${itemName(prize.item)}`;
   const btn = grant && prize?.choice === 'break' ? `<button class="btn yellow" id="grantBtn" ${grant.done ? 'disabled' : ''}>${grant.done ? 'Extra break given' : `Give the ${B.rewardMinutes} min break`}</button>` : '';
   const champ = champion
     ? `<div class="champ"><span style="width:50px;height:50px;flex:none">${avatar(champion.code, { crown: true, mood: 'wow', look: lookOf(champion) })}</span><div>Last week's champion: <b>${esc(champion.name)}</b>${champion.code === me ? ' (that\'s you!)' : ''}<br><span style="opacity:.85;font-size:14px">${champion.points} points · ${prizeTxt}</span></div>${btn}</div>`
-    : `<div class="champ"><div>${isManager ? '' : ' '}No champion from last week yet. This week is wide open.</div></div>`;
-  // runners bunched on the same score step aside a little so nobody hides behind someone else
-  let prev = -1;
-  const runners = rows.map((r, i) => { let f = Math.min(.97, r.points / goal); if (prev >= 0 && prev - f < .05) f = Math.max(0, prev - .05); prev = f;
-    return `<button class="racer${r.code === me ? ' me' : ''}" data-f="${f}" data-code="${esc(r.code)}" style="left:7%;top:85%" aria-label="${esc(r.name)}, ${r.points} points, rank ${i + 1}">
-      <span class="av"><span class="trip" style="animation-delay:-${(i * 1.7) % 7}s">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span></span><span class="tag">${i < 3 && r.points > 0 ? '<i>Qualified</i>' : ''}${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
-      <span class="tip"><b>${i + 1}. ${esc(r.name)}</b><br>${r.points} points · ${r.onTime}/${r.breaks} on time${r.cleanDays ? ` · ${r.cleanDays} clean day${r.cleanDays > 1 ? 's' : ''}` : ''}${isManager ? `<br>${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
-  const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>Racer</th><th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
-    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays || '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
-  const obstacles = OBSTACLES.map(o => `<button class="obst" data-ob="${o.id}" data-f="${o.f}" style="left:50%;top:50%"><span class="pill">${esc(o.name)}</span><span class="tip"><b>${esc(o.name)}</b><br>${esc(o.joke)}</span></button>`).join('');
-  return `${champ}<div class="mapwrap"><div class="map" data-goal="${goal}">${MAP}<div class="racers">${obstacles}${runners || ''}</div></div></div>
+    : `<div class="champ"><div>No champion from last week yet. This week is wide open.</div></div>`;
+  // everyone stands on the level they've reached; people on the same level stand side by side
+  const onLevel = {};
+  const runners = rows.map((r, i) => {
+    const lv = levelOf(r.points), k = (onLevel[lv] = (onLevel[lv] || 0) + 1) - 1, toNext = lv >= B.levels ? 0 : (lv + 1) * B.pointsPerLevel - r.points;
+    return `<button class="racer${r.code === me ? ' me' : ''}" data-lv="${lv}" data-k="${k}" data-code="${esc(r.code)}" style="left:7%;top:85%" aria-label="${esc(r.name)}, level ${lv}, ${r.points} points, rank ${i + 1}">
+      <span class="av">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span><span class="tag">${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
+      <span class="tip"><b>${i + 1}. ${esc(r.name)}</b> · level ${lv}${lv >= B.levels ? ', at the castle' : ''}<br>${r.points} points${toNext ? ` · ${toNext} to level ${lv + 1}` : ''}<br>${r.onTime}/${r.breaks} breaks on time${isManager ? ` · ${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
+  const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>Racer</th><th>Level</th><th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
+    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td>${levelOf(r.points)}</td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays || '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+  return `${champ}<div class="mapwrap"><div class="map" data-top="${top}">${MAP}<div class="racers">${runners || ''}</div></div></div>
     ${rows.length ? '' : '<p class="empty">Nobody in the race yet.</p>'}${table}
-    <p class="hint">Everyone races to the finish (${goal} points). The top three qualify. ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see their score, or an obstacle for its story.</p>`;
+    <p class="hint">Every ${B.pointsPerLevel} points clears a level; reach the castle (level ${B.levels}) for a perfect week. ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see how close they are to the next level.</p>`;
 }
 
-/** Puts the obstacles on the course and sends each racer running to their spot. Safe to call repeatedly. */
+/** Draws the level stops and sends each racer to the stop they have reached. Safe to call repeatedly. */
 export function placeRacers(root) {
   const road = root.querySelector('#road'); if (!road?.getTotalLength) return;
-  const L = road.getTotalLength(), at = f => road.getPointAtLength(L * f);
-  const ob = root.querySelector('#obstacles');
-  if (ob && !ob.childElementCount) ob.innerHTML = OBSTACLES.map(o => { const p = at(o.f); return `<g transform="translate(${p.x} ${p.y})"><g class="ob-${o.id}" data-art="${o.id}">${OBSTACLE_ART[o.id]}</g></g>`; }).join('');
-  root.querySelectorAll('.obst[data-f]').forEach(el => { const p = at(Number(el.dataset.f)); el.style.left = `${p.x / 10}%`; el.style.top = `${(p.y + 34 + 50) / 5.1}%`; });
-  requestAnimationFrame(() => root.querySelectorAll('.racer[data-f]').forEach((el, i) => {
-    const p = at(Number(el.dataset.f)), wobble = (i % 2 ? 1 : -1) * 12;
-    el.style.left = `${p.x / 10}%`; el.style.top = `${(p.y + wobble + 50) / 5.1}%`;
+  const B = CONFIG.breakathon, L = road.getTotalLength(), at = lv => road.getPointAtLength(L * lv / B.levels);
+  const top = Number(root.querySelector('.map')?.dataset.top || 0), stops = root.querySelector('#stops');
+  if (stops) stops.innerHTML = [...Array(B.levels + 1)].map((_, lv) => { const p = at(lv);
+    if (lv === 0) return `<g transform="translate(${p.x} ${p.y})"><path d="M-13 2v-14l13-11 13 11V2z" fill="#fff" stroke="#3A2A1A" stroke-width="2.5" stroke-linejoin="round"/><rect x="-4" y="-8" width="8" height="10" fill="#E84B4B"/><text y="22" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" stroke="#3A2A1A" stroke-width="3" paint-order="stroke">START</text></g>`;
+    if (lv === B.levels) return `<g transform="translate(${p.x} ${p.y})"><rect x="-26" y="-34" width="52" height="36" fill="#E9E2D2" stroke="#3A2A1A" stroke-width="2.5"/><path d="M-30-34h12v-10h-12zM-6-34h12v-14h-12zM18-34h12v-10H18z" fill="#E9E2D2" stroke="#3A2A1A" stroke-width="2.5"/><path d="M-8 2v-16a8 8 0 0116 0V2z" fill="#3A2A1A"/><path d="M0-48v-16" stroke="#3A2A1A" stroke-width="2"/><path d="M0-64h16l-5 5 5 5H0z" fill="${top >= lv ? '#E84B4B' : '#FFE03C'}"/></g>`;
+    const done = top >= lv;
+    return `<g transform="translate(${p.x} ${p.y})"><circle r="12" fill="${done ? '#E84B4B' : '#FFD84A'}" stroke="#3A2A1A" stroke-width="2.5"/><text y="4.5" text-anchor="middle" font-size="13" font-weight="800" fill="${done ? '#fff' : '#3A2A1A'}">${lv}</text></g>`; }).join('');
+  const count = {}; root.querySelectorAll('.racer[data-lv]').forEach(el => count[el.dataset.lv] = (count[el.dataset.lv] || 0) + 1);
+  requestAnimationFrame(() => root.querySelectorAll('.racer[data-lv]').forEach(el => {
+    const lv = Number(el.dataset.lv), k = Number(el.dataset.k), n = count[lv], p = at(lv), dx = (k - (n - 1) / 2) * 50, up = k % 2 ? 26 : 0;
+    el.style.left = `${(p.x + dx) / 10}%`; el.style.top = `${(p.y - 18 - up + 50) / 5.1}%`;   // stand just above the stop, so its number shows
   }));
 }
 /** Tapping a racer shows their card and highlights their row in the table. */
 export function wireRacers(root) {
   root.addEventListener('click', e => {
-    const o = e.target.closest('.obst');
-    if (o) {   // an obstacle: show its joke and give it a wobble
-      const on = !o.classList.contains('sel');
-      root.querySelectorAll('.obst.sel').forEach(x => x.classList.remove('sel')); if (on) o.classList.add('sel');
-      const art = root.querySelector(`[data-art="${o.dataset.ob}"]`); art?.classList.remove('poke'); void art?.getBBox(); art?.classList.add('poke');
-      return;
-    }
     const r = e.target.closest('.racer'); if (!r) return;
     const on = !r.classList.contains('sel');
     root.querySelectorAll('.racer.sel').forEach(x => x.classList.remove('sel')); root.querySelectorAll('tr.hl').forEach(x => x.classList.remove('hl'));
-    r.classList.remove('jump'); void r.offsetWidth; r.classList.add('jump');   // a happy little jump
     if (on) { r.classList.add('sel'); root.querySelector(`tr[data-code="${CSS.escape(r.dataset.code)}"]`)?.classList.add('hl'); }
   });
 }
