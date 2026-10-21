@@ -10,6 +10,8 @@ Current project: **`mqyeqrxzjzsfvbbjppxj`** (`https://mqyeqrxzjzsfvbbjppxj.supab
 Do all of this in the **same** project as `supabaseUrl` in `src/config.js`. Check the project name at the top of the Supabase dashboard first.
 
 1. **Tables and rules.** SQL Editor > New query > paste the whole of `db/schema.sql` > Run.
+   **Run it again every time `db/schema.sql` changes** (for example after pulling a new version): the app will say
+   "isn't set up" until you do. Re-running keeps all data.
    It is safe to run again, and it upgrades a project that ran an older version (it keeps the data and drops the tables of the removed ranking feature).
    The last result lists every table with "row level security on" = true.
 2. **Nightly cleanup.** New query > paste `db/cleanup_job.sql` > Run. If the first line fails, switch on
@@ -33,7 +35,7 @@ Do all of this in the **same** project as `supabaseUrl` in `src/config.js`. Chec
    while these are in use. Before real use, run the same command with `--reset-passwords` instead to issue random ones.
 5. **Check it.** With one manager and two agent passwords from step 4:
    ```
-   AGENT_A=EE-1001:pass AGENT_B=EE-1002:pass MANAGER=MGR-7777:pass npm run test:security
+   AGENT_A=EE-001:user001 AGENT_B=EE-002:user002 MANAGER=MGR-001:manager001 npm run test:security
    ```
    It proves on the live project that sign-ups are off, signed-out visitors see nothing, one agent cannot see or change
    another's data, and the manager can see the team.
@@ -58,6 +60,19 @@ Do all of this in the **same** project as `supabaseUrl` in `src/config.js`. Chec
 | Your login works, but it has no profile… | login made by hand without a profile | run the login script for that code |
 | This login hasn't been confirmed yet. | login made by hand without "Auto confirm" | run the login script again |
 
+## Who can do what
+
+| | Agent | Team lead | Signed out |
+|---|---|---|---|
+| See profiles | own | own team | nothing |
+| Start / stop breaks, set shift times | today only | team, any day | – |
+| Change or delete a recorded break | never | team | – |
+| Adjust allowances, OH breaks, break names | never | team | – |
+| Read the audit trail | never | own team | – |
+| Breakathon | team names + points | + minutes over | nothing |
+
+Break start and stop times are stamped by the database clock when an agent starts and stops, so the phone's clock doesn't matter.
+
 ## Tables
 
 | Table | What | Who can write |
@@ -65,9 +80,9 @@ Do all of this in the **same** project as `supabaseUrl` in `src/config.js`. Chec
 | `profiles` | code, first name, team, role | nobody from the page (the login script, or you in the dashboard) |
 | `shifts`, `break_segments` | a person's day and each break sitting | the person, and their team's manager |
 | `adjustments` | +/- minutes, one person, one day, one break | managers of that team |
-| `custom_break_rules` | Custom 1 to 5 | managers of that team |
+| `custom_break_rules` | OH Break 1 to 5 | managers of that team |
 | `break_names` | a manager's name for a break, per person | managers of that team |
-| `audit_log` | every manager change: who, when, what, before, after | only the database triggers |
+| `audit_log` | every manager change (and an agent moving their own shift times): who, when, what, before, after | only the database triggers |
 
 Making someone a manager is a `role` in `profiles` (or `manager` in the login list). It is never a code in the page.
 

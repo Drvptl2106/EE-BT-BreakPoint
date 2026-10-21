@@ -1,9 +1,9 @@
 # Break Point
 
-Live break tracking for a contact-centre team: agents start, pause and resume breaks, and managers see who is on what and who has run over.
+Live break tracking for a contact-centre team. Agents start, pause and resume their breaks; team leads see who is where, who is running over and who still needs a break; and **Breakathon** turns punctuality into a weekly game.
 
-**Status:** pilot build, connected to a Supabase database (`backend: 'api'` in `src/config.js`), so every manager and agent sees the same data.
-Setting up a new project takes four steps: see **docs/DATABASE.md**.
+**Status:** pilot, running on a Supabase database (`backend: 'api'` in `src/config.js`), so everyone sees the same live data.
+Setting up a project: **docs/DATABASE.md**.
 
 ## Run it
 
@@ -17,43 +17,63 @@ Open http://localhost:8080
 
 | Page | Who | Sign in with |
 |---|---|---|
-| `/index.html` | agents | their code (e.g. `EE-1001`) and the password from the login script |
-| `/manager.html` | team lead | their manager code and password |
+| `/index.html` | agents | their code (e.g. `EE-001`) and password |
+| `/manager.html` | team leads | their manager code (e.g. `MGR-001`) and password |
 
-Demo mode: set `backend: 'fake'` in `src/config.js` to try it without a database. Data then stays in **one browser only**
-(nobody else can see it), the demo codes are `EE-1001` to `EE-1005` and `MGR-7777`, and **Load demo team** fills in a team.
+Demo mode: set `backend: 'fake'` in `src/config.js` to try it without a database. Data then stays in **one browser only**;
+the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo team** fills in a team.
 
 ## What it does
 
-- **Agents:** shift start/end, a work-time headline, a ring and list of today's breaks, one tile per break (pause and resume until the minutes are used), and a friendly note when an overrun comes off the next break.
-- **Managers:** live team table, +/- 5 minute adjustments, and **View more** per person: edit the shift start and end, full break history (edit or remove recorded times, log a missed break), **Custom 1 to 5** extra breaks (today only, selected weekdays or every day), **rename** any break for that person, and the **change history** of every manager edit.
+**Agents (My day)**
+- One bar per break (Break 1, Break 2, Lunch, plus any **OH Break** the manager adds), filling up as it is used, with Start / Resume.
+- Going over takes the extra minutes off the next break (Break 1 → Break 2 → Lunch → OH breaks), with a friendly note.
+- The shift pie: time worked, breaks, overruns and time still to go, with the worked time ticking to the second.
+- A sales-floor pep talk that changes with the time of day, a live clock and a Live indicator.
+- **Breakathon:** the team race, this week and last week, and last week's champion.
+
+**Team leads**
+- **Dashboard** (view only): filters for everyone / on a break / running over / taken a break / no break yet / not clocked in,
+  a "team pulse" in plain English ("Almost everyone has had Break 1, still to go: Sam", "Jordan is 6 min over, go wake Jordan up"),
+  and a live card per person.
+- **Manage:** +/- 5 minute adjustments, and per person: shift start and end, break history (edit, remove, log a missed break),
+  OH breaks (today, chosen weekdays or every day), break names, and the change history. Export the last 14 days as CSV.
+- **Breakathon:** the race with minutes over, and a button to give last week's champion their reward break.
+
+## Security in one paragraph
+
+All rules live in the database (`db/schema.sql`), not in the page. Agents see only their own data and can only add breaks for today;
+they can't change or delete a recorded break. Break start and stop times are stamped by the database's clock, not the phone's.
+Team leads see and change only their own team, and every change they make (and any agent changing their own shift times) goes into an
+audit trail nobody can edit. Breakathon gives agents names and points only, never anyone's break times. Data is deleted after 14 days.
+`npm run test:db` proves all of this on a local copy of the database.
 
 ## What it stores, and what it never stores
 
-- Stores: first name, shift and break start and end times, allowance adjustments in minutes, custom break rules, break names a manager chose, and an audit trail of manager changes (who, when, before, after).
+- Stores: first name, shift and break times, allowance adjustments in minutes, OH break rules, break names a manager chose, and the audit trail.
 - Never stores: the **reason** for a break, an adjustment or an edit. There is no such field anywhere, and tests fail if one appears.
-- Retention: everything older than `retentionDays` (14) is deleted by a nightly database job (`db/cleanup_job.sql`).
 
 ## Layout
 
 ```
-index.html, manager.html   thin page shells (and the content-security policy)
-src/config.js     every adjustable value
-src/core.js       storage + break maths
-src/backend/api.js the Supabase connection (clear error messages for every set-up mistake)
-src/pages/        one script per page
-src/jokes.js, dom.js, pilot.js, styles.css
-scripts/create_logins.mjs   one-time: logins + profiles for everyone, a random password each
-db/schema.sql     the database (safe to re-run)     db/cleanup_job.sql   the nightly 14-day cleanup
-tests/            npm test (rules + set-up checks), npm run test:db (security rules on a local Postgres),
-                  npm run test:security (the same on the live project), e2e/smoke.py (browser, demo mode)
-docs/             ARCHITECTURE.md, DATABASE.md
-legacy/stage1/    the earlier modular version, archived (npm run test:legacy)
+index.html, manager.html     the two pages (and their content-security policy)
+src/config.js                every adjustable value: breaks, OH break names, Breakathon points and reward, colours live in styles.css
+src/core.js                  break rules, Breakathon scoring, dashboard status and team pulse
+src/backend/api.js           the Supabase connection, clock sync and plain-English errors
+src/pages/user.js, manager.js   one script per page
+src/chrome.js                header: live clock, Live pill, tabs, change password
+src/race.js                  the Breakathon race and its characters
+src/jokes.js                 the pep talks          src/dom.js, pilot.js, styles.css
+scripts/create_logins.mjs    creates everyone's login and profile
+db/schema.sql                the database (safe to re-run)      db/cleanup_job.sql   nightly 14-day cleanup
+tests/                       npm test (rules and set-up), npm run test:db (database security on a local Postgres),
+                             npm run test:security (the live project), e2e/smoke.py (browser, demo mode)
+docs/                        ARCHITECTURE.md, DATABASE.md
 ```
 
 ## Ground rules for this repo
 
-1. **No data, no secrets in git.** Git never forgets. `.gitignore` covers `.env`, `people.csv` and the generated `logins-*.csv`.
+1. **No data, no secrets in git.** `.gitignore` covers `.env`, `people.csv` and the generated `logins-*.csv`.
 2. **No free-text reason fields**, anywhere, ever.
-3. **Security lives in the database**, not in hidden buttons. The pilot codes in `src/pilot.js` are for demo mode only.
-4. Anything adjustable goes in `src/config.js`, not in the code.
+3. **Security lives in the database**, not in hidden buttons.
+4. Anything adjustable goes in `src/config.js` (colours in `src/styles.css`), not in the code.

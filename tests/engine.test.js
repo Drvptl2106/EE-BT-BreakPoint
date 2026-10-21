@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from '../src/config.js';
-import { plan, slotsFor, labelFor, cleanName, dayKey } from '../src/core.js';
+import { plan, slotsFor, labelFor, cleanName, dayKey, weekScore, weekOf, statusOf, teamPulse, FILTERS } from '../src/core.js';
 
 const MIN = 60000, NOW = new Date(2026, 9, 14, 15, 0).getTime();   // Wed 14 Oct 2026, 15:00 local
 const TODAY = dayKey(new Date(NOW));
@@ -60,9 +60,9 @@ test('custom breaks: today-only, selected days and every day', () => {
   const db = base(); const mk = (key, scope, extra = {}) => ({ key, minutes: 10, scope, date: TODAY, days: [], ...extra });
   db.custom['EE-1001'] = [mk('c1', 'today'), mk('c2', 'days', { days: [3] }), mk('c3', 'days', { days: [1] }), mk('c4', 'daily')];
   const labels = d => slotsFor(db, 'EE-1001', d).map(s => s.label);
-  assert.deepEqual(labels(TODAY), ['Break 1', 'Break 2', 'Lunch', 'Custom 1', 'Custom 2', 'Custom 4']);   // Wednesday
-  assert.deepEqual(labels('2026-10-15'), ['Break 1', 'Break 2', 'Lunch', 'Custom 4']);                      // Thursday
-  assert.deepEqual(labels('2026-10-12'), ['Break 1', 'Break 2', 'Lunch', 'Custom 3', 'Custom 4']);          // Monday
+  assert.deepEqual(labels(TODAY), ['Break 1', 'Break 2', 'Lunch', 'OH Break 1', 'OH Break 2', 'OH Break 4']);   // Wednesday
+  assert.deepEqual(labels('2026-10-15'), ['Break 1', 'Break 2', 'Lunch', 'OH Break 4']);                      // Thursday
+  assert.deepEqual(labels('2026-10-12'), ['Break 1', 'Break 2', 'Lunch', 'OH Break 3', 'OH Break 4']);          // Monday
   assert.deepEqual(slotsFor(db, 'EE-1002', TODAY).length, 3);                                                // other people unaffected
 });
 
@@ -78,10 +78,10 @@ test('break names: a manager can rename a break for one person only', () => {
   db.names['EE-1001'] = { break1: 'Morning', c1: 'Quiet time' };
   const s = slotsFor(db, 'EE-1001', TODAY);
   assert.deepEqual(s.map(x => x.label), ['Morning', 'Break 2', 'Lunch', 'Quiet time']);
-  assert.deepEqual(s.map(x => x.defaultLabel), ['Break 1', 'Break 2', 'Lunch', 'Custom 1']);
+  assert.deepEqual(s.map(x => x.defaultLabel), ['Break 1', 'Break 2', 'Lunch', 'OH Break 1']);
   assert.deepEqual(slotsFor(db, 'EE-1002', TODAY).map(x => x.label), ['Break 1', 'Break 2', 'Lunch']);
   assert.equal(labelFor(db, 'EE-1001', 'c1'), 'Quiet time');
-  assert.equal(labelFor(db, 'EE-1002', 'c1'), 'Custom 1');
+  assert.equal(labelFor(db, 'EE-1002', 'c1'), 'OH Break 1');
   assert.equal(P(rec(['break1', 0, 17]), {}, s)[1].allowed, 13);            // renaming never changes the maths
 });
 
@@ -96,6 +96,63 @@ test('older saved data without names still works', () => {
   assert.equal(slotsFor(db, 'EE-1001', TODAY)[0].label, 'Break 1');
 });
 
-test('Breakathon is gone from the config', () => {
-  assert.equal(CONFIG.rewardLabel, undefined); assert.equal(CONFIG.streakGapPolicy, undefined);
+test('PM rule 2: 17 minutes on Break 1 takes 2 minutes off Break 2 (lunch untouched)', () => {
+  const p = P(rec(['break1', 0, 17]));
+  assert.deepEqual(p.map(s => s.allowed), [15, 13, 30]);
+});
+
+test('PM rule 3: Break 1 on time, then 17 minutes on Break 2 takes 2 minutes off lunch', () => {
+  const p = P(rec(['break1', 0, 15], ['break2', 120, 17]));
+  assert.deepEqual(p.map(s => s.allowed), [15, 15, 28]);
+  assert.equal(p[2].deducted, 2);
+});
+
+test('a break the manager adds appears as its own break, after lunch, with its own allowance', () => {
+  const db = base(); db.custom['EE-001'] = [{ key: 'c1', minutes: 10, scope: 'today', date: TODAY, days: [] }];
+  const s = slotsFor(db, 'EE-001', TODAY);
+  assert.deepEqual(s.map(x => [x.label, x.minutes]), [['Break 1', 15], ['Break 2', 15], ['Lunch', 30], ['OH Break 1', 10]]);
+});
+
+test('Breakathon score: on-time breaks, clean days and minutes over (same numbers as the database test)', () => {
+  const db = base(), day = (back, ...b) => { const d = new Date(NOW); d.setDate(d.getDate() - back); (db.days[dayKey(d)] ??= {}).A = rec(...b); };
+  day(0, ['break1', 0, 15]);                         // on time
+  day(1, ['break1', 0, 20], ['lunch', 120, 30]);     // 5 over, lunch on time
+  const s = weekScore(db, 'A', '2000-01-01', '2100-01-01');
+  assert.deepEqual(s, { breaks: 3, onTime: 2, cleanDays: 1, overMinutes: 5, points: 2 * 10 + 5 - 5 * 2 });
+  assert.equal(weekScore(db, 'A', TODAY, TODAY).points, 15);
+});
+
+test("Breakathon: a manager's extra minutes count toward being on time", () => {
+  const db = base(); (db.days[TODAY] ??= {}).A = rec(['lunch', 0, 40]); db.adj[TODAY] = { A: { lunch: 10 } };
+  assert.equal(weekScore(db, 'A', TODAY, TODAY).onTime, 1);
+});
+
+test('weeks run Monday to Sunday', () => {
+  assert.deepEqual(weekOf('2026-10-21'), { from: '2026-10-19', to: '2026-10-25' });
+  assert.deepEqual(weekOf('2026-10-19', 1), { from: '2026-10-12', to: '2026-10-18' });
+});
+
+test('dashboard status and filters', () => {
+  const slots = CONFIG.defaultSlots, at = NOW;
+  const st = r => statusOf(r, plan(r, {}, at, slots), at);
+  assert.equal(st(undefined).key, 'off');
+  assert.equal(st({ shiftStart: NOW - 3600000, breaks: [], active: null }).key, 'none');
+  assert.equal(st({ shiftStart: NOW - 3600000, breaks: [], active: { slot: 'break1', start: NOW - 5 * MIN } }).key, 'onbreak');
+  assert.equal(st({ shiftStart: NOW - 3600000, breaks: [], active: { slot: 'break1', start: NOW - 20 * MIN } }).key, 'over');
+  assert.equal(st(rec(['break1', 0, 20])).key, 'over');
+  assert.equal(st(rec(['break1', 0, 10])).key, 'taken');
+  assert.deepEqual(FILTERS.map(f => f.key), ['all', 'onbreak', 'over', 'taken', 'none', 'off']);
+});
+
+test('team pulse: who is over, who is still waiting, and who has gone too long without a break', () => {
+  const slots = CONFIG.defaultSlots, mk = (name, r) => ({ name, rec: r, p: plan(r, {}, NOW, slots) });
+  const done = n => mk(n, rec(['break1', 0, 15]));
+  const team = [done('Alex'), done('Priya'), done('Sam'), mk('Jordan', { shiftStart: NOW - 4 * 3600000, breaks: [], active: null }),
+    mk('Mo', { shiftStart: NOW - 3600000, breaks: [], active: { slot: 'break2', start: NOW - 25 * MIN } }), mk('Chris', undefined)];
+  const text = teamPulse(team, NOW).map(m => m.tone + ': ' + m.text).join('\n');
+  assert.match(text, /^bad: Mo is 10 min over on Break 2\. Go wake Mo up/m);
+  assert.match(text, /warn: Jordan has been working 4h 00m without a break/);
+  assert.match(text, /Almost everyone has had Break 1\. Still to go: Jordan and Mo\./);
+  assert.match(text, /1 on a break right now · 4 working · 1 not clocked in/);
+  assert.match(teamPulse([done('Alex'), done('Priya')], NOW).map(m => m.text).join(), /Everyone clocked in has had Break 1/);
 });

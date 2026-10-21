@@ -95,13 +95,38 @@ drop policy if exists "see people in your team" on profiles;
 create policy "see people in your team" on profiles for select to authenticated
   using (id = auth.uid() or is_manager_of(id));
 -- (no insert/update/delete policy on profiles: nobody can make themselves a manager from the page)
+-- Agents: read their own shifts and breaks, start/stop breaks and set their shift times for TODAY only
+-- (today = yesterday, today or tomorrow in UTC, so a UK late shift around midnight still works),
+-- ADD breaks but never change or delete a recorded one. Managers: everything, for their own team.
+create or replace function is_today(d date) returns boolean language sql stable as $$
+  select d between current_date - 1 and current_date + 1
+$$;
 drop policy if exists "own or team manager" on shifts;
-create policy "own or team manager" on shifts for all to authenticated
-  using (user_id = auth.uid() or is_manager_of(user_id)) with check (user_id = auth.uid() or is_manager_of(user_id));
+drop policy if exists "read own or team"    on shifts;
+drop policy if exists "add own today"       on shifts;
+drop policy if exists "change own today"    on shifts;
+drop policy if exists "managers remove"     on shifts;
+create policy "read own or team" on shifts for select to authenticated using (user_id = auth.uid() or is_manager_of(user_id));
+create policy "add own today"    on shifts for insert to authenticated
+  with check ((user_id = auth.uid() and is_today(day)) or is_manager_of(user_id));
+create policy "change own today" on shifts for update to authenticated
+  using ((user_id = auth.uid() and is_today(day)) or is_manager_of(user_id))
+  with check ((user_id = auth.uid() and is_today(day)) or is_manager_of(user_id));
+create policy "managers remove"  on shifts for delete to authenticated using (is_manager_of(user_id));
 drop policy if exists "own or team manager" on break_segments;
-create policy "own or team manager" on break_segments for all to authenticated
-  using (exists (select 1 from shifts s where s.id = shift_id and (s.user_id = auth.uid() or is_manager_of(s.user_id))))
-  with check (exists (select 1 from shifts s where s.id = shift_id and (s.user_id = auth.uid() or is_manager_of(s.user_id))));
+drop policy if exists "read own or team"    on break_segments;
+drop policy if exists "add own today"       on break_segments;
+drop policy if exists "managers change"     on break_segments;
+drop policy if exists "managers remove"     on break_segments;
+create policy "read own or team" on break_segments for select to authenticated
+  using (exists (select 1 from shifts s where s.id = shift_id and (s.user_id = auth.uid() or is_manager_of(s.user_id))));
+create policy "add own today"    on break_segments for insert to authenticated
+  with check (exists (select 1 from shifts s where s.id = shift_id and ((s.user_id = auth.uid() and is_today(s.day)) or is_manager_of(s.user_id))));
+create policy "managers change"  on break_segments for update to authenticated
+  using (exists (select 1 from shifts s where s.id = shift_id and is_manager_of(s.user_id)))
+  with check (exists (select 1 from shifts s where s.id = shift_id and is_manager_of(s.user_id)));
+create policy "managers remove"  on break_segments for delete to authenticated
+  using (exists (select 1 from shifts s where s.id = shift_id and is_manager_of(s.user_id)));
 drop policy if exists "read own or team" on adjustments;
 drop policy if exists "managers write"   on adjustments;
 create policy "read own or team" on adjustments for select to authenticated using (user_id = auth.uid() or is_manager_of(user_id));
@@ -126,18 +151,59 @@ revoke all on profiles, shifts, break_segments, adjustments, custom_break_rules,
 grant select on profiles, audit_log to authenticated;
 grant select, insert, update, delete on shifts, break_segments, adjustments, custom_break_rules, break_names to authenticated;
 
+-- ---------- the database's clock decides break times ----------
+-- When an agent starts a break, the database stamps the start with ITS clock; when they stop, the break is recorded from
+-- that start to the database's "now". So a phone with the wrong time (or someone editing the page) can't shorten a break.
+-- Managers' edits keep the times the manager typed (they are audited below).
+create or replace function server_time() returns timestamptz language sql stable as $$ select now() $$;
+create or replace function stamp_shift() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null or auth.uid() <> new.user_id then return new; end if;
+  if tg_op = 'INSERT' then
+    new.active_started := case when new.active_slot is null then null else now() end;
+  elsif new.active_slot is distinct from old.active_slot then
+    new.active_started := case when new.active_slot is null then null else now() end;
+  else
+    new.active_started := old.active_started;
+  end if;
+  return new;
+end $$;
+drop trigger if exists shifts_stamp on shifts;
+create trigger shifts_stamp before insert or update on shifts for each row execute function stamp_shift();
+create or replace function stamp_break() returns trigger language plpgsql security definer set search_path = public as $$
+declare s shifts%rowtype;
+begin
+  select * into s from shifts where id = new.shift_id;
+  if not found or auth.uid() is null or auth.uid() <> s.user_id then return new; end if;
+  if s.active_slot = new.slot_key and s.active_started is not null then
+    new.started_at := s.active_started;
+    new.ended_at := case when new.flag = 'forgot' then s.active_started + interval '90 minutes'   -- = CONFIG.forgotToStopMinutes
+                         else greatest(now(), s.active_started + interval '1 second') end;
+  elsif new.started_at >= now() - interval '5 minutes' and new.ended_at <= now() + interval '1 minute' then
+    null;   -- a very short break stopped before its start reached the database: keep the times sent
+  else
+    raise exception 'no running break to close';
+  end if;
+  return new;
+end $$;
+drop trigger if exists break_segments_stamp on break_segments;
+create trigger break_segments_stamp before insert on break_segments for each row execute function stamp_break();
+
 -- ---------- audit trail ----------
--- A change is logged when someone signed in changes ANOTHER person's data (in practice: a manager).
--- An agent's own clicks (start, stop, their own shift times) are not logged; the SQL editor and the cleanup job
--- (no signed-in user) are not logged either. Times are stored in UTC, ISO format.
-create or replace function audit_write(p_action text, p_target uuid, p_slot text, p_day date, p_before text, p_after text, p_record uuid)
+-- Logged: every change someone makes to ANOTHER person's data (in practice: a manager), plus an agent changing their
+-- own shift start, or an end time they had already set (the things a dispute would be about).
+-- Not logged: an agent's normal clicks (start, stop, first end time), the SQL editor and the cleanup job (no signed-in user).
+-- Times are stored in UTC, ISO format.
+drop function if exists audit_write(text, uuid, text, date, text, text, uuid);
+create or replace function audit_write(p_action text, p_target uuid, p_slot text, p_day date, p_before text, p_after text, p_record uuid,
+                                       p_include_self boolean default false)
 returns void language plpgsql security definer set search_path = public as $$
 begin
-  if auth.uid() is null or p_target is null or auth.uid() = p_target then return; end if;
+  if auth.uid() is null or p_target is null or (auth.uid() = p_target and not p_include_self) then return; end if;
   insert into audit_log(actor_id, action, target_id, slot_key, day, before_value, after_value, record_id)
   values (auth.uid(), p_action, p_target, p_slot, p_day, p_before, p_after, p_record);
 end $$;
-revoke execute on function audit_write(text, uuid, text, date, text, text, uuid) from public, anon, authenticated;
+revoke execute on function audit_write(text, uuid, text, date, text, text, uuid, boolean) from public, anon, authenticated;
 create or replace function audit_ts(t timestamptz) returns text language sql immutable set search_path = public as $$
   select to_char(t at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI"Z"')
 $$;
@@ -159,10 +225,10 @@ begin
     perform audit_write('remove_shift', old.user_id, null, old.day, audit_ts(old.shift_start) || '/' || coalesce(audit_ts(old.shift_end), ''), null, null);
   else
     if new.shift_start is distinct from old.shift_start then
-      perform audit_write('edit_shift_start', new.user_id, null, new.day, audit_ts(old.shift_start), audit_ts(new.shift_start), null);
+      perform audit_write('edit_shift_start', new.user_id, null, new.day, audit_ts(old.shift_start), audit_ts(new.shift_start), null, true);
     end if;
     if new.shift_end is distinct from old.shift_end then
-      perform audit_write('edit_shift_end', new.user_id, null, new.day, audit_ts(old.shift_end), audit_ts(new.shift_end), null);
+      perform audit_write('edit_shift_end', new.user_id, null, new.day, audit_ts(old.shift_end), audit_ts(new.shift_end), null, old.shift_end is not null);
     end if;
   end if;
   return coalesce(new, old);
@@ -213,6 +279,42 @@ begin
 end $$;
 drop trigger if exists break_names_audit on break_names;
 create trigger break_names_audit after insert or update or delete on break_names for each row execute function audit_break_name();
+
+-- ---------- Breakathon: the weekly punctuality game ----------
+-- Everyone in a team sees names and points; only managers also see minutes over. Nobody gets anyone else's break times.
+-- Same maths as weekScore() in src/core.js: a break is on time when it stays within its OWN allowance (+ adjustment),
+-- 24 seconds of grace (= CONFIG.overToleranceMinutes); points = 10 per on-time break + 5 per clean day - 2 per minute over.
+drop function if exists breakathon(date, date);
+create or replace function breakathon(p_from date, p_to date)
+returns table (code text, name text, breaks int, on_time int, clean_days int, over_minutes int, points int)
+language sql stable security definer set search_path = public as $$
+  with me as (select team, role from profiles where id = auth.uid()),
+  team as (select p.id, p.code, p.name from profiles p join me on p.team = me.team where p.role = 'agent'),
+  used as (select s.user_id, s.day, b.slot_key, sum(extract(epoch from b.ended_at - b.started_at)) as secs
+           from shifts s join team t on t.id = s.user_id join break_segments b on b.shift_id = s.id
+           where s.day between p_from and p_to group by 1, 2, 3),
+  slot as (select u.user_id, u.day,
+                  greatest(0, u.secs - 60 * (case u.slot_key when 'break1' then 15 when 'break2' then 15 when 'lunch' then 30   -- = CONFIG.defaultSlots
+                                             else c.minutes end + coalesce(a.minutes, 0))) as over_raw
+           from used u
+           left join custom_break_rules c on c.user_id = u.user_id and c.slot_key = u.slot_key
+           left join adjustments a on a.user_id = u.user_id and a.day = u.day and a.slot_key = u.slot_key
+           where u.slot_key in ('break1', 'break2', 'lunch') or c.minutes is not null),
+  per_day as (select user_id, day, count(*) as n, count(*) filter (where over_raw < 24) as ok,
+                     sum(case when over_raw < 24 then 0 else over_raw end) as over_s
+              from slot group by 1, 2),
+  tot as (select user_id, sum(n) as breaks, sum(ok) as on_time, count(*) filter (where ok = n) as clean, round(sum(over_s) / 60) as over_m
+          from per_day group by 1)
+  select t.code, t.name, coalesce(x.breaks, 0)::int, coalesce(x.on_time, 0)::int, coalesce(x.clean, 0)::int,
+         case when (select role from me) in ('manager', 'admin') then coalesce(x.over_m, 0)::int end,
+         greatest(0, coalesce(x.on_time, 0) * 10 + coalesce(x.clean, 0) * 5 - coalesce(x.over_m, 0) * 2)::int
+  from team t left join tot x on x.user_id = t.id
+  order by 7 desc, 4 desc, 2
+$$;
+revoke execute on function breakathon(date, date) from public, anon;
+grant execute on function breakathon(date, date) to authenticated;
+revoke execute on function server_time() from public, anon;
+grant execute on function server_time() to authenticated;
 
 -- Retention (= CONFIG.retentionDays): run db/cleanup_job.sql once, after this file.
 

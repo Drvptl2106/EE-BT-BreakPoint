@@ -23,9 +23,9 @@ export const CONFIG = {
     { key: 'lunch', label: 'Lunch', minutes: 30, tone: 'lunch' },
   ],
 
-  // Managers can add these extra breaks to a person. The names are neutral on purpose:
-  // only the manager knows what each one means.
-  customLabels: { c1: 'Custom 1', c2: 'Custom 2', c3: 'Custom 3', c4: 'Custom 4', c5: 'Custom 5' },
+  // Managers can add these extra breaks to a person (each shows up as its own bar on that person's page).
+  // The names are neutral on purpose: only the manager knows what each one is for.
+  customLabels: { c1: 'OH Break 1', c2: 'OH Break 2', c3: 'OH Break 3', c4: 'OH Break 4', c5: 'OH Break 5' },
 
   // A manager can rename any break for one person (shown to that person too). It is a NAME, not a reason:
   // keep it short. The database enforces the same limit (db/schema.sql, break_names).
@@ -45,4 +45,16 @@ export const CONFIG = {
 
   // How often the screen re-checks the data source, in seconds.
   refreshSeconds: 10,
+
+  // Manager dashboard "team pulse": flag someone working this long without any break.
+  noBreakWarnHours: 3,
+
+  // Breakathon (weekly punctuality game, Monday to Sunday). A break is "on time" when it stays within its own
+  // allowance (+ any manager adjustment). The database works the scores out the same way (db/schema.sql, breakathon()).
+  breakathon: {
+    pointsOnTime: 10,       // per break kept within its allowance
+    pointsCleanDay: 5,      // per day where every break was on time
+    penaltyPerMinuteOver: 2,
+    rewardMinutes: 15,      // the manager can give last week's champion an extra OH break of this length
+  },
 };

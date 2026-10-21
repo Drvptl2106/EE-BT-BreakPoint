@@ -7,7 +7,7 @@ create function t.denied(q text) returns void language plpgsql as $$
 begin
   execute q;
   raise exception 'SHOULD HAVE BEEN REFUSED: %', q;
-exception when insufficient_privilege or check_violation then null;
+exception when insufficient_privilege or check_violation or raise_exception then null;
 end $$;
 create function t.n(q text) returns int language plpgsql as $$
 declare c int; begin execute 'select count(*) from (' || q || ') x' into c; return c; end $$;
@@ -28,12 +28,14 @@ insert into profiles(id, code, name, team, role) values
   ('00000000-0000-0000-0000-00000000000d', 'EE-2001', 'Sam',   'other', 'agent'),
   ('00000000-0000-0000-0000-00000000000e', 'MGR-8888', 'Other lead', 'other', 'manager');
 
--- ---------- B and X record their own day (as themselves) ----------
-begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true); set local role authenticated;
+-- ---------- B and X already have a day on record ----------
 insert into shifts(id, user_id, day, shift_start) values ('10000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000b', current_date, now() - interval '3 hours');
 insert into break_segments(id, shift_id, slot_key, started_at, ended_at) values
   ('20000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-00000000000b', 'break1', now() - interval '2 hours', now() - interval '105 minutes');
-commit;
+-- and A has a day from last week
+insert into shifts(id, user_id, day, shift_start) values ('10000000-0000-0000-0000-0000000000a7', '00000000-0000-0000-0000-00000000000a', current_date - 7, now() - interval '7 days');
+insert into break_segments(id, shift_id, slot_key, started_at, ended_at) values
+  ('20000000-0000-0000-0000-0000000000a7', '10000000-0000-0000-0000-0000000000a7', 'break1', now() - interval '7 days', now() - interval '7 days' + interval '20 minutes');
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000d', true); set local role authenticated;
 insert into shifts(id, user_id, day, shift_start) values ('10000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', current_date, now() - interval '3 hours');
 commit;
@@ -42,10 +44,28 @@ commit;
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
 select t.ok(t.n('select * from profiles') = 1, 'agent sees only their own profile');
 select t.ok((select code from profiles) = 'EE-1001', 'and it is their own');
-insert into shifts(id, user_id, day, shift_start) values ('10000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000a', current_date, now() - interval '2 hours');
-insert into break_segments(shift_id, slot_key, started_at, ended_at) values ('10000000-0000-0000-0000-00000000000a', 'break1', now() - interval '1 hour', now() - interval '50 minutes');
-select t.ok(t.n('select * from shifts') = 1, 'agent sees only their own shift');
-select t.ok(t.n('select * from break_segments') = 1, 'agent sees only their own breaks');
+-- A starts a break with a device clock an hour slow: the database uses its own clock
+insert into shifts(id, user_id, day, shift_start, active_slot, active_started) values
+  ('10000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000a', current_date, now() - interval '2 hours', 'break1', now() - interval '1 hour');
+select t.ok((select active_started from shifts where id = '10000000-0000-0000-0000-00000000000a') = now(), 'a break start is stamped with the database clock');
+update shifts set active_started = now() - interval '1 hour' where id = '10000000-0000-0000-0000-00000000000a';
+select t.ok((select active_started from shifts where id = '10000000-0000-0000-0000-00000000000a') = now(), 'an agent cannot move the start of a running break');
+-- A stops it, sending made-up times: the database records its own start and stop
+insert into break_segments(id, shift_id, slot_key, started_at, ended_at) values
+  ('20000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-00000000000a', 'break1', now() - interval '1 hour', now() - interval '55 minutes');
+update shifts set active_slot = null where id = '10000000-0000-0000-0000-00000000000a';
+select t.ok((select started_at = now() and ended_at > now() from break_segments where id = '20000000-0000-0000-0000-00000000000a'), 'a break stop is stamped with the database clock');
+select t.denied($$insert into break_segments(shift_id, slot_key, started_at, ended_at) values ('10000000-0000-0000-0000-00000000000a', 'lunch', now() - interval '3 hours', now() - interval '170 minutes')$$);
+select t.ok(true, 'an agent cannot add a made-up break that was never started');
+select t.ok(t.changed($$update break_segments set ended_at = started_at + interval '2 minutes' where id = '20000000-0000-0000-0000-0000000000a7'$$) = 0, 'an agent cannot shorten their own recorded break');
+select t.ok(t.changed($$update break_segments set ended_at = ended_at + interval '1 minute' where id = '20000000-0000-0000-0000-00000000000a'$$) = 0, 'not even today''s');
+select t.ok(t.changed($$delete from break_segments where shift_id = '10000000-0000-0000-0000-0000000000a7'$$) = 0, 'an agent cannot delete their own recorded break');
+select t.ok(t.changed($$update shifts set shift_start = now() where id = '10000000-0000-0000-0000-0000000000a7'$$) = 0, 'an agent cannot change last week''s shift');
+select t.ok(t.changed($$delete from shifts where user_id = auth.uid()$$) = 0, 'an agent cannot delete their own shifts');
+select t.denied($$insert into shifts(user_id, day, shift_start) values (auth.uid(), current_date - 5, now())$$);
+select t.ok(true, 'an agent cannot invent a shift on another day');
+select t.ok(t.n('select * from shifts') = 2, 'agent sees only their own shifts');
+select t.ok(t.n('select * from break_segments') = 2, 'agent sees only their own breaks');
 select t.ok(t.n($$select * from shifts where user_id = '00000000-0000-0000-0000-00000000000b'$$) = 0, 'agent cannot read another agent''s shift even by id');
 select t.denied($$insert into shifts(user_id, day, shift_start) values ('00000000-0000-0000-0000-00000000000b', current_date - 1, now())$$);
 select t.ok(true, 'agent cannot create a shift for someone else');
@@ -69,7 +89,7 @@ select t.denied($$insert into profiles(id, code, name, role) values (gen_random_
 select t.ok(true, 'agent cannot create a profile');
 select t.denied($$insert into audit_log(action) values ('forged')$$);
 select t.ok(true, 'agent cannot write to the audit trail');
-select t.denied($$select audit_write('forged', '00000000-0000-0000-0000-00000000000b', null, null, null, null, null)$$);
+select t.denied($$select audit_write('forged', '00000000-0000-0000-0000-00000000000b', null, null, null, null, null, true)$$);
 select t.ok(true, 'agent cannot call the audit function directly');
 commit;
 
@@ -80,7 +100,7 @@ select t.ok(t.n('select * from audit_log') = 0, 'agent and own-data changes crea
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
 select t.ok(t.n('select * from profiles') = 3, 'manager sees the 3 people in their team');
 select t.ok(t.n($$select * from profiles where team = 'other'$$) = 0, 'manager does not see another team');
-select t.ok(t.n('select * from shifts') = 2, 'manager sees their team''s shifts only');
+select t.ok(t.n('select * from shifts') = 3, 'manager sees their team''s shifts only');
 update shifts set shift_start = shift_start - interval '30 minutes' where user_id = '00000000-0000-0000-0000-00000000000b';
 update shifts set shift_end = now() + interval '5 hours' where user_id = '00000000-0000-0000-0000-00000000000b';
 update break_segments set ended_at = ended_at - interval '2 minutes' where id = '20000000-0000-0000-0000-00000000000b';
@@ -140,6 +160,36 @@ select t.denied($$update profiles set role = 'admin'$$);
 select t.ok(true, 'even a manager cannot change profiles from the page');
 commit;
 
+-- ---------- an agent changing their own shift times is on the record too ----------
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+update shifts set shift_end = now() + interval '6 hours' where id = '10000000-0000-0000-0000-00000000000a';
+commit;
+select t.ok(t.n($$select * from audit_log where actor_id = '00000000-0000-0000-0000-00000000000a'$$) = 0, 'an agent setting their end time for the first time is not logged');
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+update shifts set shift_start = shift_start - interval '1 hour', shift_end = shift_end + interval '1 hour' where id = '10000000-0000-0000-0000-00000000000a';
+commit;
+select t.ok(t.n($$select * from audit_log where actor_id = '00000000-0000-0000-0000-00000000000a' and target_id = actor_id and action in ('edit_shift_start', 'edit_shift_end')$$) = 2, 'an agent moving their own start or end time is logged');
+
+-- ---------- Breakathon ----------
+-- A: today 1 break on time, last week break 1 took 20 min (5 over): 2 breaks, 1 on time, 1 clean day, 5 min over -> 10 + 5 - 10 = 5
+-- B: break 1 of 13 min (the manager's edit): 1 break, on time, clean -> 15.   X and the managers are not in the game.
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select t.ok((select string_agg(code || ':' || breaks || '/' || on_time || '/' || clean_days || '/' || coalesce(over_minutes::text, '-') || '/' || points, ' ')
+             from breakathon(current_date - 30, current_date)) = 'EE-1002:1/1/1/-/15 EE-1001:2/1/1/-/5', 'Breakathon ranks the team; agents see points but not minutes over');
+select t.ok(t.n('select * from breakathon(current_date - 3, current_date)') = 2 and (select points from breakathon(current_date - 3, current_date) where code = 'EE-1001') = 15,
+            'Breakathon only counts the chosen week');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
+select t.ok((select over_minutes from breakathon(current_date - 30, current_date) where code = 'EE-1001') = 5, 'managers also see minutes over');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', true); set local role authenticated;
+select t.ok(t.n($$select * from breakathon(current_date - 30, current_date) where code like 'EE-1%'$$) = 0, 'another team cannot see this team''s Breakathon');
+commit;
+begin; set local role anon;
+select t.denied('select * from breakathon(current_date - 30, current_date)');
+select t.ok(true, 'signed-out visitors cannot see Breakathon');
+commit;
+
 -- ---------- cleanup job ----------
 insert into shifts(user_id, day, shift_start) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, now() - interval '20 days');
 insert into adjustments(user_id, day, slot_key, minutes) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, 'lunch', 5);
@@ -148,7 +198,7 @@ select purge_old_data();
 select t.ok(t.n('select * from shifts where day < current_date - 14') = 0, 'cleanup removes shifts older than 14 days');
 select t.ok(t.n('select * from adjustments where day < current_date - 14') = 0, 'cleanup removes old adjustments');
 select t.ok(t.n($$select * from audit_log where action = 'old'$$) = 0, 'cleanup removes old audit entries');
-select t.ok(t.n('select * from shifts') = 3, 'cleanup keeps recent shifts');
+select t.ok(t.n('select * from shifts') = 4, 'cleanup keeps recent shifts');
 select t.ok(t.n($$select * from cron.job where jobname = 'break-track-purge'$$) = 1, 'nightly job is scheduled');
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
 select t.denied('select purge_old_data()');

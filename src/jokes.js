@@ -1,34 +1,27 @@
-// The cheerful one-liners on the agent page. Pure text, no storage.
+// The pep talk next to the shift pie: sales-floor motivation that changes with the time of day and the shift.
+// Pure text, no storage. Change or add lines freely; {left} becomes the time left in the shift.
 import { durHM } from './core.js';
 
-const BUCKETS = [
-  [0,10,["Shift started, {left} to go. Coffee first, panic never ☕","Fresh shift energy! {left} left and you've basically already won 💪","The day's only just begun. Best time to look busy is right now 😄"]],
-  [10,25,["Warming up nicely. {left} to go and you're making it look easy 😎","Almost a quarter down. Time flies when you're having… a shift 😅"]],
-  [25,40,["A quarter done! Only the other three quarters to go 🙃","You've cracked 25%. It's all downhill from here (it isn't, but it sounds nice) ⛷️"]],
-  [40,50,["Nearly halfway! Hold on to that thought 🚀","Almost 50%. The halfway point has entered the chat 👀"]],
-  [50,60,["Halfway there, hurray! 🎉 {left} left and the hard part's behind you","Over half done. You can see the other side of the hill now ⛰️"]],
-  [60,75,["More than half done, {left} left. You've got this 💪","Three quarters is nearly the end. Mathematically no, emotionally yes 😌"]],
-  [75,90,["Only {left} left. Smell that? That's freedom 🌅","Final stretch! {left} to go and you're flying ✈️"]],
-  [90,100,["{left} left. Look busy, think sofa 🛋️","Nearly there. Don't stop now, the finish line can see you 🏁"]],
-  [100,1e9,["Shift complete. Go home, you absolute legend 🏠","That's a wrap! Please leave your headset at the door 🎤"]],
+const BY_HOUR = [
+  [0, 9, 'Early start', ["Early calls are the warm-up. Smile, it carries down the line 📞", "First coffee, first customer, first win. In that order ☕", "Fresh day, fresh pipeline. Who's getting the first upgrade? 🚀"]],
+  [9, 11, 'Morning push', ["Peak calling hours. Every 'no' gets you closer to a 'yes' 💪", "Customers are awake and so are you. Go and make someone's day 📱", "Listen first, offer second. That's where the best deals hide 🎧"]],
+  [11, 13, 'Before lunch', ["Strong morning? Make it a stronger finish before lunch 🔥", "One more great conversation, then a well-earned lunch 🥪", "Ask one more question than you think you need. It pays 🙋"]],
+  [13, 15, 'After lunch', ["Post-lunch slump? Not on your watch. Energy up, headset on ⚡", "Afternoon reset: new call, new chance, clean slate 🔄", "The best closers are the ones who keep their energy after lunch 💡"]],
+  [15, 17, 'Afternoon', ["Home straight. A great afternoon turns a good day into a great one 🏃", "Check your numbers, pick your target, go and get it 🎯", "Stay curious with every customer. It's the secret sauce 🧂"]],
+  [17, 24, 'Evening', ["Evening heroes close the day strong 🌙", "The last calls count just as much as the first. Finish proud 🏁", "Late shift legend. The team sees you 🫡"]],
 ];
-const TOD = [
-  [0,10,"Morning brain is still loading… please wait ⏳"],
-  [10,12,"Mid-morning. Peak productivity and prime biscuit o'clock 🍪"],
-  [12,14,"Lunchtime vibes. Your lunch slot is waiting 🥪"],
-  [14,16,"Post-lunch slump detected. Tea is a recognised treatment 🫖"],
-  [16,18,"Home time is in sight. Don't look at the clock, it's looking back 👀"],
-  [18,24,"Late shift hero. The kettle salutes you 🫡"],
-];
+const ON_BREAK = ["Phones down, shoulders down. You've earned this 😌", "Recharge properly. Your next call will thank you 🔋", "Breathe, stretch, hydrate. Back soon, back better 💧"];
 
-/** pct = how far through the shift (null = no end time yet, negative = not started). */
+/** Returns { kicker, text }. pct = how far through the shift (null = no end time yet, negative = not started). */
 export function jokeFor(now, r, pct) {
-  if (r.active) return ["Enjoy it. The kettle won't boil itself 🫖","Phones down, shoulders down 😌","Break time. Technically a legal requirement to relax 😉"][Math.floor(now / 60000) % 3];
-  if (pct === null) return "Add your end time and I'll start cheering you on properly 📣";
-  if (pct < 0) return "Your shift hasn't started yet. Enjoy the calm before the calls 😌";
-  const bucket = BUCKETS.find(b => pct >= b[0] && pct < b[1]);
-  const hr = new Date(now).getHours();
-  const tod = TOD.find(t => hr >= t[0] && hr < t[1]);
-  const pool = [...bucket[2], ...(pct < 100 && tod ? [tod[2]] : [])];
-  return pool[Math.floor(now / 600000) % pool.length].replace('{left}', durHM((r.shiftEnd - now) / 1000));
+  const tick = Math.floor(now / 300000);                       // a new line every 5 minutes
+  if (r.active) return { kicker: 'On a break', text: ON_BREAK[tick % ON_BREAK.length] };
+  if (pct === null) return { kicker: 'Set up your day', text: "Add your end time and I'll keep you company all shift 📣" };
+  if (pct < 0) return { kicker: 'Not started yet', text: 'Calm before the calls. Get your head in the game 🎧' };
+  if (pct >= 100) return { kicker: 'Shift complete', text: "That's a wrap. Great shift, go and enjoy your evening 🏠" };
+  const hr = new Date(now).getHours(), [, , kicker, lines] = BY_HOUR.find(b => hr >= b[0] && hr < b[1]);
+  const extra = pct >= 85 ? [`Only ${durHM((r.shiftEnd - now) / 1000)} to go. Finish like you started 🏁`]
+    : pct >= 45 && pct <= 55 ? ['Halfway there! The second half is where targets are won 🎯'] : [];
+  const pool = [...lines, ...extra];
+  return { kicker, text: pool[tick % pool.length] };
 }
