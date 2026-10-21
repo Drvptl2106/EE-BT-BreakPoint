@@ -61,6 +61,11 @@ test('agent A cannot see or change agent B\'s data', { skip: !(A && B) && 'set A
   assert.deepEqual(upd.data, [], 'agent A could change agent B\'s shift');
   const adj = await req('/rest/v1/adjustments', { method: 'POST', token: a.token, body: { user_id: a.id, day: '2000-01-01', slot_key: 'lunch', minutes: 60 } });
   assert.ok([401, 403].includes(adj.status), 'agent A could give themselves extra minutes');
+  const mine = await req('/rest/v1/break_segments?select=id&limit=1', { token: a.token });
+  if (mine.data?.length) {
+    const del = await req(`/rest/v1/break_segments?id=eq.${mine.data[0].id}`, { method: 'DELETE', token: a.token, headers: { Prefer: 'return=representation' } });
+    assert.deepEqual(del.data, [], 'agent A could delete their own recorded break');
+  }
   const role = await req(`/rest/v1/profiles?id=eq.${a.id}`, { method: 'PATCH', token: a.token, headers: { Prefer: 'return=representation' }, body: { role: 'manager' } });
   assert.deepEqual(role.data, [], 'agent A could make themselves a manager');
 });

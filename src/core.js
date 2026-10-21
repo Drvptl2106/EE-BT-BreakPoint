@@ -3,6 +3,7 @@
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
 import { CONFIG } from './config.js';
 import * as api from './backend/api.js';
+import { PILOT_USERS } from './pilot.js';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -21,6 +22,13 @@ export const me = () => API ? api.me() : null;                                  
 export const signIn = (code, password) => api.signIn(code, password);
 export const signOut = async () => { if (API) await api.signOut(); };
 export const history = async (code, day) => API ? api.history(code, day) : null;  // managers: audit trail rows (null = not kept in demo mode)
+export const changePassword = pw => api.changePassword(pw);                       // database mode only
+/* The time to show and to stamp breaks with: the device clock corrected to the database clock, so a phone that is
+   a few minutes out shows the same time as everyone else. (The database also stamps break start/stop itself.) */
+export const now = () => Date.now() + (API ? api.clockOffset() : 0);
+/* Breakathon scores for the team between two days (inclusive). The database works them out in 'api' mode, so agents
+   only ever receive names and points, never anyone's break times. */
+export const breakathon = async (from, to) => API ? api.breakathon(from, to) : teamScores(fakeLoad(), Object.keys(PILOT_USERS), from, to, true);
 export function purge(db){
   if (API) return;                                                              // the database deletes old rows itself (db/cleanup_job.sql)
   const c = new Date(); c.setDate(c.getDate() - CONFIG.retentionDays); const ck = dayKey(c);
@@ -66,4 +74,78 @@ export function plan(rec, adj, now, slots){
     carry = over/60 + Math.max(0, -raw); /* overrun the next slot couldn't absorb keeps rolling forward */
     return { ...s, base: s.minutes + adjust, adjust, allowed, deducted, segs, act, used, over, overBase, left, done: !act && used > 0 && left < 10 };
   });
+}
+
+/* ---------------- Breakathon (weekly punctuality) ----------------
+   A break counts when it was used; it is on time when it stayed within its OWN allowance (+ any manager adjustment).
+   Minutes passed on to the next break are not counted twice (that is plan()'s overBase). Same maths as breakathon() in db/schema.sql. */
+export function weekScore(db, code, from, to){
+  const B = CONFIG.breakathon; let breaks = 0, onTime = 0, overSec = 0, cleanDays = 0;
+  for (const [day, byCode] of Object.entries(db.days || {})) {
+    if (day < from || day > to || !byCode[code]) continue;
+    const p = plan({ ...byCode[code], active:null }, db.adj?.[day]?.[code], 0, slotsFor(db, code, day)).filter(s => s.segs.length);
+    if (!p.length) continue;
+    breaks += p.length; onTime += p.filter(s => !s.overBase).length; overSec += p.reduce((a,s) => a + s.overBase, 0);
+    if (p.every(s => !s.overBase)) cleanDays++;
+  }
+  const overMinutes = Math.round(overSec/60);
+  return { breaks, onTime, cleanDays, overMinutes, points: Math.max(0, onTime*B.pointsOnTime + cleanDays*B.pointsCleanDay - overMinutes*B.penaltyPerMinuteOver) };
+}
+/** Ranked rows like the database returns: { code, name, breaks, onTime, cleanDays, overMinutes (managers only), points }. */
+export function teamScores(db, codes, from, to, showOver){
+  return codes.map(code => { const s = weekScore(db, code, from, to);
+    return { code, name: PILOT_USERS[code] || code, ...s, overMinutes: showOver ? s.overMinutes : null }; })
+    .sort((a,b) => b.points - a.points || b.onTime - a.onTime || a.name.localeCompare(b.name));
+}
+/** Monday-to-Sunday week containing `date` (a day key), as day keys. weeksBack = 1 gives last week. */
+export function weekOf(date = dayKey(), weeksBack = 0){
+  const d = new Date(date + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7*weeksBack);
+  const end = new Date(d); end.setDate(d.getDate() + 6);
+  return { from: dayKey(d), to: dayKey(end) };
+}
+
+/* ---------------- manager dashboard: who is where ---------------- */
+/** One person's state today. p = plan() for today. Statuses: off (not clocked in), onbreak, over, taken, none. */
+export function statusOf(rec, p, at){
+  if (!rec) return { key:'off', label:'Not clocked in' };
+  const act = p.find(s => s.act), overToday = p.some(s => s.overBase > 0);
+  if (act) return act.left <= 0 && act.used > act.allowed*60 + CONFIG.overToleranceMinutes*60
+    ? { key:'over', label:`Over on ${act.label}`, onBreak:true, slot:act }
+    : { key:'onbreak', label:`On ${act.label}`, onBreak:true, slot:act };
+  if (overToday) return { key:'over', label:'Went over today' };
+  if (p.some(s => s.used > 0)) return { key:'taken', label: rec.shiftEnd && at >= rec.shiftEnd ? 'Finished' : 'Working' };
+  return { key:'none', label:'No break yet' };
+}
+/** The filters on the manager dashboard and who matches each. */
+export const FILTERS = [
+  { key:'all',     label:'Everyone',        test: () => true },
+  { key:'onbreak', label:'On a break now',  test: st => !!st.onBreak },
+  { key:'over',    label:'Running over',    test: st => st.key === 'over' },
+  { key:'taken',   label:'Taken a break',   test: (st, p) => p.some(s => s.used > 0) },
+  { key:'none',    label:'No break yet',    test: st => st.key === 'none' },
+  { key:'off',     label:'Not clocked in',  test: st => st.key === 'off' },
+];
+const names = list => list.length <= 3 ? list.join(list.length === 2 ? ' and ' : ', ').replace(/, ([^,]*)$/, ' and $1') : `${list.slice(0,3).join(', ')} and ${list.length-3} more`;
+/** Plain-English team summary for the manager. team = [{ name, rec, p }] for everyone; returns [{ tone: bad|warn|good|info, text }]. */
+export function teamPulse(team, at){
+  const inn = team.filter(t => t.rec), out = [];
+  if (!inn.length) return [{ tone:'info', text:'Nobody has clocked in yet today. Quiet before the storm ☕' }];
+  for (const t of inn) { const a = t.p.find(s => s.act); if (!a) continue;
+    const over = a.used - a.allowed*60;
+    if (over >= 5*60) out.push({ tone:'bad', text:`${t.name} is ${Math.round(over/60)} min over on ${a.label}. Go wake ${t.name} up 😴` });
+    else if (over > CONFIG.overToleranceMinutes*60) out.push({ tone:'bad', text:`${t.name} has just gone over on ${a.label}. A friendly nudge? ⏰` });
+  }
+  for (const t of inn) if (!t.p.some(s => s.used > 0) && at - t.rec.shiftStart >= CONFIG.noBreakWarnHours*36e5)
+    out.push({ tone:'warn', text:`${t.name} has been working ${durHM((at - t.rec.shiftStart)/1000)} without a break. Worth a check-in 👀` });
+  for (const slot of CONFIG.defaultSlots) {
+    const st = inn.map(t => ({ t, s: t.p.find(x => x.key === slot.key) })).filter(x => x.s);
+    const done = st.filter(x => x.s.used > 0 && !x.s.act), waiting = st.filter(x => !x.s.used);
+    if (!st.length || !done.length) continue;
+    if (!waiting.length && done.length === st.length) out.push({ tone:'good', text:`Everyone clocked in has had ${slot.label} 🎉` });
+    else if (done.length >= Math.ceil(st.length*0.6)) out.push({ tone:'info', text:`Almost everyone has had ${slot.label}. Still to go: ${names(waiting.map(x => x.t.name))}.` });
+  }
+  const onB = inn.filter(t => t.p.some(s => s.act)).length, off = team.length - inn.length;
+  out.push({ tone:'info', text:`${onB ? `${onB} on a break right now` : 'Nobody on a break right now'} · ${inn.length - onB} working${off ? ` · ${off} not clocked in` : ''}.` });
+  const order = { bad:0, warn:1, good:2, info:3 };
+  return out.sort((a,b) => order[a.tone] - order[b.tone]).slice(0, 7);
 }

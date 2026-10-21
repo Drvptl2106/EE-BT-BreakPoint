@@ -47,6 +47,7 @@ test('error messages say what is wrong, and only a real bad password says "not r
   assert.match(explain(400, { error_code: 'email_not_confirmed' }, 'login'), /confirmed/);
   assert.match(explain(429, { error_code: 'over_request_rate_limit' }, 'login'), /Too many/);
   assert.match(explain(404, { code: 'PGRST205', message: "Could not find the table 'public.profiles' in the schema cache" }), /Run db\/schema\.sql/);
+  assert.match(explain(404, { code: 'PGRST202', message: 'Could not find the function public.breakathon(p_from, p_to) in the schema cache' }), /Run db\/schema\.sql/);
   assert.match(explain(403, { code: '42501', message: 'new row violates row-level security policy' }), /permission/);
   assert.match(explain(503, {}), /isn't answering/);
 });
@@ -67,11 +68,15 @@ test('login passwords are random, unique and easy to read out', () => {
   assert.ok(![...all].join('').match(/[01ilIoOS5BZ]/), 'look-alike characters are left out');
 });
 
-test('Breakathon is fully removed', () => {
-  assert.ok(!existsSync('breakathon.html') && !existsSync('src/pages/breakathon.js'));
-  for (const f of [...PAGES, 'src/core.js', 'src/config.js', 'src/pages/user.js', 'src/pages/manager.js', 'README.md', 'docs/ARCHITECTURE.md', 'docs/DATABASE.md'])
-    assert.ok(!/breakathon|leaderboard|score\(|punctuality/i.test(readFileSync(f, 'utf8')), f);
-  assert.ok(!/create\s+(or\s+replace\s+)?(function|table)\s+(if\s+not\s+exists\s+)?(leaderboard|day_results)\b/i.test(readFileSync('db/schema.sql', 'utf8')), 'the schema must only DROP the old Breakathon parts');
+test('Breakathon is a tab on both pages, and agents get scores from the database, never raw break times', () => {
+  assert.ok(!existsSync('breakathon.html'), 'the old separate page stays gone');
+  for (const p of PAGES) assert.match(readFileSync(p, 'utf8'), /data-tab="race"/, p);
+  assert.match(readFileSync('src/backend/api.js', 'utf8'), /rpc\/breakathon/);
+  assert.match(readFileSync('db/schema.sql', 'utf8'), /create or replace function breakathon\(p_from date, p_to date\)/);
+});
+
+test('extra breaks are called OH Break', () => {
+  assert.deepEqual(Object.values(CONFIG.customLabels), ['OH Break 1', 'OH Break 2', 'OH Break 3', 'OH Break 4', 'OH Break 5']);
 });
 
 test('secrets and the generated password files are ignored by git', () => {

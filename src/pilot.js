@@ -3,7 +3,7 @@
 // from the profiles table, so the pages that import them keep working unchanged.
 import { CONFIG } from './config.js';
 const api = CONFIG.backend === 'api';
-export const MANAGER_CODES = api ? {} : { 'MGR-7777': 'Team lead' };
-export const PILOT_USERS = api ? {} : { 'EE-1001': 'Alex', 'EE-1002': 'Priya', 'EE-1003': 'Sam', 'EE-1004': 'Jordan', 'EE-1005': 'Chris' };
+export const MANAGER_CODES = api ? {} : { 'MGR-001': 'Team lead' };
+export const PILOT_USERS = api ? {} : { 'EE-001': 'Alex', 'EE-002': 'Priya', 'EE-003': 'Sam', 'EE-004': 'Jordan', 'EE-005': 'Chris', 'EE-006': 'Mo' };
 export const SESSION_USER = 'bt-user-session';   // agents (localStorage)
 export const SESSION_MGR = 'bt-mgr-session';     // managers (sessionStorage)

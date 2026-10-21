@@ -39,6 +39,19 @@ let session = null, profile = null, people = {}, idToCode = {};
 let cache = blank(), snapshot = emptyRows(), lastSig = '';
 const shiftIds = new Map();                      // "userId|day" -> shifts.id
 let busy = false, dirty = false, retry = null, refreshing = null;
+let offset = 0, clockAt = 0;                      // database clock minus this device's clock, in ms
+
+/* ---------------- one clock for everyone ----------------
+   Asks the database for its time (every few minutes) so every screen shows the same time and a phone that is
+   a few minutes out cannot make a break look shorter. Half the round trip is allowed for the network. */
+export const clockOffset = () => offset;
+async function syncClock(force) {
+  if (!force && Date.now() - clockAt < 5 * 60000) return;
+  try {
+    const t0 = Date.now(), t = await call('/rest/v1/rpc/server_time', { method: 'POST', body: {} }), t1 = Date.now();
+    const ms = Date.parse(t); if (Number.isFinite(ms) && t1 - t0 < 5000) { offset = ms - (t0 + t1) / 2; clockAt = t1; }
+  } catch {}                                        // an older database without server_time(): keep the device clock
+}
 
 /* ---------------- small status banner (only shown when saving fails) ---------------- */
 function banner(msg) {
@@ -87,7 +100,10 @@ export function explain(status, data, where = 'data') {
     if (status === 429 || /rate limit/i.test(msg)) return 'Too many sign-in attempts. Wait a minute and try again.';
     if (/refresh token/i.test(msg) || code.startsWith('refresh_token')) return 'You were signed out. Sign in again.';
   }
-  if (code === 'PGRST205' || code === '42P01' || /could not find the table|relation .* does not exist|schema cache/i.test(msg))
+  if (code === 'weak_password' || /password should|weak password/i.test(msg)) return 'That password is too weak. Use at least 8 characters, mixing letters and numbers.';
+  if (code === 'same_password') return "That's your current password. Pick a new one.";
+  if (/no running break/i.test(msg)) return 'That break was already closed on another screen. Showing the latest.';
+  if (code === 'PGRST205' || code === 'PGRST202' || code === '42P01' || code === '42883' || /could not find the (table|function)|relation .* does not exist|schema cache/i.test(msg))
     return `The database on ${host} isn't set up (or is an older version). Run db/schema.sql in that project's SQL editor.`;
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) return "You don't have permission to change that.";
   if (code === '23514' || /violates check constraint/i.test(msg)) return "That value isn't allowed (for example a break name that is too long, or a time that ends before it starts).";
@@ -213,7 +229,7 @@ async function pull() {
   for (const n of names) { const code = idToCode[n.user_id]; if (code) (db.names[code] ??= {})[n.slot_key] = n.label; }
   return { db, rows: rowsOf(db) };
 }
-async function fullPull() { const n = await pull(); cache = n.db; snapshot = n.rows; lastSig = JSON.stringify(n.db); }
+async function fullPull() { await syncClock(true); const n = await pull(); cache = n.db; snapshot = n.rows; lastSig = JSON.stringify(n.db); }
 
 /* ---------------- sending changes ---------------- */
 const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
@@ -227,30 +243,37 @@ async function upsertAndDelete(table, conflict, now, old, keyCols) {
 }
 async function pushDiff() {
   const now = rowsOf(cache), old = snapshot;
-  // 1. shifts first (breaks hang off them). A shift we already know is PATCHED with only the fields that changed,
-  //    so a manager editing the shift times never overwrites the break the agent has just started (and vice versa).
+  // The ORDER matters: the database stamps a break with its own clock when it is closed, using the shift's running
+  // break, so new breaks are sent BEFORE the shift that says "no break running any more".
+  // 1. new shifts (breaks hang off them)
+  const created = new Set();
+  for (const [k, row] of now.shifts) if (!old.shifts.has(k) && !shiftIds.has(k)) {
+    created.add(k);
+    const out = await call('/rest/v1/shifts?on_conflict=user_id,day&select=id',
+      { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' }, body: row });
+    shiftIds.set(k, out[0].id);
+  }
+  // 2. break segments: new ones are inserted (agents may only add), changed ones updated (managers), removed ones deleted (managers)
+  const seg = r => ({ id: r.id, shift_id: shiftIds.get(r.shift_key), slot_key: r.slot_key, started_at: r.started_at, ended_at: r.ended_at, flag: r.flag });
+  const segNew = [...now.segs].filter(([id]) => !old.segs.has(id)).map(([, r]) => seg(r));
+  const segChanged = [...now.segs].filter(([id, r]) => old.segs.has(id) && differs(r, old.segs.get(id))).map(([, r]) => seg(r));
+  if ([...segNew, ...segChanged].some(r => !r.shift_id)) throw new Error('A break has no shift to belong to yet.');
+  if (segNew.length) await call('/rest/v1/break_segments', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: segNew });
+  if (segChanged.length) await call('/rest/v1/break_segments?on_conflict=id', { ...UP, body: segChanged });
+  const segDel = [...old.segs.keys()].filter(id => !now.segs.has(id));
+  if (segDel.length) await call(`/rest/v1/break_segments?id=in.(${segDel.join(',')})`, { method: 'DELETE' });
+  // 3. shifts we already know are PATCHED with only the fields that changed, so a manager editing the shift times
+  //    never overwrites the break the agent has just started (and vice versa).
   for (const [k, row] of now.shifts) {
     const was = old.shifts.get(k), id = shiftIds.get(k);
-    if (was && id) {
-      const patch = changedFields(row, was);
-      if (Object.keys(patch).length) await call(`/rest/v1/shifts?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: patch });
-    } else if (!was || differs(row, was)) {
-      const out = await call('/rest/v1/shifts?on_conflict=user_id,day&select=id',
-        { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' }, body: row });
-      shiftIds.set(k, out[0].id);
-    }
+    if (!id || created.has(k)) continue;
+    const patch = was ? changedFields(row, was) : row;   // a shift the database has but this screen hadn't seen yet
+    if (Object.keys(patch).length) await call(`/rest/v1/shifts?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: patch });
   }
   for (const [k, row] of old.shifts) if (!now.shifts.has(k)) {
     await call(`/rest/v1/shifts?user_id=eq.${row.user_id}&day=eq.${row.day}`, { method: 'DELETE' }); shiftIds.delete(k);
   }
-  // 2. break segments
-  const segUp = [...now.segs].filter(([id, r]) => !old.segs.has(id) || differs(r, old.segs.get(id)))
-    .map(([, r]) => ({ id: r.id, shift_id: shiftIds.get(r.shift_key), slot_key: r.slot_key, started_at: r.started_at, ended_at: r.ended_at, flag: r.flag }));
-  if (segUp.some(r => !r.shift_id)) throw new Error('A break has no shift to belong to yet.');
-  if (segUp.length) await call('/rest/v1/break_segments?on_conflict=id', { ...UP, body: segUp });
-  const segDel = [...old.segs.keys()].filter(id => !now.segs.has(id));
-  if (segDel.length) await call(`/rest/v1/break_segments?id=in.(${segDel.join(',')})`, { method: 'DELETE' });
-  // 3-5. allowances, custom breaks, break names
+  // 4-6. allowances, custom breaks, break names
   await upsertAndDelete('adjustments', 'user_id,day,slot_key', now.adj, old.adj, ['user_id', 'day', 'slot_key']);
   await upsertAndDelete('custom_break_rules', 'user_id,slot_key', now.custom, old.custom, ['user_id', 'slot_key']);
   await upsertAndDelete('break_names', 'user_id,slot_key', now.names, old.names, ['user_id', 'slot_key']);
@@ -280,7 +303,7 @@ export function save(db) { cache = db; dirty = true; Promise.resolve().then(flus
 /** Re-read the database. Returns true if anything changed. Skips while our own changes are still being sent. */
 export async function refresh() {
   if (!session || busy || dirty) return false;
-  await ensureFresh();
+  await ensureFresh(); await syncClock();
   const n = await pull();
   if (busy || dirty) return false;                // the user changed something while we were reading
   const sig = JSON.stringify(n.db), changed = sig !== lastSig;
@@ -293,6 +316,24 @@ export async function history(code, day) {
   const rows = await call(`/rest/v1/audit_log?select=at,actor_id,action,slot_key,day,before_value,after_value&target_id=eq.${p.id}` +
     (day ? `&or=(day.eq.${day},day.is.null)` : '') + '&order=at.desc&limit=200');
   return rows.map(r => ({ ...r, actor: idToCode[r.actor_id] ? people[idToCode[r.actor_id]].name : 'another manager' }));
+}
+/** Breakathon scores for the signed-in person's team between two days. Agents get names and points only. */
+export async function breakathon(from, to) {
+  const rows = await call('/rest/v1/rpc/breakathon', { method: 'POST', body: { p_from: from, p_to: to } });
+  return rows.map(r => ({ code: r.code, name: r.name, breaks: r.breaks, onTime: r.on_time, cleanDays: r.clean_days, overMinutes: r.over_minutes, points: r.points }));
+}
+/** Change the signed-in person's password. */
+export async function changePassword(password) {
+  const pw = String(password ?? '');
+  if (pw.length < 8) throw new Error('Use at least 8 characters.');
+  if (/^(user|manager)\d+$/i.test(pw)) throw new Error("That's the simple trial pattern. Pick something only you know.");
+  await ensureFresh();
+  const { url, key } = checkSetup();
+  let res;
+  try { res = await fetch(url + '/auth/v1/user', { method: 'PUT', headers: { apikey: key, 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify({ password: pw }) }); }
+  catch (e) { throw netError(e); }
+  const data = parse(await res.text());
+  if (!res.ok) throw httpError(res.status, data, 'login');
 }
 export async function init() {
   checkSetup();
@@ -315,7 +356,7 @@ export async function signIn(code, password) {
 }
 export async function signOut() {
   const token = session?.access_token, { url, key } = settings();
-  setSession(null); profile = null; people = {}; idToCode = {}; cache = blank(); snapshot = emptyRows(); lastSig = ''; dirty = false;
+  setSession(null); profile = null; people = {}; idToCode = {}; cache = blank(); snapshot = emptyRows(); lastSig = ''; dirty = false; offset = 0; clockAt = 0;
   Object.keys(PILOT_USERS).forEach(k => delete PILOT_USERS[k]);
   Object.keys(MANAGER_CODES).forEach(k => delete MANAGER_CODES[k]);
   if (token) { try { await fetch(url + '/auth/v1/logout', { method: 'POST', headers: { apikey: key, Authorization: 'Bearer ' + token } }); } catch {} }

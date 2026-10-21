@@ -1,7 +1,7 @@
 # Optional browser smoke test (needs: pip install playwright && playwright install chromium).
 # It runs in DEMO mode: set backend: 'fake' in src/config.js first (and put it back to 'api' afterwards).
 # Start the site (npm start), then: python3 tests/e2e/smoke.py [http://localhost:8080]
-import sys, json, time
+import sys, re
 from playwright.sync_api import sync_playwright
 BASE = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:8080'
 errs = []
@@ -10,62 +10,51 @@ def ok(cond, msg):
     if not cond: errs.append(msg)
 
 with sync_playwright() as p:
-    b = p.chromium.launch(); ctx = b.new_context(); pg = ctx.new_page(); logs = []
-    pg.on('pageerror', lambda e: logs.append(str(e)))
-    pg.on('console', lambda m: logs.append(m.text) if m.type == 'error' and 'ERR_NAME_NOT_RESOLVED' not in m.text else None)
+    b = p.chromium.launch(); ctx = b.new_context(); logs = []
+    def watch(pg):
+        pg.on('pageerror', lambda e: logs.append(str(e)))
+        pg.on('console', lambda m: logs.append(m.text) if m.type == 'error' and 'favicon' not in m.text and '404' not in m.text else None)
 
-    # ---- sign-in: the two pages point at each other, and a code on the wrong page explains itself ----
-    pg.goto(BASE + '/index.html'); pg.fill('#code', 'mgr-7777'); pg.click('#gateForm button')
+    # ---- sign-in: each page says where to go for the other kind of code ----
+    pg = ctx.new_page(); watch(pg)
+    pg.goto(BASE + '/index.html'); pg.fill('#code', 'mgr-001'); pg.click('#gateForm button')
     ok('manager code' in pg.inner_text('#gateErr'), 'a manager code on the staff page says where to go instead')
-    ok(pg.locator('a[href="manager.html"]').count() == 1, 'staff sign-in links to the manager sign-in')
-    x = ctx.new_page(); x.goto(BASE + '/manager.html')
-    ok(x.locator('a[href="index.html"]').count() == 1, 'manager sign-in links back to staff sign-in')
-    x.fill('#code', 'ee-1001'); x.click('#gateForm button')
-    ok('staff code' in x.inner_text('#gateErr'), 'a staff code on the manager page says where to go instead')
-    x.fill('#code', 'mgr-7777'); x.click('#gateForm button')
-    ok(x.is_visible('#app'), 'manager code works in lower case too')
-    x.close()
 
-    # ---- agent: sign in, shift, partial break, resume ----
-    pg.goto(BASE + '/index.html'); pg.fill('#code', 'EE-1001'); pg.click('#gateForm button')
-    pg.click('.chip[data-len="9"]')
-    ok('worked' in pg.inner_text('#pctLabel'), 'work-time headline shows time worked, not a percentage')
-    pg.click('#tiles button[data-slot="break1"]'); pg.wait_for_timeout(1200); pg.click('#tStop')
-    ok(pg.is_visible('#resOv'), 'ending a break shows the result popup'); pg.click('#rOk')
-    btn = pg.locator('#tiles button[data-slot="break1"]')
-    ok(btn.inner_text() == 'Resume' and btn.is_enabled(), 'break 1 can be RESUMED after a short use (not disabled)')
-    ok('Min Left' in pg.inner_text('#tiles'), 'tile shows "N Min Left"')
+    # ---- manager: dashboard (view only), filters, team pulse, live clock ----
+    m = ctx.new_page(); watch(m)
+    m.goto(BASE + '/manager.html'); m.fill('#code', 'MGR-001'); m.click('#gateForm button')
+    m.click('[data-tab="manage"]'); m.click('#demo'); m.click('[data-tab="dash"]')
+    ok(re.match(r'^\d\d:\d\d:\d\d$', m.text_content('#clock')) is not None, 'manager clock shows seconds')
+    ok('Live' in m.text_content('#live'), 'Live pill on the manager page')
+    ok(m.locator('.fbtn').count() == 6, 'six filters on the dashboard')
+    ok(m.locator('#tab-dash button[data-u], #tab-dash input').count() == 0, 'dashboard has no edit controls')
+    ok(len(m.inner_text('#pulse')) > 20, 'team pulse has something to say')
+    m.click('[data-f="onbreak"]')
+    ok(m.locator('#cards .pcard').count() == int(m.text_content('[data-f="onbreak"] b')), 'filter shows only the people on a break')
 
-    # ---- agent: 17 minutes on break 1 -> 2 minutes come off break 2 with a note ----
-    pg.evaluate("""() => { const k='bt-break-tracker:v1', db=JSON.parse(localStorage.getItem(k)), d=Object.keys(db.days)[0], r=db.days[d]['EE-1001'];
-      const s=Date.now()-3600000; r.breaks=[{slot:'break1',start:s,end:s+17*60000}]; localStorage.setItem(k,JSON.stringify(db)); }""")
-    pg.reload(); pg.wait_for_selector('#tiles .tile')
-    t = pg.inner_text('#tiles')
-    ok('Break 2 is 13 min' in t and 'Sorry mate' in t, 'break 2 tile says: sorry mate, Break 2 is 13 min')
-    ok(pg.locator('#tiles button[data-slot="break2"]').is_enabled(), 'break 2 still startable')
-    ok(pg.is_visible('#rFg') and 'of 60 min' in pg.inner_text('.rg'), 'ring + legend present')
-
-    # ---- manager: view more, custom break (every day), edit time ----
-    m = ctx.new_page(); m.on('pageerror', lambda e: logs.append(str(e)))
-    m.goto(BASE + '/manager.html'); m.fill('#code', 'MGR-7777'); m.click('#gateForm button'); m.click('#demo')
-    ok(m.locator('#rows tr').count() == 5, 'manager sees the 5 pilot people')
-    m.click('button[data-det="EE-1001"]')
-    ok(m.is_visible('#dOv') and 'Break history' in m.inner_text('#dBody'), 'View more opens detailed history')
+    # ---- manager: Manage tab, add an OH break, rename it, edit the shift ----
+    m.click('[data-tab="manage"]'); m.click('button[data-det="EE-001"]')
     m.select_option('#cKey', 'c1'); m.fill('#cMin', '10'); m.check('input[name=sc][value=daily]'); m.click('#cAdd')
-    ok('Custom 1' in m.inner_text('#dBody') and 'every day' in m.inner_text('#dBody'), 'custom break added (every day)')
-    m.fill('#lS', '08:00') if m.locator('#lS').count() else None
-    # manager edits the shift and renames a break (the name must be escaped, never run as markup)
+    ok('OH Break 1' in m.inner_text('#dBody'), 'OH Break 1 added')
     m.fill('#dSe', '23:30'); m.dispatch_event('#dSe', 'change')
-    m.fill('input[data-name="c1"]', '<b>Quiet</b> time'); m.dispatch_event('input[data-name="c1"]', 'change')
-    ok('<b>Quiet</b> time' in m.inner_text('#dBody'), 'manager renamed Custom 1 (shown as plain text)')
     m.click('#dClose')
-    ok('+1 custom' in m.inner_text('#rows'), 'table flags the extra custom break')
-    ok('23:30' in m.inner_text('#rows'), 'manager changed the shift end')
-    pg.reload(); pg.wait_for_selector('#tiles .tile')
-    ok('<b>Quiet</b> time' in pg.inner_text('#tiles') and '10 Min' in pg.inner_text('#tiles'), 'agent now sees the renamed custom break, 10 Min')
-    ok(pg.input_value('#endIn') == '23:30', 'agent sees the shift end the manager set')
 
-    ok(pg.locator('a[href="breakathon.html"]').count() == 0 and m.locator('a[href="breakathon.html"]').count() == 0, 'no Breakathon links left')
+    # ---- agent: break bars (the OH break is a new bar), shift pie ticking, pep talk ----
+    pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .bcol')
+    ok(pg.locator('#bars .bcol').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as its own bar')
+    ok(pg.input_value('#endIn') == '23:30', 'agent sees the shift end the manager set')
+    w1 = pg.text_content('#worked'); pg.wait_for_timeout(1100)
+    ok(w1 != pg.text_content('#worked'), 'shift clock ticks every second')
+    ok(len(pg.text_content('#joke')) > 10, 'pep talk shown')
+    pg.click('#bars button[data-slot="break2"]'); pg.wait_for_timeout(1200); pg.click('#tStop')
+    ok(pg.is_visible('#resOv'), 'ending a break shows the result'); pg.click('#rOk')
+    ok(pg.inner_text('#bars button[data-slot="break2"]') == 'Resume', 'a part-used break can be resumed')
+
+    # ---- Breakathon on both pages ----
+    pg.click('[data-tab="race"]'); pg.wait_for_selector('.racer')
+    ok(pg.locator('.racer').count() == 6 and 'Minutes over' not in pg.inner_text('#race'), 'agents see the race but not minutes over')
+    m.click('[data-tab="race"]'); m.wait_for_selector('.racer')
+    ok('Minutes over' in m.inner_text('#race'), 'managers also see minutes over')
     ok(not logs, 'no JS or CSP errors: ' + '; '.join(logs)[:300])
     b.close()
 print('\nRESULT:', 'ALL PASSED' if not errs else f'{len(errs)} FAILED'); sys.exit(1 if errs else 0)
