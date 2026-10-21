@@ -39,7 +39,7 @@ function showResult(key,auto){const p=P(now()),i=p.findIndex(s=>s.key===key),s=p
   $('#rTitle').textContent=s.done?`${s.label} done`:`${s.label} paused`;$('#rBody').textContent=body;$('#resOv').classList.remove('hidden');$('#rOk').focus()}
 $('#rOk').addEventListener('click',()=>$('#resOv').classList.add('hidden'));
 function openTimer(){$('#timerOv').classList.remove('hidden');$('#tStop').focus();tick()}
-function closeTimer(){$('#timerOv').classList.add('hidden');document.title='break.track'}
+function closeTimer(){$('#timerOv').classList.add('hidden');document.title='breakpoint'}
 
 /* ---------- the break bars (one per break, including any OH break the manager adds) ---------- */
 function renderBars(at){const r=rec(),p=P(at),anyA=!!r.active;
@@ -87,7 +87,10 @@ function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new
 
 /* ---------- Breakathon ---------- */
 let week=0,raceT=null,mine=null,picking=false;
-async function loadMine(){try{mine=await myRewards(code)}catch{mine=null}tick();drawLook()}
+async function loadMine(){try{mine=await myRewards(code)}catch{mine=null}$('#custAv').innerHTML=avatar(code,{look:mine});tick();drawLook()}
+/* the little "Customise your mascot" button on My day: jumps to the mascot panel on the Breakathon tab */
+let showTab=null;
+$('#custBtn').addEventListener('click',()=>{history.replaceState(null,'','#race');showTab?.('race');setTimeout(()=>$('#look').scrollIntoView({behavior:'smooth',block:'start'}),350)});
 function drawLook(){if(tab!=='race')return;setHtml($('#prize'),prizeHTML(mine,picking));setHtml($('#look'),lookPanelHTML(code,mine,picking))}
 $('#prize').addEventListener('click',async e=>{const b=e.target.closest('[data-prize]');if(!b)return;const k=b.dataset.prize;
   if(k==='look'||k==='cancel'){picking=k==='look';return drawLook()}
@@ -107,7 +110,7 @@ $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data
 
 let t1,t2,clock,tabsReady=false;
 function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();if(rec().active)openTimer();loadMine();
-  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
+  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;showTab=setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});
 setupPassword();setupTheme();wireRacers($('#race'));
