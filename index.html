@@ -1,12 +1,12 @@
-<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://mqyeqrxzjzsfvbbjppxj.supabase.co; base-uri 'none'; form-action 'self'"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="src/styles.css"><script src="src/theme.js"></script><title>break.track</title></head><body>
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://mqyeqrxzjzsfvbbjppxj.supabase.co; base-uri 'none'; form-action 'self'"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="src/styles.css"><script src="src/theme.js"></script><title>break.track</title></head><body>
 <main id="gate" class="wrap gate hidden"><div class="mark">break<span>.</span>track</div><h1>Welcome back</h1><p>Sign in with your code to start today's shift.</p>
 <form id="gateForm" autocomplete="off"><input id="code" placeholder="e.g. EE-001" aria-label="Your code" autocapitalize="characters" required><input id="pw" class="hidden" type="password" placeholder="Password" aria-label="Password" autocomplete="current-password"><p id="gateErr" class="err" role="alert"></p><button class="btn teal" style="width:100%;padding:14px">Sign in</button></form>
 <p class="hint" style="margin-top:18px"><a class="link" href="manager.html">Team lead? Manager sign-in &rarr;</a></p></main>
 
 <div id="app" class="hidden">
 <header class="band"><div class="in"><div class="mark">break<span>.</span>track</div>
-<nav class="tabs" aria-label="Sections"><button data-tab="day">My day</button><button data-tab="race">🏁 Breakathon</button></nav>
-<div class="who"><span class="live" id="live"><i></i><b>Live</b><time id="clock">--:--:--</time></span><span id="who"></span><button class="theme" id="themeBtn" aria-label="Switch light or dark mode">🌙</button><button class="link" id="pwBtn">Password</button><button class="link" id="signout">Sign out</button></div></div></header>
+<nav class="tabs" aria-label="Sections"><button data-tab="day">My day</button><button data-tab="race"> Breakathon</button></nav>
+<div class="who"><span class="live" id="live"><i></i><b>Live</b><time id="clock">--:--:--</time></span><span id="who"></span><button class="theme" id="themeBtn" aria-label="Switch light or dark mode"></button><button class="link" id="pwBtn">Password</button><button class="link" id="signout">Sign out</button></div></div></header>
 
 <main class="wrap" id="tab-day">
 <section class="panel" aria-labelledby="brkH"><div class="phead"><h2 id="brkH">Your breaks</h2><span class="hint" id="brkSum"></span></div><div class="bars" id="bars"></div></section>
@@ -19,12 +19,12 @@
     <div class="c"><div class="t" id="worked">0:00:00</div><small id="workedLbl">worked</small></div></div>
   <div class="legend"><span><i style="background:var(--teal)"></i>Worked</span><span><i style="background:var(--ee-yellow)"></i>Breaks</span><span><i style="background:var(--stop)"></i>Over</span><span><i style="background:var(--line)"></i>Still to go</span></div>
 </div><div>
-  <div class="pep"><div class="buddy" id="buddy"></div><div class="bubble" id="bubble" aria-live="polite"><div class="k" id="pepK"></div><p id="joke"></p></div></div>
+  <div class="pep" id="bubble" aria-live="polite"><div class="k" id="pepK"></div><p id="joke"></p></div>
   <dl class="stats"><div class="stat"><dt>Breaks taken</dt><dd id="sTaken"></dd></div><div class="stat"><dt>Break time used</dt><dd id="sUsed"></dd></div><div class="stat"><dt>Shift time left</dt><dd id="sLeft">–</dd></div><div class="stat"><dt>Working time left</dt><dd id="sWork">–</dd></div></dl>
 </div></div></section>
 </main>
 
-<main class="wrap hidden" id="tab-race"><section class="panel"><div class="phead"><h2>🏁 Breakathon</h2><div class="seg2" id="weekSel"><button data-week="0" aria-pressed="true">This week</button><button data-week="1" aria-pressed="false">Last week</button></div></div><div id="prize"></div><div id="race"><p class="empty">Loading the race…</p></div></section><div id="look"></div></main>
+<main class="wrap hidden" id="tab-race"><section class="panel"><div class="phead"><h2> Breakathon</h2><div class="seg2" id="weekSel"><button data-week="0" aria-pressed="true">This week</button><button data-week="1" aria-pressed="false">Last week</button></div></div><div id="prize"></div><div id="race"><p class="empty">Loading the race…</p></div></section><div id="look"></div></main>
 </div>
 
 <div class="overlay hidden" id="timerOv"><div class="dialog timer" id="timerBox" role="dialog" aria-modal="true" aria-labelledby="tName"><p class="slotname" id="tName"></p><div class="ringbox"><svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle class="ring-bg" cx="100" cy="100" r="90"/><circle class="ring-fg" id="ringFg" cx="100" cy="100" r="90" transform="rotate(-90 100 100)"/></svg><div class="digits"><div class="t" id="tDigits">00:00</div><div class="p" id="tPhase"></div></div></div><p class="sub" id="tSub"></p><button class="btn teal full" id="tStop">I'm back</button></div></div>

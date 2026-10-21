@@ -13,7 +13,7 @@ import { esc } from './dom.js';
 export const LOOKS = {
   colours: { teal: ['Teal', '#2FB5B0'], blue: ['Blue', '#8DB2F2'], pink: ['Pink', '#F370B0'], yellow: ['Sunshine', '#F7D65E'], purple: ['Lilac', '#BBA8EC'],
              green: ['Lime', '#9DD35C'], orange: ['Peach', '#F8AE6E'], coral: ['Blush', '#F7C3CD'], sky: ['Sky', '#93D5EE'], lilac: ['Plum', '#C98BD8'] },
-  accessories: { none: ['Nothing', ''], cap: ['Cap', '🧢'], scarf: ['Scarf', '🧣'], boots: ['Boots', '🥾'], bow: ['Bow', '🎀'], glasses: ['Glasses', '👓'], sprout: ['Sprout', '🌱'] },
+  accessories: { none: ['Nothing'], cap: ['Cap'], scarf: ['Scarf'], boots: ['Boots'], bow: ['Bow'], glasses: ['Glasses'], sprout: ['Sprout'] },
 };
 const COLOUR_KEYS = Object.keys(LOOKS.colours);
 const hash = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -124,7 +124,7 @@ const MAP = `<svg viewBox="0 0 1000 460" aria-hidden="true">
     <rect x="-52" y="-34" width="24" height="68" fill="#DCD3BF" stroke="#8A7F6A" stroke-width="2"/><rect x="28" y="-34" width="24" height="68" fill="#DCD3BF" stroke="#8A7F6A" stroke-width="2"/>
     <path d="M-56-34h32l-16-20zM24-34h32l-16-20z" fill="#0E6E77"/><path d="M-12 34v-22a12 12 0 0124 0v22z" fill="#6B4A2B"/>
     <path d="M-40-34v-6M-44-34v-4" stroke="#8A7F6A"/><line x1="40" y1="-54" x2="40" y2="-80" stroke="#555" stroke-width="2"/><path class="flagw" d="M40-80h24l-6 7 6 7H40z" fill="#FFE03C"/>
-    <text x="0" y="-16" text-anchor="middle" font-size="22">🏆</text></g>
+    <path d="M-8-30h16v5a8 8 0 01-16 0zM-8-28h-4a4 4 0 004 6M8-28h4a4 4 0 01-4 6M-2-17h4v4h-4zM-6-13h12v3H-6z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.2" stroke-linejoin="round"/></g>
   <g transform="translate(58 378)"><rect x="-4" y="-46" width="5" height="50" fill="#555"/><rect x="34" y="-46" width="5" height="50" fill="#555"/>
     <rect x="-4" y="-50" width="43" height="16" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="17.5" y="-38" text-anchor="middle" font-size="11" font-weight="800" fill="#1B1B1B">START</text></g>
   <text class="lbl" x="92" y="268">Warm-up Woods</text><text class="lbl" x="500" y="300">On-time Meadows</text>
@@ -139,21 +139,21 @@ export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
   const B = CONFIG.breakathon, goal = Math.max(50, Math.ceil((rows[0]?.points || 0) * 1.12));
   const prizeTxt = !prize ? `prize: a ${B.rewardMinutes} min extra break or a new accessory` : !prize.choice ? 'still choosing their prize'
     : prize.choice === 'break' ? `picked a ${B.rewardMinutes} min extra break` : `unlocked ${itemName(prize.item)}`;
-  const btn = grant && prize?.choice === 'break' ? `<button class="btn yellow" id="grantBtn" ${grant.done ? 'disabled' : ''}>${grant.done ? 'Extra break given ✓' : `Give the ${B.rewardMinutes} min break`}</button>` : '';
+  const btn = grant && prize?.choice === 'break' ? `<button class="btn yellow" id="grantBtn" ${grant.done ? 'disabled' : ''}>${grant.done ? 'Extra break given' : `Give the ${B.rewardMinutes} min break`}</button>` : '';
   const champ = champion
-    ? `<div class="champ"><span style="width:50px;height:50px;flex:none">${avatar(champion.code, { crown: true, mood: 'wow', look: lookOf(champion) })}</span><div>Last week's champion: <b>${esc(champion.name)}</b>${champion.code === me ? ' (that\'s you! 🎉)' : ''}<br><span style="opacity:.85;font-size:14px">${champion.points} points · ${prizeTxt}</span></div>${btn}</div>`
-    : `<div class="champ"><div>${isManager ? '' : '🏆 '}No champion from last week yet. This week is wide open.</div></div>`;
+    ? `<div class="champ"><span style="width:50px;height:50px;flex:none">${avatar(champion.code, { crown: true, mood: 'wow', look: lookOf(champion) })}</span><div>Last week's champion: <b>${esc(champion.name)}</b>${champion.code === me ? ' (that\'s you!)' : ''}<br><span style="opacity:.85;font-size:14px">${champion.points} points · ${prizeTxt}</span></div>${btn}</div>`
+    : `<div class="champ"><div>${isManager ? '' : ' '}No champion from last week yet. This week is wide open.</div></div>`;
   // runners bunched on the same score step aside a little so nobody hides behind someone else
   let prev = -1;
   const runners = rows.map((r, i) => { let f = Math.min(.97, r.points / goal); if (prev >= 0 && prev - f < .05) f = Math.max(0, prev - .05); prev = f;
     return `<button class="racer${r.code === me ? ' me' : ''}" data-f="${f}" data-code="${esc(r.code)}" style="left:7%;top:85%" aria-label="${esc(r.name)}, ${r.points} points, rank ${i + 1}">
       <span class="av">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span><span class="tag">${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
-      <span class="tip"><b>${i + 1}. ${esc(r.name)}</b><br>${r.points} points · ${r.onTime}/${r.breaks} on time${r.cleanDays ? ` · 🔥 ${r.cleanDays} clean day${r.cleanDays > 1 ? 's' : ''}` : ''}${isManager ? `<br>${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
+      <span class="tip"><b>${i + 1}. ${esc(r.name)}</b><br>${r.points} points · ${r.onTime}/${r.breaks} on time${r.cleanDays ? ` · ${r.cleanDays} clean day${r.cleanDays > 1 ? 's' : ''}` : ''}${isManager ? `<br>${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
   const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>Racer</th><th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
-    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${!isManager && i < 3 && r.points > 0 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays ? (isManager ? '' : '🔥 ') + r.cleanDays : '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays || '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
   return `${champ}<div class="map" data-goal="${goal}">${MAP}<div class="racers">${runners || ''}</div></div>
     ${rows.length ? '' : '<p class="empty">Nobody in the race yet.</p>'}${table}
-    <p class="hint">Everyone runs to Champion's Keep${isManager ? '' : ' 🏰'} (${goal} points). ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory${isManager ? '.' : ' 🏆'} Tap a racer to see their score.</p>`;
+    <p class="hint">Everyone runs to Champion's Keep (${goal} points). ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see their score.</p>`;
 }
 
 /** Sends each racer running along the road to their spot, and puts milestone flags on the road. Safe to call repeatedly. */
@@ -179,20 +179,20 @@ export function wireRacers(root) {
 }
 
 /* ---------------- your mascot and your prize (agent page) ---------------- */
-export const itemName = item => { const [k, v] = String(item || '').split(':'); return k === 'colour' ? `${LOOKS.colours[v]?.[0] || v} colour` : `${LOOKS.accessories[v]?.[1] || ''} ${LOOKS.accessories[v]?.[0] || v}`.trim(); };
+export const itemName = item => { const [k, v] = String(item || '').split(':'); return k === 'colour' ? `${LOOKS.colours[v]?.[0] || v} colour` : `the ${(LOOKS.accessories[v]?.[0] || v).toLowerCase()}`; };
 /** mine = my_rewards(): { colour, accessory, unlocked[], champion, claimed, claimed_item }. picking = choosing a look as the prize. */
 export function prizeHTML(mine, picking) {
   const B = CONFIG.breakathon;
   if (!mine?.champion) return '';
-  if (mine.claimed === 'break') return `<div class="prize done">🎉 You picked a <b>${B.rewardMinutes} min extra break</b> for winning last week. Your team lead will add it to your day.</div>`;
-  if (mine.claimed === 'look') return `<div class="prize done">🎉 You unlocked <b>${esc(itemName(mine.claimed_item))}</b> for winning last week. Looking good!</div>`;
-  if (picking) return `<div class="prize"><b>✨ Pick your prize:</b> tap any 🔒 accessory below to unlock it. <button class="btn ghost sm" data-prize="cancel">Back</button></div>`;
-  return `<div class="prize"><div><b>🏆 You won last week!</b> Pick your prize:</div><div class="row"><button class="btn yellow" data-prize="break">⏰ ${B.rewardMinutes} min extra break</button><button class="btn teal" data-prize="look">🎁 Unlock an accessory</button></div></div>`;
+  if (mine.claimed === 'break') return `<div class="prize done">You picked a <b>${B.rewardMinutes} min extra break</b> for winning last week. Your team lead will add it to your day.</div>`;
+  if (mine.claimed === 'look') return `<div class="prize done">You unlocked <b>${esc(itemName(mine.claimed_item))}</b> for winning last week. Looking good!</div>`;
+  if (picking) return `<div class="prize"><b>Pick your prize:</b> tap any locked accessory below to unlock it. <button class="btn ghost sm" data-prize="cancel">Back</button></div>`;
+  return `<div class="prize"><div><b>You won last week!</b> Pick your prize:</div><div class="row"><button class="btn" data-prize="break">${B.rewardMinutes} min extra break</button><button class="btn teal" data-prize="look">Unlock an accessory</button></div></div>`;
 }
 export function lookPanelHTML(code, mine, picking) {
   const has = item => item.startsWith('colour:') || item === 'acc:none' || (mine?.unlocked || []).includes(item), cur = { colour: colourOf(code, mine?.colour), accessory: mine?.accessory || 'none' };
   const sw = (kind, key, label, inner) => { const item = `${kind === 'colour' ? 'colour' : 'acc'}:${key}`, open = has(item), on = cur[kind] === key;
-    return `<button class="sw${on ? ' on' : ''}${open ? '' : ' locked'}${!open && picking ? ' pick' : ''}" data-${kind}="${key}" aria-pressed="${on}" ${!open && !picking ? 'disabled' : ''} title="${esc(open ? label : picking ? `Unlock ${label}` : `${label}: win a week of Breakathon to unlock`)}">${inner}${open ? '' : '<i>🔒</i>'}<small>${esc(label)}</small></button>`; };
+    return `<button class="sw${on ? ' on' : ''}${open ? '' : ' locked'}${!open && picking ? ' pick' : ''}" data-${kind}="${key}" aria-pressed="${on}" ${!open && !picking ? 'disabled' : ''} title="${esc(open ? label : picking ? `Unlock ${label}` : `${label}: win a week of Breakathon to unlock`)}">${inner}${open ? '' : '<i aria-hidden="true"><svg viewBox="0 0 12 14" width="11" height="13"><rect x="1" y="6" width="10" height="7.5" rx="1.6" fill="currentColor"/><path d="M3.3 6V4.3a2.7 2.7 0 015.4 0V6" stroke="currentColor" stroke-width="1.6" fill="none"/></svg></i>'}<small>${esc(label)}</small></button>`; };
   return `<section class="panel"><div class="phead"><h2>Your mascot</h2><span class="hint">Pick any colour. Win a week of Breakathon to unlock accessories.</span></div>
     <div class="lookgrid"><div class="lookprev">${avatar(code, { look: cur, mood: 'wow', body: true })}</div><div>
     <h3 style="margin-top:0">Colour</h3><div class="swatches">${Object.entries(LOOKS.colours).map(([k, [l, c]]) => sw('colour', k, l, `<span class="dot" style="background:${c}"></span>`)).join('')}</div>

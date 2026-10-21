@@ -128,7 +128,7 @@ $('#race').addEventListener('click',e=>{if(e.target.id!=='grantBtn'||!champ)retu
   const taken=new Set((db.custom[c]||[]).map(x=>x.key)),key=Object.keys(CONFIG.customLabels).find(k=>!taken.has(k));
   if(!key)return alert(`${champ.name} already has all 5 OH breaks set up. Remove one on the Manage tab first.`);
   db.custom[c]=[...(db.custom[c]||[]),{key,minutes:CONFIG.breakathon.rewardMinutes,scope:'today',date:TODAY,days:[]}];((db.names??={})[c]??={})[key]=REWARD;
-  save(db);render(true);toast(`${champ.name} has a ${CONFIG.breakathon.rewardMinutes} min reward break today 🏆`);drawRace()});
+  save(db);render(true);toast(`${champ.name} has a ${CONFIG.breakathon.rewardMinutes} min reward break today`);drawRace()});
 
 /* ---------- team table (Manage tab) ---------- */
 function render(force){const at=now();if(dayKey(new Date(at))!==TODAY)TODAY=dayKey(new Date(at));renderDash(at,force);const sig=JSON.stringify(db)+Math.floor(at/6e4);if(!force&&sig===lastSig)return;lastSig=sig;

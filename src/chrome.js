@@ -51,17 +51,19 @@ export function setupPassword() {
     e.preventDefault();
     if ($('#pw1').value !== $('#pw2').value) { $('#pwErr').textContent = "The two passwords don't match."; return; }
     const b = e.submitter; b.disabled = true;
-    try { await changePassword($('#pw1').value); close(); toast('Password changed ✓'); }
+    try { await changePassword($('#pw1').value); close(); toast('Password changed'); }
     catch (err) { $('#pwErr').textContent = err.message; }
     finally { b.disabled = false; }
   });
 }
+const SUN = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>';
+const MOON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" fill="currentColor"/></svg>';
 /** Sun/moon button: switches light and dark. Starts from the device setting; the choice is remembered on this device. */
 export function setupTheme() {
   const btn = $('#themeBtn'); if (!btn) return;
   const root = document.documentElement, sysDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
   const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : sysDark();
-  const paint = () => { btn.textContent = isDark() ? '☀️' : '🌙'; btn.setAttribute('aria-label', isDark() ? 'Switch to light mode' : 'Switch to dark mode'); };
+  const paint = () => { btn.innerHTML = isDark() ? SUN : MOON; btn.setAttribute('aria-label', isDark() ? 'Switch to light mode' : 'Switch to dark mode'); };
   btn.addEventListener('click', () => { const t = isDark() ? 'light' : 'dark'; root.dataset.theme = t; try { localStorage.setItem('bt-theme', t); } catch {} paint(); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', paint);
   paint();
