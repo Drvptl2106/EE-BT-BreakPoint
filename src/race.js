@@ -5,51 +5,59 @@ import { CONFIG } from './config.js';
 import { esc } from './dom.js';
 
 /* ---------------- the mascot ----------------
-   A fuzzy, egg-shaped plush with tiny eyes, a big smile and a waving arm. Everyone starts the same (teal, nothing on);
-   Breakathon champions unlock new colours and accessories (db/schema.sql: look_items(), claim_reward(), set_look()). */
+   A little figure with a big rounded hood, a face window, calm eyes and contact-centre headphones (everyone has those).
+   Everyone has their own colour from day one ('auto' = picked from their code; changeable any time).
+   Breakathon champions unlock accessories (db/schema.sql: look_colours(), look_items(), claim_reward(), set_look()).
+   Moods are deliberately subtle: eyes closed on a break, a small frown and a sweat drop when over, sparkly eyes when done. */
 export const LOOKS = {
-  colours: { teal: ['Teal', '#17A09F'], blue: ['Blue', '#3D7BF2'], pink: ['Pink', '#FF7FAE'], yellow: ['Sunshine', '#FFC93C'],
-             purple: ['Purple', '#9B7BFF'], green: ['Mint', '#3CCB8C'], orange: ['Orange', '#FF9447'] },
-  accessories: { none: ['Nothing', ''], headset: ['Headset', '🎧'], cap: ['Cap', '🧢'], bow: ['Bow', '🎀'], glasses: ['Glasses', '👓'], scarf: ['Scarf', '🧣'], flower: ['Flower', '🌼'] },
+  colours: { teal: ['Teal', '#17A09F'], blue: ['Blue', '#4A7FE8'], pink: ['Pink', '#F08BB4'], yellow: ['Sunshine', '#F2C230'], purple: ['Purple', '#9A80F0'],
+             green: ['Mint', '#45C08A'], orange: ['Orange', '#F49B52'], coral: ['Coral', '#EE7468'], sky: ['Sky', '#5CC2E8'], lilac: ['Lilac', '#C79AE0'] },
+  accessories: { none: ['Nothing', ''], cap: ['Cap', '🧢'], scarf: ['Scarf', '🧣'], boots: ['Boots', '🥾'], bow: ['Bow', '🎀'], glasses: ['Glasses', '👓'], sprout: ['Sprout', '🌱'] },
 };
+const COLOUR_KEYS = Object.keys(LOOKS.colours);
+const hash = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+/** The colour someone's mascot actually shows ('auto' or unknown = picked from their code, so a team looks varied). */
+export const colourOf = (code, colour) => LOOKS.colours[colour] ? colour : COLOUR_KEYS[hash(code) % COLOUR_KEYS.length];
 const shade = (hex, f) => '#' + [1, 3, 5].map(i => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f)))).map(v => v.toString(16).padStart(2, '0')).join('');
-/** The fur filter and colour gradients, added to the page once and shared by every mascot. */
+/** Soft vinyl-toy shading for each colour, added to the page once and shared by every mascot. */
 function ensureDefs() {
   if (typeof document === 'undefined' || document.getElementById('bt-mascot-defs')) return;
-  const grads = Object.entries(LOOKS.colours).map(([k, [, c]]) => `<radialGradient id="bt-g-${k}" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="${shade(c, 1.28)}"/><stop offset=".55" stop-color="${c}"/><stop offset="1" stop-color="${shade(c, .72)}"/></radialGradient>`).join('');
+  const grads = Object.entries(LOOKS.colours).map(([k, [, c]]) => `<radialGradient id="bt-g-${k}" cx="36%" cy="26%" r="80%"><stop offset="0" stop-color="${shade(c, 1.22)}"/><stop offset=".6" stop-color="${c}"/><stop offset="1" stop-color="${shade(c, .78)}"/></radialGradient>`).join('');
   document.body.insertAdjacentHTML('beforeend', `<svg id="bt-mascot-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${grads}
-    <filter id="bt-fuzz" filterUnits="userSpaceOnUse" x="-12" y="-12" width="88" height="88"><feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>`);
+    <radialGradient id="bt-face" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFF8EE"/><stop offset="1" stop-color="#F3E6D6"/></radialGradient></defs></svg>`);
 }
-const ACC = {
-  headset: '<path d="M13 24Q13 5 32 5T51 24" stroke="#2B2B2B" stroke-width="2.6" fill="none"/><rect x="9" y="20" width="7" height="10" rx="3" fill="#2B2B2B"/><rect x="48" y="20" width="7" height="10" rx="3" fill="#2B2B2B"/><path d="M13 29q2 7 10 6" stroke="#2B2B2B" stroke-width="2" fill="none"/><circle cx="24" cy="35" r="2" fill="#2B2B2B"/>',
-  cap: '<path d="M17 15Q19 4 32 4T47 15z" fill="#0E6E77"/><path d="M30 14h21q1 3-5 4H30z" fill="#0A5960"/><circle cx="32" cy="4.5" r="1.6" fill="#FFE03C"/>',
-  bow: '<path d="M41 9l-8-6v12zM41 9l8-6v12z" fill="#FF5C8A" stroke="#C93A66" stroke-width="1.1" stroke-linejoin="round"/><circle cx="41" cy="9" r="2.3" fill="#C93A66"/>',
-  glasses: '<circle cx="27" cy="21" r="4.6" fill="#fff" fill-opacity=".25" stroke="#222" stroke-width="1.6"/><circle cx="37" cy="21" r="4.6" fill="#fff" fill-opacity=".25" stroke="#222" stroke-width="1.6"/><path d="M31.6 21h.8" stroke="#222" stroke-width="1.6"/>',
-  scarf: '<path d="M14 38q18 8 36 0v5q-18 8-36 0z" fill="#E8434F"/><path d="M40 42l3 11 5-2-3-10z" fill="#C7313C"/><path d="M18 40.5q14 5.5 28 0" stroke="#fff" stroke-width="1" stroke-dasharray="2 3" fill="none" opacity=".6"/>',
-  flower: '<g transform="translate(20 10)">' + [0, 72, 144, 216, 288].map(a => `<ellipse rx="2.6" ry="4.2" fill="#fff" transform="rotate(${a}) translate(0 -3.6)"/>`).join('') + '<circle r="2.4" fill="#FFC93C"/></g>',
+const ACC = {   // drawn over the body and face, under the headphones
+  cap: { front: '<path d="M13.5 17Q13 3 32 3T50.5 17q-18.5-4-37 0z" fill="#E8434F"/><path d="M12 17.5q20-5.5 40 0-1.5 4.5-20 4-18.5.5-20-4z" fill="#B92F3A"/><circle cx="32" cy="3.4" r="1.7" fill="#B92F3A"/><path d="M32 4v11" stroke="#B92F3A" stroke-width=".8" opacity=".6"/>' },
+  scarf: { front: '<path d="M19 41q13 5 26 0v4.5q-13 5-26 0z" fill="#E8434F"/><path d="M38 44l2.5 9 4.5-1.5-2.5-8.5z" fill="#B92F3A"/><path d="M21 43q11 4 22 0" stroke="#fff" stroke-width=".9" stroke-dasharray="1.6 2.4" fill="none" opacity=".7"/>' },
+  boots: { front: '<path d="M24 56.5h7.5v4.5q0 1.5-1.5 1.5h-7.5q-1.5 0-1.5-1.5v-1q0-3.5 3-3.5zM40 56.5h-7.5v4.5q0 1.5 1.5 1.5h7.5q1.5 0 1.5-1.5v-1q0-3.5-3-3.5z" fill="#8B5A2B"/><path d="M24 57.5h7.5M32.5 57.5H40" stroke="#C99A62" stroke-width="1.4"/>' },
+  bow: { front: '<path d="M44 7l-6-4.5v9zM44 7l6-4.5v9z" fill="#FF5C8A" stroke="#C93A66" stroke-width="1" stroke-linejoin="round"/><circle cx="44" cy="7" r="2" fill="#C93A66"/>' },
+  glasses: { front: '<circle cx="24.5" cy="29" r="4.6" fill="#fff" fill-opacity=".18" stroke="#2B2B2B" stroke-width="1.4"/><circle cx="39.5" cy="29" r="4.6" fill="#fff" fill-opacity=".18" stroke="#2B2B2B" stroke-width="1.4"/><path d="M29.1 28.5q2.9-1.6 5.8 0" stroke="#2B2B2B" stroke-width="1.4" fill="none"/>' },
+  sprout: { front: '<path d="M32 3V-2" stroke="#2E8B57" stroke-width="1.6" stroke-linecap="round"/><path d="M32-1q0-5 6-5-1 5-6 5z" fill="#45C08A"/><path d="M32-1q0-4-5-4 1 4 5 4z" fill="#2E8B57"/>' },
 };
-/** The mascot. look = { colour, accessory } (defaults to teal with nothing on).
-    mood: happy (default, waving), sleepy (on a break), worried (running over), wow (celebrating). */
+/** The mascot. look = { colour, accessory }. mood: happy (default), sleepy (on a break), worried (running over), wow (shift done). */
 export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
   ensureDefs();
-  const colour = LOOKS.colours[look?.colour] ? look.colour : 'teal', acc = ACC[look?.accessory] || '', fill = `url(#bt-g-${colour})`;
-  const wave = mood === 'happy' || mood === 'wow';
-  const arms = (wave ? `<g class="arm-wave"><ellipse cx="11" cy="21" rx="4.8" ry="9.5" transform="rotate(-24 11 21)" fill="${fill}" filter="url(#bt-fuzz)"/></g>`
-                     : `<ellipse cx="11.5" cy="40" rx="4.6" ry="8.5" transform="rotate(18 11.5 40)" fill="${fill}" filter="url(#bt-fuzz)"/>`)
-    + `<ellipse cx="52.5" cy="40" rx="4.6" ry="8.5" transform="rotate(-18 52.5 40)" fill="${fill}" filter="url(#bt-fuzz)"/>`;
-  const eyes = mood === 'sleepy' ? '<path d="M25.5 21q2.5 2 5 0M33.5 21q2.5 2 5 0" stroke="#151515" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
-    : '<g class="blink" style="transform-box:fill-box;transform-origin:center"><ellipse cx="28" cy="21" rx="1.7" ry="2.3" fill="#151515"/><ellipse cx="36" cy="21" rx="1.7" ry="2.3" fill="#151515"/></g>';
-  const face = { happy: '<path d="M25 26.5h14q0 8.5-7 8.5t-7-8.5z" fill="none" stroke="#151515" stroke-width="1.8" stroke-linejoin="round"/>',
-    wow: '<path d="M24.5 26h15q0 10-7.5 10t-7.5-10z" fill="#2A1416"/><path d="M28 33.2q4 2.2 8 0" stroke="#FF7FAE" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
-    sleepy: '<ellipse cx="32" cy="29" rx="2" ry="1.6" fill="#151515"/><text x="45" y="12" font-size="8" font-weight="800" fill="#fff" stroke="#151515" stroke-width=".6">z</text><text x="50" y="6" font-size="6" font-weight="800" fill="#fff" stroke="#151515" stroke-width=".5">z</text>',
-    worried: '<path d="M23.5 16.5l5-2M40.5 16.5l-5-2" stroke="#151515" stroke-width="1.5" stroke-linecap="round"/><path d="M27.5 30q2.2-2 4.5 0t4.5 0" stroke="#151515" stroke-width="1.6" fill="none" stroke-linecap="round"/>' }[mood] || '';
+  const col = colourOf(code, look?.colour), fill = `url(#bt-g-${col})`, dark = shade(LOOKS.colours[col][1], .7), acc = ACC[look?.accessory];
+  const eye = (x) => mood === 'sleepy' ? `<path d="M${x - 2.6} 29.5q2.6 1.8 5.2 0" stroke="#1A1A1A" stroke-width="1.5" fill="none" stroke-linecap="round"/>`
+    : `<ellipse cx="${x}" cy="29" rx="2.7" ry="3.5" fill="#141414"/><circle cx="${x + .9}" cy="27.6" r="${mood === 'wow' ? 1.25 : .9}" fill="#fff"/>${mood === 'wow' ? `<circle cx="${x - .9}" cy="30.4" r=".55" fill="#fff"/>` : ''}`;
+  const mouth = { happy: '<path d="M30.6 34.4q1.4 1.1 2.8 0" stroke="#5A3A30" stroke-width="1.1" fill="none" stroke-linecap="round"/>',
+    sleepy: '<ellipse cx="32" cy="34.6" rx=".9" ry=".7" fill="#5A3A30"/>',
+    worried: '<path d="M30.6 35.2q1.4-1.1 2.8 0" stroke="#5A3A30" stroke-width="1.1" fill="none" stroke-linecap="round"/><path d="M47.5 19q1.6 2.6 0 3.6-1.6-1 0-3.6z" fill="#7CC8F0"/>',
+    wow: '<ellipse cx="32" cy="34.8" rx="1.3" ry="1.1" fill="#5A3A30"/><path d="M12 9l.8 1.8 1.8.8-1.8.8-.8 1.8-.8-1.8-1.8-.8 1.8-.8zM53 12l.6 1.3 1.3.6-1.3.6-.6 1.3-.6-1.3-1.3-.6 1.3-.6z" fill="#FFE03C"/>' }[mood] || '';
   return `<svg viewBox="0 0 64 64" aria-hidden="true" style="overflow:visible">
-    <ellipse cx="32" cy="61.5" rx="15" ry="2.4" fill="#000" opacity=".16"/>
-    <ellipse cx="25" cy="57.5" rx="6.5" ry="4.2" fill="${fill}" filter="url(#bt-fuzz)"/><ellipse cx="39" cy="57.5" rx="6.5" ry="4.2" fill="${fill}" filter="url(#bt-fuzz)"/>
-    ${arms}<path d="M32 6C46.5 6 53 19 53 33c0 15-8.5 25-21 25S11 48 11 33C11 19 17.5 6 32 6z" fill="${fill}" filter="url(#bt-fuzz)"/>
-    ${look?.accessory === 'scarf' ? acc : ''}<ellipse cx="22.5" cy="27" rx="3.2" ry="2" fill="#FF6F91" opacity=".5"/><ellipse cx="41.5" cy="27" rx="3.2" ry="2" fill="#FF6F91" opacity=".5"/>
-    ${eyes}${face}${look?.accessory && look.accessory !== 'scarf' ? acc : ''}
-    ${crown ? '<path d="M23 3l4.5 4.5L32-1l4.5 8.5L41 3v7H23z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.3" stroke-linejoin="round" transform="translate(0 -3)"/>' : ''}</svg>`;
+    <ellipse cx="32" cy="62.6" rx="12" ry="1.9" fill="#000" opacity=".14"/>
+    <rect x="25.5" y="52" width="5.5" height="9.5" rx="2.6" fill="${fill}"/><rect x="33" y="52" width="5.5" height="9.5" rx="2.6" fill="${fill}"/>
+    <ellipse cx="21.5" cy="47" rx="3" ry="6" transform="rotate(14 21.5 47)" fill="${fill}"/><ellipse cx="42.5" cy="47" rx="3" ry="6" transform="rotate(-14 42.5 47)" fill="${fill}"/>
+    <path d="M24 46q0-7 8-7t8 7v6q0 4.5-8 4.5T24 52z" fill="${fill}"/>
+    <ellipse cx="32" cy="22.5" rx="21.5" ry="19.5" fill="${fill}"/>
+    <ellipse cx="25" cy="10" rx="7" ry="3.6" fill="#fff" opacity=".28" transform="rotate(-18 25 10)"/>
+    <rect x="15" y="21" width="34" height="19" rx="9.5" fill="url(#bt-face)" stroke="${dark}" stroke-opacity=".35" stroke-width="1"/>
+    <ellipse cx="20" cy="34" rx="2.6" ry="1.5" fill="#FFAA98" opacity=".65"/><ellipse cx="44" cy="34" rx="2.6" ry="1.5" fill="#FFAA98" opacity=".65"/>
+    ${eye(24.5)}${eye(39.5)}${mouth}${acc ? acc.front : ''}
+    <path d="M11 24Q10 2.5 32 2.5T53 24" stroke="#2A2D2E" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+    <rect x="6.5" y="19" width="7" height="12" rx="3.2" fill="#2A2D2E"/><rect x="50.5" y="19" width="7" height="12" rx="3.2" fill="#2A2D2E"/>
+    <rect x="8.3" y="21.5" width="3.4" height="7" rx="1.6" fill="#FFE03C"/><rect x="52.3" y="21.5" width="3.4" height="7" rx="1.6" fill="#FFE03C"/>
+    ${crown ? '<path d="M24.5 -3l3.8 3.8L32-4.5l3.7 5.3L39.5-3v6h-15z" fill="#FFE03C" stroke="#A8860A" stroke-width="1.1" stroke-linejoin="round"/>' : ''}</svg>`;
 }
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
 
@@ -92,7 +100,7 @@ const MAP = `<svg viewBox="0 0 1000 460" aria-hidden="true">
 /** rows: ranked [{ code, name, breaks, onTime, cleanDays, overMinutes, points }]. Call placeRacers() after inserting. */
 export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
   const B = CONFIG.breakathon, goal = Math.max(50, Math.ceil((rows[0]?.points || 0) * 1.12));
-  const prizeTxt = !prize ? `prize: a ${B.rewardMinutes} min extra break or a new look` : !prize.choice ? 'still choosing their prize'
+  const prizeTxt = !prize ? `prize: a ${B.rewardMinutes} min extra break or a new accessory` : !prize.choice ? 'still choosing their prize'
     : prize.choice === 'break' ? `picked a ${B.rewardMinutes} min extra break` : `unlocked ${itemName(prize.item)}`;
   const btn = grant && prize?.choice === 'break' ? `<button class="btn yellow" id="grantBtn" ${grant.done ? 'disabled' : ''}>${grant.done ? 'Extra break given ✓' : `Give the ${B.rewardMinutes} min break`}</button>` : '';
   const champ = champion
@@ -141,16 +149,16 @@ export function prizeHTML(mine, picking) {
   if (!mine?.champion) return '';
   if (mine.claimed === 'break') return `<div class="prize done">🎉 You picked a <b>${B.rewardMinutes} min extra break</b> for winning last week. Your team lead will add it to your day.</div>`;
   if (mine.claimed === 'look') return `<div class="prize done">🎉 You unlocked <b>${esc(itemName(mine.claimed_item))}</b> for winning last week. Looking good!</div>`;
-  if (picking) return `<div class="prize"><b>✨ Pick your new look:</b> tap any 🔒 colour or accessory below to unlock it. <button class="btn ghost sm" data-prize="cancel">Back</button></div>`;
-  return `<div class="prize"><div><b>🏆 You won last week!</b> Pick your prize:</div><div class="row"><button class="btn yellow" data-prize="break">⏰ ${B.rewardMinutes} min extra break</button><button class="btn teal" data-prize="look">✨ Unlock a new look</button></div></div>`;
+  if (picking) return `<div class="prize"><b>✨ Pick your prize:</b> tap any 🔒 accessory below to unlock it. <button class="btn ghost sm" data-prize="cancel">Back</button></div>`;
+  return `<div class="prize"><div><b>🏆 You won last week!</b> Pick your prize:</div><div class="row"><button class="btn yellow" data-prize="break">⏰ ${B.rewardMinutes} min extra break</button><button class="btn teal" data-prize="look">🎁 Unlock an accessory</button></div></div>`;
 }
 export function lookPanelHTML(code, mine, picking) {
-  const has = item => item === 'colour:teal' || item === 'acc:none' || (mine?.unlocked || []).includes(item), cur = { colour: mine?.colour || 'teal', accessory: mine?.accessory || 'none' };
+  const has = item => item.startsWith('colour:') || item === 'acc:none' || (mine?.unlocked || []).includes(item), cur = { colour: colourOf(code, mine?.colour), accessory: mine?.accessory || 'none' };
   const sw = (kind, key, label, inner) => { const item = `${kind === 'colour' ? 'colour' : 'acc'}:${key}`, open = has(item), on = cur[kind] === key;
     return `<button class="sw${on ? ' on' : ''}${open ? '' : ' locked'}${!open && picking ? ' pick' : ''}" data-${kind}="${key}" aria-pressed="${on}" ${!open && !picking ? 'disabled' : ''} title="${esc(open ? label : picking ? `Unlock ${label}` : `${label}: win a week of Breakathon to unlock`)}">${inner}${open ? '' : '<i>🔒</i>'}<small>${esc(label)}</small></button>`; };
-  return `<section class="panel"><div class="phead"><h2>Your mascot</h2><span class="hint">Everyone starts the same. Win a week to unlock a new colour or accessory.</span></div>
+  return `<section class="panel"><div class="phead"><h2>Your mascot</h2><span class="hint">Pick any colour. Win a week of Breakathon to unlock accessories.</span></div>
     <div class="lookgrid"><div class="lookprev">${avatar(code, { look: cur, mood: 'wow' })}</div><div>
     <h3 style="margin-top:0">Colour</h3><div class="swatches">${Object.entries(LOOKS.colours).map(([k, [l, c]]) => sw('colour', k, l, `<span class="dot" style="background:${c}"></span>`)).join('')}</div>
-    <h3>Accessory</h3><div class="swatches">${Object.entries(LOOKS.accessories).map(([k, [l, e]]) => sw('accessory', k, l, `<span class="mini-av">${avatar(code, { look: { colour: cur.colour, accessory: k } })}</span>`)).join('')}</div>
+    <h3>Accessories <small style="font:500 13px var(--body);color:var(--muted)">(prizes)</small></h3><div class="swatches">${Object.entries(LOOKS.accessories).map(([k, [l, e]]) => sw('accessory', k, l, `<span class="mini-av">${avatar(code, { look: { colour: cur.colour, accessory: k } })}</span>`)).join('')}</div>
     </div></div></section>`;
 }
