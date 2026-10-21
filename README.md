@@ -29,7 +29,10 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
 - One horizontal bar per break (Break 1, Break 2, Lunch, plus any **OH Break** the manager adds), with Start / Resume.
   The running break grows into a big loading bar with the countdown and a running commentary ("10 min done, only 5 left",
   "2 min over, that's coming off Lunch"), and the rest of the page stays usable. The tab title shows the countdown too.
-- Going over takes the extra minutes off the next break (Break 1 → Break 2 → Lunch → OH breaks), with a friendly note.
+- The day's breaks are one pot. Running past a break's own minutes borrows from the breaks that still have time: the ones
+  after it first (Break 1 → Break 2 → Lunch → OH breaks), then from the start (a long Lunch taken first comes off Break 1,
+  then Break 2). That shows in amber. Someone is only **over** (red, for them and their manager) once the whole day's
+  break time is used up, including any OH break the manager added.
 - The shift pie: time worked, breaks, overruns and time still to go, with the worked time ticking to the second.
 - A sales-floor pep talk that changes with the time of day (and is different every time you open the page), a live clock and a Live indicator.
 - **Breakathon:** a simple platform-game climb: every 25 points lifts your mascot one platform, the highest racer wins the week, and the star at the top (level 8) is a perfect week. Tap a racer to see how close they are to the next platform.

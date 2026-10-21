@@ -72,6 +72,12 @@ h2{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:-.01
 .brow.over .btrack.big{box-shadow:inset 0 0 0 2px var(--stop)}
 .brow.over .btrack.big i{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.2) 0 12px,transparent 12px 24px),linear-gradient(90deg,var(--stop),var(--over))}
 @keyframes load{to{background-position:34px 0,0 0}}
+.brow .say .warn{color:var(--pill-brk-ink)}
+.brow.borrow .btrack i{background:linear-gradient(90deg,var(--ee-yellow),var(--warn))}
+.brow.on.borrow{border-color:var(--warn);background:var(--pill-brk)}
+.brow.borrow .btrack.big{box-shadow:inset 0 0 0 2px var(--warn)}
+.brow.borrow .btrack.big i{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.3) 0 12px,transparent 12px 24px),linear-gradient(90deg,var(--ee-yellow),var(--warn))}
+.brow.on.over{border-color:var(--stop);background:var(--pill-over)}
 .btrack .bt{position:absolute;left:8px;top:50%;transform:translateY(-50%);font:800 21px var(--display);color:var(--ink);background:var(--surface);padding:1px 10px;border-radius:8px;font-variant-numeric:tabular-nums}.brow.over .btrack .bt{color:var(--stop)}
 .btrack .bt small{font:600 12px var(--body);color:var(--muted)}
 .btrack.big .bu{font-size:12.5px;right:8px;background:var(--surface);padding:3px 8px;border-radius:7px;opacity:1}
@@ -205,8 +211,8 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .team .person{display:flex;align-items:center;gap:10px;min-width:160px}.team .person .av{width:30px;height:30px;flex:none}.team .person svg{width:100%;height:100%}
 .team .person b{display:block;line-height:1.2}.team .person small{color:var(--muted);font-size:12px}
 .team .st{white-space:nowrap;font-size:13.5px;font-weight:600}.team .st::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;background:var(--muted);vertical-align:1px}
-.team .st.taken::before{background:var(--teal)}.team .st.onbreak::before{background:var(--warn)}.team .st.over{color:var(--stop)}.team .st.over::before{background:var(--stop)}.team .st.off{color:var(--muted);font-weight:500}
+.team .st.taken::before{background:var(--teal)}.team .st.onbreak::before{background:var(--warn)}.team .st.over{color:var(--stop)}.team .st.borrow{color:var(--pill-brk-ink)}.team .st.over::before{background:var(--stop)}.team .st.off{color:var(--muted);font-weight:500}
 .team td.b{min-width:120px}.team td.b .tr{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:4px}.team td.b .tr i{display:block;height:100%;background:var(--teal)}
-.team td.b span{font-size:12.5px;color:var(--muted)}.team td.b.over .tr i{background:var(--stop)}.team td.b.over span{color:var(--stop);font-weight:600}.team td.b.act .tr i{background:var(--warn)}
+.team td.b span{font-size:12.5px;color:var(--muted)}.team td.b.over .tr i{background:var(--stop)}.team td.b.over span{color:var(--stop);font-weight:600}.team td.b.act .tr i{background:var(--warn)}.team td.b.borrow .tr i{background:var(--warn)}.team td.b.borrow span{color:var(--pill-brk-ink);font-weight:600}
 .team td:first-child{border-left:3px solid transparent}.team tr.over td:first-child{border-left-color:var(--stop)}
 .mgr .champ{background:var(--surface);color:var(--ink);border:1px solid var(--line)}.mgr .champ b{color:var(--teal)}
