@@ -64,7 +64,7 @@ with sync_playwright() as p:
 
     # ---- the Professional view: same features, no mascots or map, plain wording; the choice is recorded ----
     pg.click('#uiBtn'); pg.wait_for_timeout(300)
-    ok(pg.get_attribute('html', 'data-ui') == 'pro' and pg.inner_text('#uiBtn') == 'Playful view', 'the header button switches to the professional view')
+    ok(pg.get_attribute('html', 'data-ui') == 'pro' and pg.get_attribute('#uiBtn', 'aria-label') == 'Switch to the playful view', 'the header button switches to the professional view')
     ok(pg.locator('.racer').count() == 0 and pg.locator('#race table.rank tr').count() == 7 and 'Level' not in pg.inner_text('#race'), 'weekly scores show as a plain table')
     ok(pg.inner_text('[data-tab="race"]') == 'Weekly scores' and not pg.is_visible('#look'), 'no game names or mascot panel')
     pg.click('[data-tab="day"]')
