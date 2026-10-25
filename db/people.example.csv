@@ -1,6 +1,6 @@
 # Copy this file to people.csv in the repo root (git ignores people.csv) and put one person per line.
 # code,name,role     role = agent or manager (empty means agent). First names only. Lines starting with # are ignored.
 code,name,role
-EE-1001,Alex,agent
-EE-1002,Priya,agent
+EE-1001,User 1,agent
+EE-1002,User 2,agent
 MGR-7777,Team lead,manager

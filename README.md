@@ -40,9 +40,15 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
   the pep talk and reacts quietly to your day. Last week's champion picks a prize: a 15 min extra break, or an accessory
   (cap, scarf, boots, bow, glasses, sprout) that's theirs for good.
 
+**Two looks, same features**
+- A **Professional view / Playful view** button in the header of both pages. Playful has the mascots, pep talks and the
+  Breakathon game map; Professional uses the calmer manager-page styling, plain wording and shows the weekly scores as a table.
+- Everyone is asked which look they want the first time they sign in, and can switch any time. The choice is saved with their
+  login, and team leads see who picked which (Manage > **Interface choice**, with a CSV export) to show what people prefer.
+
 **Team leads**
 - **Dashboard** (view only): filters for everyone / on a break / running over / taken a break / no break yet / not clocked in,
-  a "team pulse" in plain English ("Almost everyone has had Break 1, still to go: Sam", "Jordan is 6 min over, go wake Jordan up"),
+  a "team pulse" in plain English ("Almost everyone has had Break 1, still to go: User 3", "User 4 is 6 min over, go wake User 4 up"),
   and a live card per person.
 - **Manage:** +/- 5 minute adjustments, and per person: shift start and end, break history (edit, remove, log a missed break),
   OH breaks (today, chosen weekdays or every day), break names, and the change history. Export the last 14 days as CSV.
@@ -58,7 +64,8 @@ audit trail nobody can edit. Breakathon gives agents names and points only, neve
 
 ## What it stores, and what it never stores
 
-- Stores: first name, shift and break times, allowance adjustments in minutes, OH break rules, break names a manager chose, and the audit trail.
+- Stores: first name, shift and break times, allowance adjustments in minutes, OH break rules, break names a manager chose, the audit trail,
+  and which look (Playful or Professional) each person picked, with their first pick and how often they switched.
 - Never stores: the **reason** for a break, an adjustment or an edit. There is no such field anywhere, and tests fail if one appears.
 
 ## Layout
@@ -71,7 +78,8 @@ src/backend/api.js           the Supabase connection, clock sync and plain-Engli
 src/pages/user.js, manager.js   one script per page
 src/chrome.js                header: live clock, Live pill, tabs, change password
 src/race.js                  the Breakathon island map and the characters (also the pep-talk buddy)
-src/theme.js                 applies the saved light/dark choice before the page draws
+src/ui.js                    the Playful / Professional switch, the first-sign-in picker and saving the choice
+src/theme.js                 applies the saved light/dark choice and look before the page draws
 src/jokes.js                 the pep talks          src/dom.js, pilot.js, styles.css
 scripts/create_logins.mjs    creates everyone's login and profile      scripts/stamp.mjs   the version stamp
 db/schema.sql                the database (safe to re-run)      db/cleanup_job.sql   nightly 14-day cleanup

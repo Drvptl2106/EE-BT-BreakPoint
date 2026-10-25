@@ -22,10 +22,10 @@ insert into auth.users(id, email) values
   ('00000000-0000-0000-0000-00000000000c', 'mgr-7777@pilot.local'), ('00000000-0000-0000-0000-00000000000d', 'ee-2001@pilot.local'),
   ('00000000-0000-0000-0000-00000000000e', 'mgr-8888@pilot.local');
 insert into profiles(id, code, name, team, role) values
-  ('00000000-0000-0000-0000-00000000000a', 'EE-1001', 'Alex',  'pilot', 'agent'),
-  ('00000000-0000-0000-0000-00000000000b', 'EE-1002', 'Priya', 'pilot', 'agent'),
+  ('00000000-0000-0000-0000-00000000000a', 'EE-1001', 'User 1', 'pilot', 'agent'),
+  ('00000000-0000-0000-0000-00000000000b', 'EE-1002', 'User 2', 'pilot', 'agent'),
   ('00000000-0000-0000-0000-00000000000c', 'MGR-7777', 'Lead', 'pilot', 'manager'),
-  ('00000000-0000-0000-0000-00000000000d', 'EE-2001', 'Sam',   'other', 'agent'),
+  ('00000000-0000-0000-0000-00000000000d', 'EE-2001', 'User 3', 'other', 'agent'),
   ('00000000-0000-0000-0000-00000000000e', 'MGR-8888', 'Other lead', 'other', 'manager');
 
 -- ---------- B and X already have a day on record ----------
@@ -236,6 +236,34 @@ select t.ok((select choice from rewards where user_id = '00000000-0000-0000-0000
 commit;
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', true); set local role authenticated;
 select t.ok(t.n('select * from rewards') = 0, 'another team''s lead does not');
+commit;
+
+-- ---------- interface choice (Playful / Professional) ----------
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select set_ui_style('pro');
+select t.ok((select style || '/' || first_style || '/' || switches from ui_prefs) = 'pro/pro/0', 'someone picks a look and it is saved with their first pick');
+select set_ui_style('pro');
+select t.ok((select switches from ui_prefs) = 0, 'picking the same look again is not a switch');
+select set_ui_style('fun');
+select t.ok((select style || '/' || first_style || '/' || switches from ui_prefs) = 'fun/pro/1', 'switching keeps the first pick and counts the switch');
+select t.denied($$select set_ui_style('neon')$$);
+select t.denied($$update ui_prefs set switches = 0$$);
+select t.denied($$insert into ui_prefs(user_id, style, first_style) values ('00000000-0000-0000-0000-00000000000b', 'pro', 'pro')$$);
+select t.ok(true, 'only real looks, and nobody can write the table directly');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true); set local role authenticated;
+select set_ui_style('pro');
+select t.ok(t.n('select * from ui_prefs') = 1, 'agents see only their own interface choice');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
+select t.ok(t.n('select * from ui_prefs') = 2, 'the team lead sees the team''s interface choices');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', true); set local role authenticated;
+select t.ok(t.n('select * from ui_prefs') = 0, 'another team''s lead does not');
+commit;
+begin; set local role anon;
+select t.denied($$select set_ui_style('pro')$$);
+select t.ok(true, 'signed-out visitors cannot record a choice');
 commit;
 
 -- ---------- cleanup job ----------

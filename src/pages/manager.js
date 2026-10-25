@@ -1,10 +1,11 @@
-import { CONFIG } from '../config.js?v=3c62140785';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=3c62140785';
-import { teamLooks, teamRewards } from '../core.js?v=3c62140785';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=3c62140785';
-import { esc, setHtml } from '../dom.js?v=3c62140785';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js?v=3c62140785';
-import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=3c62140785';
+import { CONFIG } from '../config.js?v=fefe7db143';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=fefe7db143';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=fefe7db143';
+import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=fefe7db143';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=fefe7db143';
+import { esc, setHtml } from '../dom.js?v=fefe7db143';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js?v=fefe7db143';
+import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=fefe7db143';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -90,7 +91,7 @@ const teamNow=at=>Object.entries(U).map(([c,name])=>{const r=db.days[TODAY]?.[c]
 function renderDash(at,force){if(tab!=='dash'&&!force)return;const sig=JSON.stringify(db)+filter+Math.floor(at/1e4);if(!force&&sig===lastDash)return;lastDash=sig;
   const team=teamNow(at),f=FILTERS.find(x=>x.key===filter),list=team.filter(t=>f.test(t.st,t.p));
   setHtml($('#filters'),FILTERS.map(x=>{const n=team.filter(t=>x.test(t.st,t.p)).length;return `<button class="fbtn${x.key==='over'&&n?' bad':''}" data-f="${x.key}" aria-pressed="${filter===x.key}"><span>${x.label}</span><b>${n}</b></button>`}).join(''));
-  const pulse=teamPulse(team.map(t=>({name:t.name,rec:t.rec,p:t.p})),at);
+  const pulse=teamPulse(team.map(t=>({name:t.name,rec:t.rec,p:t.p})),at,isPro());
   setHtml($('#pulse'),pulse.map(m=>`<li class="${m.tone}">${esc(m.text)}</li>`).join(''));
   // the mascot peeking over the summary reacts to the team: worried if someone's over, sparkly if everyone's had their breaks
   const mood=pulse.some(m=>m.tone==='bad')?'worried':pulse.some(m=>m.tone==='good')&&!pulse.some(m=>m.tone==='warn')?'wow':team.some(t=>t.st.onBreak)?'happy':'happy';
@@ -114,6 +115,21 @@ $('#csv').addEventListener('click',()=>{db=load();const out=[['date','code','nam
     for(const s of p)if(s.segs.length)out.push([day,c,U[c]||r.name,s.label,s.segs.map(b=>`${hhmm(b.start)}-${hhmm(b.end)}`).join(' '),tidy(s.used/60),s.base,tidy(s.borrowed/60),tidy(s.over/60),s.segs.some(b=>b.flag)?'yes':''])}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.map(x=>x.map(csvCell).join(',')).join('\r\n')],{type:'text/csv'}));a.download=`breaks-${TODAY}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)});
 
+/* ---------- interface choice: which look each person picked, for the pilot write-up (src/ui.js) ---------- */
+let UIC={};
+async function loadUiChoices(){try{UIC=await teamUiStyles()}catch{UIC=null}drawUiChoices()}
+const uiPeople=()=>[...Object.entries(U).map(([c,n])=>({c,n,role:'Staff'})),...Object.entries(MANAGER_CODES).map(([c,n])=>({c,n,role:'Team lead'}))];
+const uiDay=v=>v?`${v.slice(0,10)} ${hhmm(Date.parse(v))}`:'–';
+function drawUiChoices(){const el=$('#uiStats');if(!el)return;
+  if(!UIC){el.innerHTML='<p class="hint">Not recorded yet. Run the latest db/schema.sql in Supabase to start recording it.</p>';return}
+  const ppl=uiPeople(),line=role=>{const g=ppl.filter(p=>p.role===role),n=k=>g.filter(p=>(UIC[p.c]?.style||null)===k).length;
+    return g.length?`<p style="margin:4px 0"><b>${role}:</b> ${LOOK_NAMES.pro} <b>${n('pro')}</b> · ${LOOK_NAMES.fun} <b>${n('fun')}</b> · Not chosen yet <b>${n(null)}</b></p>`:''};
+  el.innerHTML=line('Staff')+line('Team lead')+`<div class="scroll" style="margin-top:10px"><table><thead><tr><th>Person</th><th>Role</th><th>Using now</th><th>First pick</th><th>Switches</th><th>Last changed</th></tr></thead><tbody>${ppl.map(p=>{const u=UIC[p.c];
+    return `<tr><td class="person"><b>${esc(p.n)}</b><span>${esc(p.c)}</span></td><td>${p.role}</td><td>${u?LOOK_NAMES[u.style]:'<span class="of">Not chosen yet</span>'}</td><td>${u?`${LOOK_NAMES[u.first_style]} <span class="of">${uiDay(u.first_at)}</span>`:'–'}</td><td>${u?u.switches:'–'}</td><td>${u?uiDay(u.changed_at):'–'}</td></tr>`}).join('')}</tbody></table></div>`}
+$('#uiCsv').addEventListener('click',async()=>{await loadUiChoices();if(!UIC)return toast('Nothing recorded yet.');
+  const out=[['code','name','role','using_now','first_pick','first_picked_at','switches','last_changed_at'],...uiPeople().map(p=>{const u=UIC[p.c];return [p.c,p.n,p.role,u?LOOK_NAMES[u.style]:'',u?LOOK_NAMES[u.first_style]:'',u?.first_at||'',u?u.switches:'',u?.changed_at||'']})];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.map(x=>x.map(csvCell).join(',')).join('\r\n')],{type:'text/csv'}));a.download=`interface-choice-${TODAY}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)});
+
 /* ---------- Breakathon, and the weekly reward ---------- */
 const REWARD='Breakathon reward';
 let week=0,raceT=null,champ=null;
@@ -122,7 +138,7 @@ async function drawRace(){if(tab!=='race')return;try{
     champ=last[0]?.points>0?last[0]:null;
     const prize=champ?(await teamRewards(l.from))[champ.code]||{}:null;
     const done=!!champ&&(db.custom[champ.code]||[]).some(x=>x.scope==='today'&&x.date===TODAY&&db.names?.[champ.code]?.[x.key]===REWARD);
-    setHtml($('#race'),raceHTML({rows,me:null,isManager:true,champion:champ,grant:champ?{done}:null,prize}));placeRacers($('#race'))}
+    setHtml($('#race'),raceHTML({rows,me:null,isManager:true,pro:isPro(),champion:champ,grant:champ?{done}:null,prize}));placeRacers($('#race'))}
   catch(err){$('#race').innerHTML=`<p class="empty">${esc(err.message)}</p>`}}
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);$$('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 $('#race').addEventListener('click',e=>{if(e.target.id!=='grantBtn'||!champ)return;const c=champ.code;db=load();
@@ -150,7 +166,8 @@ function liveTick(){const at=now();$$('[data-live]').forEach(el=>{const t=Number
 let t1,t2,clock,tabsReady=false;
 function boot(){if(!mgr||!MANAGER_CODES[mgr])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');$('#who').textContent=MANAGER_CODES[mgr];if(CONFIG.backend==='api'){$('#demo')?.remove();$('#clear')?.remove()}db=load();purge(db);save(db);render(true);
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
-  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000)loadLooks();if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
+  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();syncUi(mgr);loadUiChoices();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000){loadLooks();loadUiChoices()}if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&mgr&&!det){db=load();render()}});
 setupPassword();setupTheme();wireRacers($('#race'));
+setupUi(()=>{if(mgr){renderDash(now(),true);drawRace();setTimeout(loadUiChoices,1500)}});
 (async()=>{if(CONFIG.backend==='api')$('#pw').classList.remove('hidden');try{await init();if(CONFIG.backend==='api'){const m=me();mgr=m&&m.role!=='agent'?m.code:null}boot()}catch(err){showGate();$('#gateErr').textContent=err.message}})();

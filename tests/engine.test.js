@@ -187,12 +187,15 @@ test('dashboard status and filters', () => {
 test('team pulse: who is over, who is still waiting, and who has gone too long without a break', () => {
   const slots = CONFIG.defaultSlots, mk = (name, r) => ({ name, rec: r, p: plan(r, {}, NOW, slots) });
   const done = n => mk(n, rec(['break1', 0, 15]));
-  const team = [done('Alex'), done('Priya'), done('Sam'), mk('Jordan', { shiftStart: NOW - 4 * 3600000, breaks: [], active: null }),
-    mk('Mo', { shiftStart: NOW - 3600000, breaks: [], active: { slot: 'break2', start: NOW - 70 * MIN } }), mk('Chris', undefined)];
+  const team = [done('User 1'), done('User 2'), done('User 3'), mk('User 4', { shiftStart: NOW - 4 * 3600000, breaks: [], active: null }),
+    mk('User 6', { shiftStart: NOW - 3600000, breaks: [], active: { slot: 'break2', start: NOW - 70 * MIN } }), mk('User 5', undefined)];
   const text = teamPulse(team, NOW).map(m => m.tone + ': ' + m.text).join('\n');
-  assert.match(text, /^bad: Mo is 10 min over on Break 2\. Go wake Mo up/m);
-  assert.match(text, /warn: Jordan has been working 4h 00m without a break/);
-  assert.match(text, /Almost everyone has had Break 1\. Still to go: Jordan and Mo\./);
+  assert.match(text, /^bad: User 6 is 10 min over on Break 2\. Go wake User 6 up/m);
+  assert.match(text, /warn: User 4 has been working 4h 00m without a break/);
+  assert.match(text, /Almost everyone has had Break 1\. Still to go: User 4 and User 6\./);
   assert.match(text, /1 on a break right now · 4 working · 1 not clocked in/);
-  assert.match(teamPulse([done('Alex'), done('Priya')], NOW).map(m => m.text).join(), /Everyone clocked in has had Break 1\./);
+  assert.match(teamPulse([done('User 1'), done('User 2')], NOW).map(m => m.text).join(), /Everyone clocked in has had Break 1\./);
+  const pro = teamPulse(team, NOW, true).map(m => m.text).join('\n');
+  assert.match(pro, /^User 6 is 10 min over on Break 2\.$/m);
+  assert.doesNotMatch(pro, /wake/);
 });

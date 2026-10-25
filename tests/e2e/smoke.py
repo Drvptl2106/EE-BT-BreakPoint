@@ -23,6 +23,9 @@ with sync_playwright() as p:
     # ---- manager: dashboard (view only), filters, team pulse, live clock ----
     m = ctx.new_page(); watch(m)
     m.goto(BASE + '/manager.html'); m.fill('#code', 'MGR-001'); m.click('#gateForm button')
+    m.wait_for_selector('#uiPick:not(.hidden)')
+    ok(m.locator('#uiPick [data-pick]').count() == 2, 'the first sign-in asks which look to use')
+    m.click('#uiPick [data-pick="fun"]')
     m.click('[data-tab="manage"]'); m.click('#demo'); m.click('[data-tab="dash"]')
     ok(re.match(r'^\d\d:\d\d:\d\d$', m.text_content('#clock')) is not None, 'manager clock shows seconds')
     ok('Live' in m.text_content('#live'), 'Live pill on the manager page')
@@ -41,6 +44,7 @@ with sync_playwright() as p:
 
     # ---- agent: break bars (the OH break is a new bar), shift pie ticking, pep talk ----
     pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .brow')
+    pg.wait_for_selector('#uiPick:not(.hidden)'); pg.click('#uiPick [data-pick="fun"]')
     ok(pg.locator('#bars .brow').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as its own bar')
     ok(pg.input_value('#endIn') == '23:30', 'agent sees the shift end the manager set')
     w1 = pg.text_content('#worked'); pg.wait_for_timeout(1100)
@@ -57,6 +61,21 @@ with sync_playwright() as p:
     ok(pg.locator('.racer').count() == 6 and 'Minutes over' not in pg.inner_text('#race'), 'agents see the race but not minutes over')
     m.click('[data-tab="race"]'); m.wait_for_selector('.racer')
     ok('Minutes over' in m.inner_text('#race'), 'managers also see minutes over')
+
+    # ---- the Professional view: same features, no mascots or map, plain wording; the choice is recorded ----
+    pg.click('#uiBtn'); pg.wait_for_timeout(300)
+    ok(pg.get_attribute('html', 'data-ui') == 'pro' and pg.inner_text('#uiBtn') == 'Playful view', 'the header button switches to the professional view')
+    ok(pg.locator('.racer').count() == 0 and pg.locator('#race table.rank tr').count() == 7 and 'Level' not in pg.inner_text('#race'), 'weekly scores show as a plain table')
+    ok(pg.inner_text('[data-tab="race"]') == 'Weekly scores' and not pg.is_visible('#look'), 'no game names or mascot panel')
+    pg.click('[data-tab="day"]')
+    ok(not pg.is_visible('#custBtn') and pg.locator('#bars .brow').count() == 4, 'no mascot button, and the breaks work the same')
+    pg.reload(); pg.wait_for_selector('#bars .brow')
+    ok(pg.get_attribute('html', 'data-ui') == 'pro' and not pg.is_visible('#uiPick'), 'the choice is remembered and not asked again')
+    m.click('#uiBtn'); m.click('[data-tab="dash"]'); m.wait_for_timeout(300)
+    ok(not m.is_visible('#peek') and 'wake' not in m.inner_text('#pulse'), 'manager professional view: no mascot, plain wording')
+    m.reload(); m.click('[data-tab="manage"]'); m.wait_for_selector('#uiStats table')
+    stats = m.inner_text('#uiStats')
+    ok('Staff: Professional 1' in stats.replace('\n', ' ') and 'Team lead: Professional 1' in stats.replace('\n', ' '), 'the manager sees who picked which look: ' + stats[:80].replace('\n', ' '))
     ok(not logs, 'no JS or CSP errors: ' + '; '.join(logs)[:300])
     b.close()
 print('\nRESULT:', 'ALL PASSED' if not errs else f'{len(errs)} FAILED'); sys.exit(1 if errs else 0)

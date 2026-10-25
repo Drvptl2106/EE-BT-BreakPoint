@@ -1,8 +1,8 @@
 // Breakathon view, shared by both pages: an illustrated island where everyone's character runs along the road to the
 // Champion's Keep, the further the more punctual points they have, plus the ranking table.
 // Also the characters themselves (used on the dashboard cards and as the agent's pep-talk buddy).
-import { CONFIG } from './config.js?v=3c62140785';
-import { esc } from './dom.js?v=3c62140785';
+import { CONFIG } from './config.js?v=fefe7db143';
+import { esc } from './dom.js?v=fefe7db143';
 
 /* ---------------- the mascot ----------------
    A soft felt pebble with big googly eyes and a tiny mouth. No body, no fuss: personality comes from the SHAPE
@@ -133,15 +133,16 @@ const MAP = `<svg viewBox="0 0 1000 ${VB_H}" aria-hidden="true">
 </svg>`;
 const levelOf = points => Math.min(CONFIG.breakathon.levels, Math.floor(Math.max(0, points) / CONFIG.breakathon.pointsPerLevel));
 
-/** rows: ranked [{ code, name, breaks, onTime, cleanDays, overMinutes, points }]. Call placeRacers() after inserting. */
-export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
+/** rows: ranked [{ code, name, breaks, onTime, cleanDays, overMinutes, points }]. Call placeRacers() after inserting.
+    pro = the Professional view (src/ui.js): the same scores as a plain table, no map and no mascots. */
+export function raceHTML({ rows, me, isManager, champion, grant, prize, pro = false }) {
   const B = CONFIG.breakathon, top = levelOf(rows[0]?.points || 0);
-  const prizeTxt = !prize ? `prize: a ${B.rewardMinutes} min extra break or a new accessory` : !prize.choice ? 'still choosing their prize'
+  const prizeTxt = !prize ? `prize: a ${B.rewardMinutes} min extra break${pro ? '' : ' or a new accessory'}` : !prize.choice ? 'still choosing their prize'
     : prize.choice === 'break' ? `picked a ${B.rewardMinutes} min extra break` : `unlocked ${itemName(prize.item)}`;
   const btn = grant && prize?.choice === 'break' ? `<button class="btn yellow" id="grantBtn" ${grant.done ? 'disabled' : ''}>${grant.done ? 'Extra break given' : `Give the ${B.rewardMinutes} min break`}</button>` : '';
   const champ = champion
-    ? `<div class="champ"><span style="width:50px;height:50px;flex:none">${avatar(champion.code, { crown: true, mood: 'wow', look: lookOf(champion) })}</span><div>Last week's champion: <b>${esc(champion.name)}</b>${champion.code === me ? ' (that\'s you!)' : ''}<br><span style="opacity:.85;font-size:14px">${champion.points} points · ${prizeTxt}</span></div>${btn}</div>`
-    : `<div class="champ"><div>No champion from last week yet. This week is wide open.</div></div>`;
+    ? `<div class="champ">${pro ? '' : `<span style="width:50px;height:50px;flex:none">${avatar(champion.code, { crown: true, mood: 'wow', look: lookOf(champion) })}</span>`}<div>Last week's ${pro ? 'top score' : 'champion'}: <b>${esc(champion.name)}</b>${champion.code === me ? ' (that\'s you!)' : ''}<br><span style="opacity:.85;font-size:14px">${champion.points} points · ${prizeTxt}</span></div>${btn}</div>`
+    : `<div class="champ"><div>${pro ? 'No scores from last week yet.' : 'No champion from last week yet. This week is wide open.'}</div></div>`;
   // everyone stands on the level they've reached; people on the same level stand side by side
   const onLevel = {};
   const runners = rows.map((r, i) => {
@@ -149,8 +150,10 @@ export function raceHTML({ rows, me, isManager, champion, grant, prize }) {
     return `<button class="racer${r.code === me ? ' me' : ''}" data-lv="${lv}" data-k="${k}" data-code="${esc(r.code)}" style="left:7%;top:85%" aria-label="${esc(r.name)}, level ${lv}, ${r.points} points, rank ${i + 1}">
       <span class="av">${avatar(r.code, { crown: i === 0 && r.points > 0, look: lookOf(r) })}</span><span class="tag">${esc(r.name)}${r.code === me ? ' (you)' : ''}</span>
       <span class="tip"><b>${i + 1}. ${esc(r.name)}</b> · level ${lv}${lv >= B.levels ? ', at the top' : ''}<br>${r.points} points${toNext ? ` · ${toNext} to level ${lv + 1}` : ''}<br>${r.onTime}/${r.breaks} breaks on time${isManager ? ` · ${r.overMinutes ?? 0} min over` : ''}</span></button>`; }).join('');
-  const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>Racer</th><th>Level</th><th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
-    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i + 1}</td><td class="person">${avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td><td>${levelOf(r.points)}</td><td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays || '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+  const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>${pro ? 'Name' : 'Racer'}</th>${pro ? '' : '<th>Level</th>'}<th>Points</th><th>On time</th><th>Clean days</th>${isManager ? '<th>Minutes over</th>' : ''}</tr></thead><tbody>${rows.map((r, i) =>
+    `<tr class="${r.code === me ? 'me' : ''}" data-code="${esc(r.code)}"><td>${i + 1}</td><td class="person">${pro ? '' : avatar(r.code, { look: lookOf(r) })}<b style="display:inline">${esc(r.name)}${r.code === me ? ' (you)' : ''}</b></td>${pro ? '' : `<td>${levelOf(r.points)}</td>`}<td><b>${r.points}</b></td><td>${r.onTime}/${r.breaks}</td><td>${r.cleanDays || '–'}</td>${isManager ? `<td class="${r.overMinutes ? 'bad' : ''}">${r.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+  if (pro) return `${champ}${rows.length ? '' : '<p class="empty">No scores yet.</p>'}${table}
+    <p class="hint">Monday to Sunday. ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute past the day's total break time. The week's top score can take a ${B.rewardMinutes} min extra break.</p>`;
   return `${champ}<div class="mapwrap"><div class="map" data-top="${top}">${MAP}<div class="racers">${runners || ''}</div></div></div>
     ${rows.length ? '' : '<p class="empty">Nobody in the race yet.</p>'}${table}
     <p class="hint">Every ${B.pointsPerLevel} points lifts you one platform; the highest racer wins the week, and the star at the top (level ${B.levels}) is a perfect week. ${B.pointsOnTime} points for every break kept within its time, +${B.pointsCleanDay} for a day with every break on time, −${B.penaltyPerMinuteOver} per minute over. Monday to Sunday. The weekly winner picks a ${B.rewardMinutes} min extra break or a new accessory. Tap a racer to see how close they are to the next platform.</p>`;
@@ -182,13 +185,13 @@ export function wireRacers(root) {
 /* ---------------- your mascot and your prize (agent page) ---------------- */
 export const itemName = item => { const [k, v] = String(item || '').split(':'); return k === 'colour' ? `${LOOKS.colours[v]?.[0] || v} colour` : `the ${(LOOKS.accessories[v]?.[0] || v).toLowerCase()}`; };
 /** mine = my_rewards(): { colour, accessory, unlocked[], champion, claimed, claimed_item }. picking = choosing a look as the prize. */
-export function prizeHTML(mine, picking) {
+export function prizeHTML(mine, picking, pro = false) {
   const B = CONFIG.breakathon;
   if (!mine?.champion) return '';
   if (mine.claimed === 'break') return `<div class="prize done">You picked a <b>${B.rewardMinutes} min extra break</b> for winning last week. Your team lead will add it to your day.</div>`;
   if (mine.claimed === 'look') return `<div class="prize done">You unlocked <b>${esc(itemName(mine.claimed_item))}</b> for winning last week. Looking good!</div>`;
   if (picking) return `<div class="prize"><b>Pick your prize:</b> tap any locked accessory below to unlock it. <button class="btn ghost sm" data-prize="cancel">Back</button></div>`;
-  return `<div class="prize"><div><b>You won last week!</b> Pick your prize:</div><div class="row"><button class="btn" data-prize="break">${B.rewardMinutes} min extra break</button><button class="btn teal" data-prize="look">Unlock an accessory</button></div></div>`;
+  return `<div class="prize"><div><b>${pro ? 'You had the top score last week.' : 'You won last week!'}</b> Pick your prize:</div><div class="row"><button class="btn" data-prize="break">${B.rewardMinutes} min extra break</button>${pro ? '' : '<button class="btn teal" data-prize="look">Unlock an accessory</button>'}</div></div>`;
 }
 export function lookPanelHTML(code, mine, picking) {
   const has = item => item.startsWith('colour:') || item === 'acc:none' || (mine?.unlocked || []).includes(item), cur = { colour: colourOf(code, mine?.colour), accessory: mine?.accessory || 'none' };
