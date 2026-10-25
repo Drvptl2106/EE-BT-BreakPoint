@@ -238,6 +238,34 @@ begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000
 select t.ok(t.n('select * from rewards') = 0, 'another team''s lead does not');
 commit;
 
+-- ---------- interface choice (Playful / Professional) ----------
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select set_ui_style('pro');
+select t.ok((select style || '/' || first_style || '/' || switches from ui_prefs) = 'pro/pro/0', 'someone picks a look and it is saved with their first pick');
+select set_ui_style('pro');
+select t.ok((select switches from ui_prefs) = 0, 'picking the same look again is not a switch');
+select set_ui_style('fun');
+select t.ok((select style || '/' || first_style || '/' || switches from ui_prefs) = 'fun/pro/1', 'switching keeps the first pick and counts the switch');
+select t.denied($$select set_ui_style('neon')$$);
+select t.denied($$update ui_prefs set switches = 0$$);
+select t.denied($$insert into ui_prefs(user_id, style, first_style) values ('00000000-0000-0000-0000-00000000000b', 'pro', 'pro')$$);
+select t.ok(true, 'only real looks, and nobody can write the table directly');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true); set local role authenticated;
+select set_ui_style('pro');
+select t.ok(t.n('select * from ui_prefs') = 1, 'agents see only their own interface choice');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
+select t.ok(t.n('select * from ui_prefs') = 2, 'the team lead sees the team''s interface choices');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', true); set local role authenticated;
+select t.ok(t.n('select * from ui_prefs') = 0, 'another team''s lead does not');
+commit;
+begin; set local role anon;
+select t.denied($$select set_ui_style('pro')$$);
+select t.ok(true, 'signed-out visitors cannot record a choice');
+commit;
+
 -- ---------- cleanup job ----------
 insert into shifts(user_id, day, shift_start) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, now() - interval '20 days');
 insert into adjustments(user_id, day, slot_key, minutes) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, 'lunch', 5);

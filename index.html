@@ -1,12 +1,12 @@
-<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://mqyeqrxzjzsfvbbjppxj.supabase.co; base-uri 'none'; form-action 'self'"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="src/styles.css?v=f1a49e4a85"><script src="src/theme.js?v=f1a49e4a85"></script><title>breakpoint</title></head><body>
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://mqyeqrxzjzsfvbbjppxj.supabase.co; base-uri 'none'; form-action 'self'"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="src/styles.css?v=fefe7db143"><script src="src/theme.js?v=fefe7db143"></script><title>breakpoint</title></head><body>
 <main id="gate" class="wrap gate hidden"><div class="mark">break<span>point</span></div><h1>Welcome back</h1><p>Sign in with your code to start today's shift.</p>
 <form id="gateForm" autocomplete="off"><input id="code" placeholder="e.g. EE-001" aria-label="Your code" autocapitalize="characters" required><input id="pw" class="hidden" type="password" placeholder="Password" aria-label="Password" autocomplete="current-password"><p id="gateErr" class="err" role="alert"></p><button class="btn teal" style="width:100%;padding:14px">Sign in</button></form>
 <p class="hint" style="margin-top:18px"><a class="link" href="manager.html">Team lead? Manager sign-in &rarr;</a></p></main>
 
 <div id="app" class="hidden">
 <header class="band"><div class="in"><div class="mark">break<span>point</span></div>
-<nav class="tabs" aria-label="Sections"><button data-tab="day">My day</button><button data-tab="race"> Breakathon</button></nav>
-<div class="who"><span class="live" id="live"><i></i><b>Live</b><time id="clock">--:--:--</time></span><span id="who"></span><button class="theme" id="themeBtn" aria-label="Switch light or dark mode"></button><button class="link" id="pwBtn">Password</button><button class="link" id="signout">Sign out</button></div></div></header>
+<nav class="tabs" aria-label="Sections"><button data-tab="day">My day</button><button data-tab="race" data-race-name>Breakathon</button></nav>
+<div class="who"><span class="live" id="live"><i></i><b>Live</b><time id="clock">--:--:--</time></span><span id="who"></span><button class="theme" id="themeBtn" aria-label="Switch light or dark mode"></button><button class="link" id="uiBtn"></button><button class="link" id="pwBtn">Password</button><button class="link" id="signout">Sign out</button></div></div></header>
 
 <main class="wrap" id="tab-day">
 <section class="panel" aria-labelledby="brkH"><div class="phead"><h2 id="brkH">Your breaks</h2><span class="phead-r"><span class="hint" id="brkSum"></span><button class="cust" id="custBtn" type="button" aria-label="Customise your mascot" title="Customise your mascot"><span class="cust-av" id="custAv" aria-hidden="true"></span></button></span></div><div class="bars" id="bars"></div></section>
@@ -24,7 +24,7 @@
 </div></div></section>
 </main>
 
-<main class="wrap hidden" id="tab-race"><section class="panel"><div class="phead"><h2> Breakathon</h2><div class="seg2" id="weekSel"><button data-week="0" aria-pressed="true">This week</button><button data-week="1" aria-pressed="false">Last week</button></div></div><div id="prize"></div><div id="race"><p class="empty">Loading the race…</p></div></section><div id="look"></div></main>
+<main class="wrap hidden" id="tab-race"><section class="panel"><div class="phead"><h2 data-race-name>Breakathon</h2><div class="seg2" id="weekSel"><button data-week="0" aria-pressed="true">This week</button><button data-week="1" aria-pressed="false">Last week</button></div></div><div id="prize"></div><div id="race"><p class="empty">Loading the race…</p></div></section><div id="look"></div></main>
 </div>
 
-<script type="module" src="src/pages/user.js?v=f1a49e4a85"></script></body></html>
+<script type="module" src="src/pages/user.js?v=fefe7db143"></script></body></html>

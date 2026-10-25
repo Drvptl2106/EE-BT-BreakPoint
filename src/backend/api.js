@@ -10,8 +10,8 @@
 //
 // Every failure is turned into a sentence that says WHAT is wrong and WHERE to fix it (see explain()),
 // so "wrong password" only ever means a wrong code or password.
-import { CONFIG } from '../config.js?v=f1a49e4a85';
-import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=f1a49e4a85';
+import { CONFIG } from '../config.js?v=fefe7db143';
+import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=fefe7db143';
 
 const EMAIL_DOMAIN = '@pilot.local';            // code EE-1001  ->  ee-1001@pilot.local (same as scripts/create_logins.mjs)
 const pad = n => String(n).padStart(2, '0');
@@ -335,6 +335,13 @@ export async function teamLooks() {
 }
 export async function teamRewards(week) {
   const out = {}; (await call(`/rest/v1/rewards?select=user_id,choice,item&week=eq.${week}`)).forEach(a => { if (idToCode[a.user_id]) out[idToCode[a.user_id]] = { choice: a.choice, item: a.item }; });
+  return out;
+}
+/* Interface choice (Playful or Professional): the signed-in person's own, and the team's for managers. */
+export async function myUiStyle() { return (await call(`/rest/v1/ui_prefs?select=style&user_id=eq.${profile.id}`))[0]?.style || null; }
+export const setUiStyle = style => rpc('set_ui_style', { p_style: style });
+export async function teamUiStyles() {
+  const out = {}; (await call('/rest/v1/ui_prefs?select=user_id,style,first_style,first_at,changed_at,switches')).forEach(r => { if (idToCode[r.user_id]) out[idToCode[r.user_id]] = r; });
   return out;
 }
 /** Change the signed-in person's password. */

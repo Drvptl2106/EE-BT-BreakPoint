@@ -195,4 +195,7 @@ test('team pulse: who is over, who is still waiting, and who has gone too long w
   assert.match(text, /Almost everyone has had Break 1\. Still to go: User 4 and User 6\./);
   assert.match(text, /1 on a break right now · 4 working · 1 not clocked in/);
   assert.match(teamPulse([done('User 1'), done('User 2')], NOW).map(m => m.text).join(), /Everyone clocked in has had Break 1\./);
+  const pro = teamPulse(team, NOW, true).map(m => m.text).join('\n');
+  assert.match(pro, /^User 6 is 10 min over on Break 2\.$/m);
+  assert.doesNotMatch(pro, /wake/);
 });

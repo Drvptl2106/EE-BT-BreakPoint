@@ -82,6 +82,7 @@ Break start and stop times are stamped by the database clock when an agent start
 | `adjustments` | +/- minutes, one person, one day, one break | managers of that team |
 | `custom_break_rules` | OH Break 1 to 5 | managers of that team |
 | `break_names` | a manager's name for a break, per person | managers of that team |
+| `ui_prefs` | which look someone picked (Playful or Professional), their first pick, when, and how often they switched | only `set_ui_style()`, for yourself |
 | `audit_log` | every manager change (and an agent moving their own shift times): who, when, what, before, after | only the database triggers |
 
 Making someone a manager is a `role` in `profiles` (or `manager` in the login list). It is never a code in the page.

@@ -407,6 +407,34 @@ revoke execute on function last_week_champion(), my_rewards(), claim_reward(text
 grant execute on function my_rewards(), claim_reward(text, text), set_look(text, text) to authenticated;
 revoke execute on function last_week_champion() from authenticated;
 
+-- ---------- interface choice: Playful or Professional ----------
+-- Everyone picks how the app looks (src/ui.js); the features are the same either way. Kept so the pilot can show which
+-- look people actually prefer: the current choice, the very first pick and how often they switched. Not a break record,
+-- so the 14-day cleanup leaves it alone (like avatars). Only set_ui_style() writes it.
+create table if not exists ui_prefs (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  style text not null check (style in ('fun', 'pro')),
+  first_style text not null check (first_style in ('fun', 'pro')),
+  first_at timestamptz not null default now(),
+  changed_at timestamptz not null default now(),
+  switches int not null default 0);
+alter table ui_prefs enable row level security;
+drop policy if exists "read own or team" on ui_prefs;
+create policy "read own or team" on ui_prefs for select to authenticated using (user_id = auth.uid() or is_manager_of(user_id));
+revoke all on ui_prefs from anon, authenticated;
+grant select on ui_prefs to authenticated;
+create or replace function set_ui_style(p_style text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'Sign in first.'; end if;
+  if p_style is null or p_style not in ('fun', 'pro') then raise exception 'Pick Playful or Professional.'; end if;
+  insert into ui_prefs(user_id, style, first_style) values (auth.uid(), p_style, p_style)
+  on conflict (user_id) do update set style = excluded.style, changed_at = now(), switches = ui_prefs.switches + 1
+    where ui_prefs.style is distinct from excluded.style;
+end $$;
+revoke execute on function set_ui_style(text) from public, anon;
+grant execute on function set_ui_style(text) to authenticated;
+
 -- Retention (= CONFIG.retentionDays): run db/cleanup_job.sql once, after this file.
 
 -- Check: these should list your tables with "true" for row level security.

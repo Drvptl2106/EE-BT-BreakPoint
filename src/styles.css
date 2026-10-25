@@ -183,30 +183,30 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 @media(max-width:700px){.who{margin-left:0}.tabs{order:3;width:100%;justify-content:space-between}.tabs button{flex:1}}
 @media(prefers-reduced-motion:reduce){.ring-fg,.btrack i,.brow,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.arm-wave,.lookprev,.map .cloud,.map .coin,.map .star,.pep.pop p,.cust:hover .cust-av,.btrack.big i{animation:none}.cust{transition:none}}
 
-/* ================= manager page: a calmer, more formal look (body.mgr) =================
+/* ================= manager page, and the Professional view on both pages: a calmer, more formal look =================
    Same colours, less decoration: white header with underline tabs, smaller corners, one typeface, tables over cards,
    no emoji. The mascot only appears as a small status face and peeking over the team summary. */
-.mgr{--r:10px}
-.mgr h2,.mgr h3,.mgr .mark{font-family:var(--body)}.mgr h2{font-size:18px;font-weight:700;letter-spacing:0}
-.mgr .band{background:var(--surface);color:var(--ink);border-bottom:1px solid var(--line)}
-.mgr .band .in{padding-top:0;padding-bottom:0;min-height:58px}.mgr .band .mark{font-size:19px;font-weight:800}.mgr .band .mark span{color:var(--teal)}.mgr .band .mark em{opacity:.6}
-.mgr .tabs{background:none;padding:0;gap:22px;border-radius:0;align-self:stretch}
-.mgr .tabs button{border-radius:0;padding:0 2px;color:var(--muted);border-bottom:2px solid transparent;font-weight:600}
-.mgr .tabs button[aria-selected=true]{background:none;color:var(--ink);border-bottom-color:var(--teal)}
-.mgr .live{background:var(--paper);color:var(--muted);border:1px solid var(--line);font-size:12px}.mgr .live time{color:var(--ink);font-size:14px}
-.mgr .band .link,.mgr .band .who{color:var(--muted)}.mgr .theme{background:var(--paper);border:1px solid var(--line);color:var(--ink);width:32px;height:32px;font-size:14px}
-.mgr .panel,.mgr .scroll,.mgr .dialog,.mgr .champ,.mgr .map{border-radius:var(--r)}.mgr .panel{padding:16px 18px;margin-top:14px}
-.mgr .btn{border-radius:8px;font-weight:600}.mgr .btn.yellow{background:var(--teal);color:#fff}
-.mgr .filters{gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface);grid-template-columns:repeat(6,1fr)}
-.mgr .fbtn{border:0;border-right:1px solid var(--line);border-radius:0;padding:10px 14px;background:transparent}.mgr .fbtn:last-child{border-right:0}
-.mgr .fbtn span{font-size:12px;text-transform:uppercase;letter-spacing:.05em}.mgr .fbtn b{font:700 22px var(--body)}
-.mgr .fbtn[aria-pressed=true]{background:var(--teal-soft);color:var(--ink);box-shadow:inset 0 -3px 0 var(--teal)}.mgr .fbtn[aria-pressed=true] span{color:var(--teal)}
-.mgr .fbtn.bad b,.mgr .fbtn[aria-pressed=true].bad b{color:var(--stop)}
-@media(max-width:800px){.mgr .filters{grid-template-columns:repeat(3,1fr)}.mgr .fbtn:nth-child(3){border-right:0}.mgr .fbtn:nth-child(-n+3){border-bottom:1px solid var(--line)}}
-.mgr .pulsebox{position:relative;margin-top:44px}
-.mgr .peek{position:absolute;right:28px;top:-31px;width:56px;height:50px;pointer-events:none;z-index:-1}.mgr .peek svg{width:100%;height:100%}
-.mgr .pulse{gap:2px}.mgr .pulse li{background:none;border-radius:0;padding:7px 10px;border-left:3px solid var(--teal);font-size:14.5px}.mgr .pulse li::before{display:none}
-.mgr .pulse li.bad{border-left-color:var(--stop);color:var(--stop);font-weight:600}.mgr .pulse li.warn{border-left-color:var(--warn)}.mgr .pulse li.good{border-left-color:var(--go)}
+:is(.mgr,[data-ui=pro] body){--r:10px}
+:is(.mgr,[data-ui=pro] body) h2,:is(.mgr,[data-ui=pro] body) h3,:is(.mgr,[data-ui=pro] body) .mark{font-family:var(--body)}:is(.mgr,[data-ui=pro] body) h2{font-size:18px;font-weight:700;letter-spacing:0}
+:is(.mgr,[data-ui=pro] body) .band{background:var(--surface);color:var(--ink);border-bottom:1px solid var(--line)}
+:is(.mgr,[data-ui=pro] body) .band .in{padding-top:0;padding-bottom:0;min-height:58px}:is(.mgr,[data-ui=pro] body) .band .mark{font-size:19px;font-weight:800}:is(.mgr,[data-ui=pro] body) .band .mark span{color:var(--teal)}:is(.mgr,[data-ui=pro] body) .band .mark em{opacity:.6}
+:is(.mgr,[data-ui=pro] body) .tabs{background:none;padding:0;gap:22px;border-radius:0;align-self:stretch}
+:is(.mgr,[data-ui=pro] body) .tabs button{border-radius:0;padding:0 2px;color:var(--muted);border-bottom:2px solid transparent;font-weight:600}
+:is(.mgr,[data-ui=pro] body) .tabs button[aria-selected=true]{background:none;color:var(--ink);border-bottom-color:var(--teal)}
+:is(.mgr,[data-ui=pro] body) .live{background:var(--paper);color:var(--muted);border:1px solid var(--line);font-size:12px}:is(.mgr,[data-ui=pro] body) .live time{color:var(--ink);font-size:14px}
+:is(.mgr,[data-ui=pro] body) .band .link,:is(.mgr,[data-ui=pro] body) .band .who{color:var(--muted)}:is(.mgr,[data-ui=pro] body) .theme{background:var(--paper);border:1px solid var(--line);color:var(--ink);width:32px;height:32px;font-size:14px}
+:is(.mgr,[data-ui=pro] body) .panel,:is(.mgr,[data-ui=pro] body) .scroll,:is(.mgr,[data-ui=pro] body) .dialog,:is(.mgr,[data-ui=pro] body) .champ,:is(.mgr,[data-ui=pro] body) .map{border-radius:var(--r)}:is(.mgr,[data-ui=pro] body) .panel{padding:16px 18px;margin-top:14px}
+:is(.mgr,[data-ui=pro] body) .btn{border-radius:8px;font-weight:600}:is(.mgr,[data-ui=pro] body) .btn.yellow{background:var(--teal);color:#fff}
+:is(.mgr,[data-ui=pro] body) .filters{gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface);grid-template-columns:repeat(6,1fr)}
+:is(.mgr,[data-ui=pro] body) .fbtn{border:0;border-right:1px solid var(--line);border-radius:0;padding:10px 14px;background:transparent}:is(.mgr,[data-ui=pro] body) .fbtn:last-child{border-right:0}
+:is(.mgr,[data-ui=pro] body) .fbtn span{font-size:12px;text-transform:uppercase;letter-spacing:.05em}:is(.mgr,[data-ui=pro] body) .fbtn b{font:700 22px var(--body)}
+:is(.mgr,[data-ui=pro] body) .fbtn[aria-pressed=true]{background:var(--teal-soft);color:var(--ink);box-shadow:inset 0 -3px 0 var(--teal)}:is(.mgr,[data-ui=pro] body) .fbtn[aria-pressed=true] span{color:var(--teal)}
+:is(.mgr,[data-ui=pro] body) .fbtn.bad b,:is(.mgr,[data-ui=pro] body) .fbtn[aria-pressed=true].bad b{color:var(--stop)}
+@media(max-width:800px){:is(.mgr,[data-ui=pro] body) .filters{grid-template-columns:repeat(3,1fr)}:is(.mgr,[data-ui=pro] body) .fbtn:nth-child(3){border-right:0}:is(.mgr,[data-ui=pro] body) .fbtn:nth-child(-n+3){border-bottom:1px solid var(--line)}}
+:is(.mgr,[data-ui=pro] body) .pulsebox{position:relative;margin-top:44px}
+:is(.mgr,[data-ui=pro] body) .peek{position:absolute;right:28px;top:-31px;width:56px;height:50px;pointer-events:none;z-index:-1}:is(.mgr,[data-ui=pro] body) .peek svg{width:100%;height:100%}
+:is(.mgr,[data-ui=pro] body) .pulse{gap:2px}:is(.mgr,[data-ui=pro] body) .pulse li{background:none;border-radius:0;padding:7px 10px;border-left:3px solid var(--teal);font-size:14.5px}:is(.mgr,[data-ui=pro] body) .pulse li::before{display:none}
+:is(.mgr,[data-ui=pro] body) .pulse li.bad{border-left-color:var(--stop);color:var(--stop);font-weight:600}:is(.mgr,[data-ui=pro] body) .pulse li.warn{border-left-color:var(--warn)}:is(.mgr,[data-ui=pro] body) .pulse li.good{border-left-color:var(--go)}
 .team th{font-size:12px;text-transform:uppercase;letter-spacing:.04em}.team td{padding:10px 14px}
 .team .person{display:flex;align-items:center;gap:10px;min-width:160px}.team .person .av{width:30px;height:30px;flex:none}.team .person svg{width:100%;height:100%}
 .team .person b{display:block;line-height:1.2}.team .person small{color:var(--muted);font-size:12px}
@@ -215,4 +215,16 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .team td.b{min-width:120px}.team td.b .tr{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:4px}.team td.b .tr i{display:block;height:100%;background:var(--teal)}
 .team td.b span{font-size:12.5px;color:var(--muted)}.team td.b.over .tr i{background:var(--stop)}.team td.b.over span{color:var(--stop);font-weight:600}.team td.b.act .tr i{background:var(--warn)}.team td.b.borrow .tr i{background:var(--warn)}.team td.b.borrow span{color:var(--pill-brk-ink);font-weight:600}
 .team td:first-child{border-left:3px solid transparent}.team tr.over td:first-child{border-left-color:var(--stop)}
-.mgr .champ{background:var(--surface);color:var(--ink);border:1px solid var(--line)}.mgr .champ b{color:var(--teal)}
+:is(.mgr,[data-ui=pro] body) .champ{background:var(--surface);color:var(--ink);border:1px solid var(--line)}:is(.mgr,[data-ui=pro] body) .champ b{color:var(--teal)}
+/* ================= the Professional view ([data-ui=pro], src/ui.js) =================
+   Same features, no mascots: the look above on both pages, plus no map, no mascot button, a plain status line instead of the pep talk. */
+[data-ui=pro] .cust,[data-ui=pro] .peek,[data-ui=pro] .mapwrap,[data-ui=pro] #look,[data-ui=pro] .team .person .av,[data-ui=pro] td.empty .av{display:none}
+[data-ui=pro] .mgr .pulsebox{margin-top:14px}
+[data-ui=pro] .pep{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--r)}
+[data-ui=pro] .pep::before{background:var(--teal)}[data-ui=pro] .pep .k{color:var(--teal)}[data-ui=pro] .pep p{font:500 17px/1.45 var(--body);letter-spacing:0}
+[data-ui=pro] .pep.pop p{animation:none}
+[data-ui=pro] .prize{background:var(--teal-soft);color:var(--ink)}
+/* the "pick a look" dialog shown the first time someone signs in */
+#uiPick .dialog{max-width:520px}.uipick{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:520px){.uipick{grid-template-columns:1fr}}
+.uiopt{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:14px;cursor:pointer}
+.uiopt:hover,.uiopt:focus-visible{border-color:var(--teal)}.uiopt b{font-size:17px}.uiopt span{font-size:14px;color:var(--muted)}

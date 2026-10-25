@@ -1,7 +1,7 @@
 // The pep talk next to the shift pie: shop-floor banter and nosy questions that change with the time of day and the shift.
 // Pure text, no storage. Add your own freely; {left} becomes the time left in the shift. Keep it kind: we laugh with
 // customers and ourselves, never at a real person.
-import { durHM } from './core.js?v=f1a49e4a85';
+import { durHM, hhmm } from './core.js?v=fefe7db143';
 
 const BY_HOUR = [
   [0, 9, 'Early start', [
@@ -104,4 +104,13 @@ export function jokeFor(now, r, pct) {
     : pct >= 45 && pct <= 55 ? ["Halfway! If this shift were a contract, you'd be due an upgrade."] : [];
   const pool = [...lines, ...ANY_TIME, ...extra];
   return { kicker, text: pool[tick % pool.length] };
+}
+
+/** The Professional view's version of the pep talk: a plain status line instead of a joke. spare = break seconds left today. */
+export function proNote(now, r, pct, spare) {
+  if (r.active) return { kicker: 'On a break', text: 'Your break timer is running. Press "I\'m back" when you return.' };
+  if (pct === null) return { kicker: 'Set up your day', text: 'Add your shift end time to see your shift progress.' };
+  if (pct < 0) return { kicker: 'Not started yet', text: `Your shift starts at ${hhmm(r.shiftStart)}.` };
+  if (pct >= 100) return { kicker: 'Shift complete', text: 'Your shift is complete. On a shared computer, remember to sign out.' };
+  return { kicker: 'Today', text: `${durHM((r.shiftEnd - now) / 1000)} of your shift left · ${Math.round(spare / 60)} min of break time left today.` };
 }

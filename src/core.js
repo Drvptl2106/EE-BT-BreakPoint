@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=f1a49e4a85';
-import * as api from './backend/api.js?v=f1a49e4a85';
-import { PILOT_USERS } from './pilot.js?v=f1a49e4a85';
+import { CONFIG } from './config.js?v=fefe7db143';
+import * as api from './backend/api.js?v=fefe7db143';
+import { PILOT_USERS } from './pilot.js?v=fefe7db143';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -67,6 +67,19 @@ export async function teamRewards(week) {
   if (API) return api.teamRewards(week);
   const L = fakeLooks(), out = {}; for (const [c, w] of Object.entries(L.rewards)) if (w[week]) out[c] = w[week]; return out;
 }
+/* Interface choice: 'fun' (Playful) or 'pro' (Professional), see src/ui.js. Database mode: saved with the login
+   (db/schema.sql, ui_prefs). Demo mode: the same record, kept in this browser. */
+const UI_KEY = 'bt-ui-prefs:v1';
+const fakeUi = () => { try { return JSON.parse(localStorage.getItem(UI_KEY)) || {}; } catch { return {}; } };
+export const myUiStyle = async code => API ? api.myUiStyle() : fakeUi()[code]?.style || null;
+export async function setUiStyle(code, style) {
+  if (API) return api.setUiStyle(style);
+  const all = fakeUi(), was = all[code], at = new Date(now()).toISOString();
+  if (was?.style === style) return;
+  all[code] = was ? { ...was, style, changed_at: at, switches: was.switches + 1 } : { style, first_style: style, first_at: at, changed_at: at, switches: 0 };
+  localStorage.setItem(UI_KEY, JSON.stringify(all));
+}
+export const teamUiStyles = async () => API ? api.teamUiStyles() : fakeUi();
 export function purge(db){
   if (API) return;                                                              // the database deletes old rows itself (db/cleanup_job.sql)
   const c = new Date(); c.setDate(c.getDate() - CONFIG.retentionDays); const ck = dayKey(c);
@@ -178,13 +191,14 @@ export const FILTERS = [
   { key:'off',     label:'Not clocked in',  test: st => st.key === 'off' },
 ];
 const names = list => list.length <= 3 ? list.join(list.length === 2 ? ' and ' : ', ').replace(/, ([^,]*)$/, ' and $1') : `${list.slice(0,3).join(', ')} and ${list.length-3} more`;
-/** Plain-English team summary for the manager. team = [{ name, rec, p }] for everyone; returns [{ tone: bad|warn|good|info, text }]. */
-export function teamPulse(team, at){
+/** Plain-English team summary for the manager. team = [{ name, rec, p }] for everyone; returns [{ tone: bad|warn|good|info, text }].
+    pro = the Professional view's plainer wording. */
+export function teamPulse(team, at, pro = false){
   const inn = team.filter(t => t.rec), out = [];
   if (!inn.length) return [{ tone:'info', text:'Nobody has clocked in yet today.' }];
   for (const t of inn) { const a = t.p.find(s => s.act); if (!a) continue;
     const over = a.over;
-    if (over >= 5*60) out.push({ tone:'bad', text:`${t.name} is ${Math.round(over/60)} min over on ${a.label}. Go wake ${t.name} up.` });
+    if (over >= 5*60) out.push({ tone:'bad', text:`${t.name} is ${Math.round(over/60)} min over on ${a.label}.${pro ? '' : ` Go wake ${t.name} up.`}` });
     else if (over > CONFIG.overToleranceMinutes*60) out.push({ tone:'bad', text:`${t.name} has just gone over on ${a.label}.` });
   }
   for (const t of inn) if (!t.p.some(s => s.used > 0) && at - t.rec.shiftStart >= CONFIG.noBreakWarnHours*36e5)
