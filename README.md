@@ -41,7 +41,7 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
   (cap, scarf, boots, bow, glasses, sprout) that's theirs for good.
 
 **Two looks, same features**
-- A **Professional view / Playful view** button in the header of both pages. Playful has the mascots, pep talks and the
+- A **briefcase / smile** button in the header of both pages (next to the sun/moon button) switches between the two looks. Playful has the mascots, pep talks and the
   Breakathon game map; Professional uses the calmer manager-page styling, plain wording and shows the weekly scores as a table.
 - Everyone is asked which look they want the first time they sign in, and can switch any time. The choice is saved with their
   login, and team leads see who picked which (Manage > **Interface choice**, with a CSV export) to show what people prefer.

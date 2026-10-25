@@ -1,13 +1,13 @@
-import { CONFIG } from '../config.js?v=fefe7db143';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=fefe7db143';
-import { myRewards, claimReward, setLook } from '../core.js?v=fefe7db143';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=fefe7db143';
-import { setupUi, syncUi, isPro } from '../ui.js?v=fefe7db143';
-import { jokeFor, proNote } from '../jokes.js?v=fefe7db143';
-import { esc, setHtml } from '../dom.js?v=fefe7db143';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=fefe7db143';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=fefe7db143';
-import { toast } from '../chrome.js?v=fefe7db143';
+import { CONFIG } from '../config.js?v=9318095bf0';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=9318095bf0';
+import { myRewards, claimReward, setLook } from '../core.js?v=9318095bf0';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=9318095bf0';
+import { setupUi, syncUi, isPro } from '../ui.js?v=9318095bf0';
+import { jokeFor, proNote } from '../jokes.js?v=9318095bf0';
+import { esc, setHtml } from '../dom.js?v=9318095bf0';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=9318095bf0';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=9318095bf0';
+import { toast } from '../chrome.js?v=9318095bf0';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
