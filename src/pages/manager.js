@@ -1,10 +1,10 @@
-import { CONFIG } from '../config.js?v=3c62140785';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=3c62140785';
-import { teamLooks, teamRewards } from '../core.js?v=3c62140785';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=3c62140785';
-import { esc, setHtml } from '../dom.js?v=3c62140785';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js?v=3c62140785';
-import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=3c62140785';
+import { CONFIG } from '../config.js?v=f1a49e4a85';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=f1a49e4a85';
+import { teamLooks, teamRewards } from '../core.js?v=f1a49e4a85';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=f1a49e4a85';
+import { esc, setHtml } from '../dom.js?v=f1a49e4a85';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js?v=f1a49e4a85';
+import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=f1a49e4a85';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;

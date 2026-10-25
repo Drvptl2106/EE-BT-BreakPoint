@@ -22,10 +22,10 @@ insert into auth.users(id, email) values
   ('00000000-0000-0000-0000-00000000000c', 'mgr-7777@pilot.local'), ('00000000-0000-0000-0000-00000000000d', 'ee-2001@pilot.local'),
   ('00000000-0000-0000-0000-00000000000e', 'mgr-8888@pilot.local');
 insert into profiles(id, code, name, team, role) values
-  ('00000000-0000-0000-0000-00000000000a', 'EE-1001', 'Alex',  'pilot', 'agent'),
-  ('00000000-0000-0000-0000-00000000000b', 'EE-1002', 'Priya', 'pilot', 'agent'),
+  ('00000000-0000-0000-0000-00000000000a', 'EE-1001', 'User 1', 'pilot', 'agent'),
+  ('00000000-0000-0000-0000-00000000000b', 'EE-1002', 'User 2', 'pilot', 'agent'),
   ('00000000-0000-0000-0000-00000000000c', 'MGR-7777', 'Lead', 'pilot', 'manager'),
-  ('00000000-0000-0000-0000-00000000000d', 'EE-2001', 'Sam',   'other', 'agent'),
+  ('00000000-0000-0000-0000-00000000000d', 'EE-2001', 'User 3', 'other', 'agent'),
   ('00000000-0000-0000-0000-00000000000e', 'MGR-8888', 'Other lead', 'other', 'manager');
 
 -- ---------- B and X already have a day on record ----------

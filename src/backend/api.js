@@ -10,8 +10,8 @@
 //
 // Every failure is turned into a sentence that says WHAT is wrong and WHERE to fix it (see explain()),
 // so "wrong password" only ever means a wrong code or password.
-import { CONFIG } from '../config.js?v=3c62140785';
-import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=3c62140785';
+import { CONFIG } from '../config.js?v=f1a49e4a85';
+import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=f1a49e4a85';
 
 const EMAIL_DOMAIN = '@pilot.local';            // code EE-1001  ->  ee-1001@pilot.local (same as scripts/create_logins.mjs)
 const pad = n => String(n).padStart(2, '0');

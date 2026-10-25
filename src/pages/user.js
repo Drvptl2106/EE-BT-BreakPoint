@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=3c62140785';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=3c62140785';
-import { myRewards, claimReward, setLook } from '../core.js?v=3c62140785';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=3c62140785';
-import { jokeFor } from '../jokes.js?v=3c62140785';
-import { esc, setHtml } from '../dom.js?v=3c62140785';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=3c62140785';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=3c62140785';
-import { toast } from '../chrome.js?v=3c62140785';
+import { CONFIG } from '../config.js?v=f1a49e4a85';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=f1a49e4a85';
+import { myRewards, claimReward, setLook } from '../core.js?v=f1a49e4a85';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=f1a49e4a85';
+import { jokeFor } from '../jokes.js?v=f1a49e4a85';
+import { esc, setHtml } from '../dom.js?v=f1a49e4a85';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=f1a49e4a85';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=f1a49e4a85';
+import { toast } from '../chrome.js?v=f1a49e4a85';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';

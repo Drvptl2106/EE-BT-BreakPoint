@@ -42,7 +42,7 @@ the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo 
 
 **Team leads**
 - **Dashboard** (view only): filters for everyone / on a break / running over / taken a break / no break yet / not clocked in,
-  a "team pulse" in plain English ("Almost everyone has had Break 1, still to go: Sam", "Jordan is 6 min over, go wake Jordan up"),
+  a "team pulse" in plain English ("Almost everyone has had Break 1, still to go: User 3", "User 4 is 6 min over, go wake User 4 up"),
   and a live card per person.
 - **Manage:** +/- 5 minute adjustments, and per person: shift start and end, break history (edit, remove, log a missed break),
   OH breaks (today, chosen weekdays or every day), break names, and the change history. Export the last 14 days as CSV.

@@ -55,8 +55,8 @@ test('error messages say what is wrong, and only a real bad password says "not r
 });
 
 test('login list: codes, names and roles are checked', () => {
-  const p = parsePeople('# comment\ncode,name,role\nee-1001, Alex ,\nMGR-1,Lead,manager\n\n');
-  assert.deepEqual(p.map(x => [x.code, x.name, x.role, x.email]), [['EE-1001', 'Alex', 'agent', 'ee-1001@pilot.local'], ['MGR-1', 'Lead', 'manager', 'mgr-1@pilot.local']]);
+  const p = parsePeople('# comment\ncode,name,role\nee-1001, User 1 ,\nMGR-1,Lead,manager\n\n');
+  assert.deepEqual(p.map(x => [x.code, x.name, x.role, x.email]), [['EE-1001', 'User 1', 'agent', 'ee-1001@pilot.local'], ['MGR-1', 'Lead', 'manager', 'mgr-1@pilot.local']]);
   assert.throws(() => parsePeople('EE-1,A\nee-1,B'), /twice/);
   assert.throws(() => parsePeople('EE-1,A,boss'), /role/);
   assert.throws(() => parsePeople('EE 1,A'), /not a valid code/);
