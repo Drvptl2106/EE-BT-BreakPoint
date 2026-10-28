@@ -1,13 +1,14 @@
-import { CONFIG } from '../config.js?v=c48b594341';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=c48b594341';
-import { myRewards, claimReward, setLook } from '../core.js?v=c48b594341';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=c48b594341';
-import { setupUi, syncUi, isPro } from '../ui.js?v=c48b594341';
-import { jokeFor, proNote } from '../jokes.js?v=c48b594341';
-import { esc, setHtml } from '../dom.js?v=c48b594341';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=c48b594341';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=c48b594341';
-import { toast } from '../chrome.js?v=c48b594341';
+import { CONFIG } from '../config.js?v=b142b5df5f';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=b142b5df5f';
+import { myRewards, claimReward, setLook } from '../core.js?v=b142b5df5f';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=b142b5df5f';
+import { setupIdeas } from '../ideas.js?v=b142b5df5f';
+import { setupUi, syncUi, isPro } from '../ui.js?v=b142b5df5f';
+import { jokeFor, proNote } from '../jokes.js?v=b142b5df5f';
+import { esc, setHtml } from '../dom.js?v=b142b5df5f';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=b142b5df5f';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=b142b5df5f';
+import { toast } from '../chrome.js?v=b142b5df5f';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -19,7 +20,7 @@ function showGate(){$('#gate').classList.remove('hidden');$('#app').classList.ad
 $('#gateForm').addEventListener('submit',async e=>{e.preventDefault();const c=$('#code').value.trim().toUpperCase();
   if(API){const btn=e.submitter;if(btn)btn.disabled=true;try{const m=await signIn(c,$('#pw').value);if(m.role!=='agent'){await signOut();$('#gateErr').textContent="That's a manager code. Team leads sign in on the manager page (link below).";return}code=m.code;$('#pw').value='';$('#gateErr').textContent='';boot()}catch(err){$('#gateErr').textContent=err.message}finally{if(btn)btn.disabled=false}return}
   if(!USERS[c]){$('#gateErr').textContent=MANAGER_CODES[c]?"That's a manager code. Team leads sign in on the manager page (link below).":"That code isn't on the pilot list. Check it with your team lead.";return}code=c;localStorage.setItem(SESSION,c);$('#gateErr').textContent='';boot()});
-$('#signout').addEventListener('click',async()=>{localStorage.removeItem(SESSION);code=null;document.title='breakpoint';await signOut();showGate()});
+$('#signout').addEventListener('click',async()=>{ideas.show(false);localStorage.removeItem(SESSION);code=null;document.title='breakpoint';await signOut();showGate()});
 
 /* ---------- changes ---------- */
 function ensureRec(){db=load();purge(db);const d=(db.days[TODAY]??={});if(!d[code])d[code]={name:USERS[code],shiftStart:Math.floor(now()/60000)*60000,shiftEnd:null,breaks:[],active:null};save(db)}
@@ -130,9 +131,9 @@ async function drawRace(){if(tab!=='race')return;try{
   catch(err){$('#race').innerHTML=`<p class="empty">${esc(err.message)}</p>`}}
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);document.querySelectorAll('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 
-let t1,t2,clock,tabsReady=false;
+let t1,t2,clock,tabsReady=false;const ideas=setupIdeas($('#ideas'),{who:()=>code});
 function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();loadMine();syncUi(code);
-  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;showTab=setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
+  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;showTab=setupTabs(t=>{tab=t;clearInterval(raceT);ideas.show(t==='ideas');if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});
 setupPassword();setupTheme();setupApp();wireRacers($('#race'));

@@ -60,6 +60,10 @@ own files on the phone so it opens fast on a weak signal. Every update to this r
 - Everyone is asked which look they want the first time they sign in, and can switch any time. The choice is saved with their
   login, and team leads see who picked which (Manage > **Interface choice**, with a CSV export) to show what people prefer.
 
+**Ideas (both pages)**
+- Anyone can post an idea, a change or a bug, with their name or **anonymously** (then no author is stored at all).
+  Everyone in the team sees them and votes 👍; team leads mark them New, Planned, Done or Not now. Most wanted first.
+
 **Team leads**
 - **Dashboard** (view only): filters for everyone / on a break / running over / taken a break / no break yet / not clocked in,
   a "team pulse" in plain English ("Almost everyone has had Break 1, still to go: User 3", "User 4 is 6 min over, go wake User 4 up"),
@@ -79,7 +83,8 @@ audit trail nobody can edit. Breakathon gives agents names and points only, neve
 ## What it stores, and what it never stores
 
 - Stores: first name, shift and break times, allowance adjustments in minutes, OH break rules, break names a manager chose, the audit trail,
-  and which look (Playful or Professional) each person picked, with their first pick and how often they switched.
+  which look (Playful or Professional) each person picked, with their first pick and how often they switched,
+  and the Ideas tab's suggestions and votes (anonymous ones without an author).
 - Never stores: the **reason** for a break, an adjustment or an edit. There is no such field anywhere, and tests fail if one appears.
 
 ## Layout
@@ -113,6 +118,6 @@ docs/                        ARCHITECTURE.md, DATABASE.md
 ## Ground rules for this repo
 
 1. **No data, no secrets in git.** `.gitignore` covers `.env`, `people.csv` and the generated `logins-*.csv`.
-2. **No free-text reason fields**, anywhere, ever.
+2. **No free-text reason fields on break records**, ever. (The Ideas tab takes free text, but only about the app, and says so.)
 3. **Security lives in the database**, not in hidden buttons.
 4. Anything adjustable goes in `src/config.js` (colours in `src/styles.css`), not in the code.

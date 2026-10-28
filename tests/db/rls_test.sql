@@ -266,6 +266,55 @@ select t.denied($$select set_ui_style('pro')$$);
 select t.ok(true, 'signed-out visitors cannot record a choice');
 commit;
 
+-- ---------- suggestions ----------
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select suggest('idea', '  A reminder   one minute before my break ends ');
+select suggest('bug', 'The clock froze once', true);
+select t.ok((select body from suggestions_list() where kind = 'idea') = 'A reminder one minute before my break ends', 'a suggestion is saved, tidied');
+select t.ok((select author || '/' || mine from suggestions_list() where kind = 'idea') = 'User 1/true', 'your own suggestion shows your name and is marked as yours');
+select t.ok((select author is null and not mine from suggestions_list() where kind = 'bug'), 'an anonymous one shows no name, not even to its author');
+select t.denied($$select suggest('rant', 'not a real kind')$$);
+select t.denied($$select suggest('idea', 'x')$$);
+select t.denied($$select suggest('idea', repeat('a', 501))$$);
+select t.denied($$select * from suggestions$$);
+select t.denied($$insert into suggestion_votes values ((select id from suggestions_list() limit 1), auth.uid())$$);
+select t.denied($$select set_suggestion_status((select id from suggestions_list() limit 1), 'done')$$);
+select t.ok(true, 'only real kinds and sensible lengths; no direct table access; agents cannot set the status');
+commit;
+select t.ok((select count(*) from suggestions where kind = 'bug' and author_id is null) = 1, 'an anonymous suggestion stores no author at all');
+select id as idea_id from suggestions where kind = 'idea' \gset
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true); set local role authenticated;
+select t.ok(t.n('select * from suggestions_list()') = 2, 'everyone in the team sees the team''s suggestions');
+select vote_suggestion((select id from suggestions_list() where kind = 'idea'), true);
+select vote_suggestion((select id from suggestions_list() where kind = 'idea'), true);
+select t.ok((select votes || '/' || voted from suggestions_list() where kind = 'idea') = '1/true', 'a vote counts once, however often you tap');
+select t.denied($$select remove_suggestion((select id from suggestions_list() where kind = 'idea'))$$);
+select t.ok(true, 'you cannot remove someone else''s suggestion');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000d', true); set local role authenticated;
+select t.ok(t.n('select * from suggestions_list()') = 0, 'another team does not see them');
+select t.denied(format('select vote_suggestion(%L, true)', :'idea_id'));
+select t.ok(true, 'and cannot reach them');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
+select set_suggestion_status((select id from suggestions_list() where kind = 'idea'), 'planned');
+select t.ok((select status from suggestions_list() where kind = 'idea') = 'planned', 'the team lead marks a suggestion as planned');
+select remove_suggestion((select id from suggestions_list() where kind = 'bug'));
+select t.ok(t.n('select * from suggestions_list()') = 1, 'the team lead can remove one (for example something inappropriate)');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', true); set local role authenticated;
+select t.denied(format('select set_suggestion_status(%L, %L)', :'idea_id', 'done'));
+select t.ok(true, 'another team''s lead cannot change it');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select remove_suggestion((select id from suggestions_list() where kind = 'idea'));
+select t.ok(t.n('select * from suggestions_list()') = 0, 'you can remove your own suggestion');
+commit;
+begin; set local role anon;
+select t.denied($$select * from suggestions_list()$$);
+select t.ok(true, 'signed-out visitors see no suggestions');
+commit;
+
 -- ---------- cleanup job ----------
 insert into shifts(user_id, day, shift_start) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, now() - interval '20 days');
 insert into adjustments(user_id, day, slot_key, minutes) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, 'lunch', 5);

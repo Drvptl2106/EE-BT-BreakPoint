@@ -10,8 +10,8 @@
 //
 // Every failure is turned into a sentence that says WHAT is wrong and WHERE to fix it (see explain()),
 // so "wrong password" only ever means a wrong code or password.
-import { CONFIG } from '../config.js?v=c48b594341';
-import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=c48b594341';
+import { CONFIG } from '../config.js?v=b142b5df5f';
+import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=b142b5df5f';
 
 const EMAIL_DOMAIN = '@pilot.local';            // code EE-1001  ->  ee-1001@pilot.local (same as scripts/create_logins.mjs)
 const pad = n => String(n).padStart(2, '0');
@@ -344,6 +344,12 @@ export async function teamUiStyles() {
   const out = {}; (await call('/rest/v1/ui_prefs?select=user_id,style,first_style,first_at,changed_at,switches')).forEach(r => { if (idToCode[r.user_id]) out[idToCode[r.user_id]] = r; });
   return out;
 }
+/* Suggestions: the database checks the team, the anonymity, one vote each and who may set the status (db/schema.sql). */
+export const suggestionsList = () => rpc('suggestions_list');
+export const suggest = (kind, body, anonymous) => rpc('suggest', { p_kind: kind, p_body: body, p_anonymous: !!anonymous });
+export const voteSuggestion = (id, on) => rpc('vote_suggestion', { p_id: id, p_on: on });
+export const setSuggestionStatus = (id, status) => rpc('set_suggestion_status', { p_id: id, p_status: status });
+export const removeSuggestion = id => rpc('remove_suggestion', { p_id: id });
 /** Change the signed-in person's password. */
 export async function changePassword(password) {
   const pw = String(password ?? '');

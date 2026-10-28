@@ -228,6 +228,21 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 #uiPick .dialog{max-width:520px}.uipick{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:520px){.uipick{grid-template-columns:1fr}}
 .uiopt{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:14px;cursor:pointer}
 .uiopt:hover,.uiopt:focus-visible{border-color:var(--teal)}.uiopt b{font-size:17px}.uiopt span{font-size:14px;color:var(--muted)}
+/* ================= Ideas: suggestions from the people using the app (src/ideas.js) ================= */
+.ideaform textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--paper);font:inherit;font-size:16px;resize:vertical;min-height:84px}
+.kinds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.kind{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted)}
+.kind[aria-checked=true]{background:var(--teal-soft);border-color:var(--teal);color:var(--ink)}
+.ideabar{display:flex;align-items:center;gap:12px;margin-top:8px}.ideabar .anon{display:flex;align-items:center;gap:6px;font-size:14px}.ideabar .btn{margin-left:auto}
+.idealist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.idea{display:flex;gap:12px;align-items:flex-start;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.idea p{margin:4px 0 6px;white-space:pre-wrap;overflow-wrap:anywhere}.idea.st-done{opacity:.7}
+.vote{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:52px;padding:8px 6px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:16px}
+.vote b{font-size:15px}.vote.on{background:var(--teal-soft);border-color:var(--teal)}
+.ibody{flex:1;min-width:0}.imeta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:12.5px;color:var(--muted)}
+.ikind{font-weight:700;color:var(--ink)}.istatus{padding:1px 8px;border-radius:999px;background:var(--pill-none);font-weight:700;color:var(--ink)}
+.st-planned .istatus{background:var(--pill-brk);color:var(--pill-brk-ink)}.st-done .istatus{background:var(--teal-soft);color:var(--teal)}
+.imeta select{font-size:13px;padding:2px 6px;border-radius:8px;border:1px solid var(--line);background:var(--surface)}.imeta .link{font-size:12.5px;padding:0}
 /* ================= the phone app (both pages, installed or in the browser) =================
    On a big screen the header has text tabs and links; on a phone the tabs move to a bottom bar with icons (in thumb reach),
    the header becomes one compact row of round buttons, the manager's tables turn into one card per person and the

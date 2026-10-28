@@ -435,6 +435,78 @@ end $$;
 revoke execute on function set_ui_style(text) from public, anon;
 grant execute on function set_ui_style(text) to authenticated;
 
+-- ---------- suggestions: ideas, changes and bugs from the people using the app ----------
+-- Everyone in a team sees every suggestion and can vote for the ones they want; team leads mark them planned / done / not now.
+-- "Post anonymously" means the author is NOT stored at all (author_id is null), so not even the database knows who wrote it.
+-- About the app only (the page says so): this is not a break record, and break records still have no free-text field.
+-- Nobody touches the tables directly; the functions below check who you are and which team you're in.
+create table if not exists suggestions (
+  id uuid primary key default gen_random_uuid(),
+  team text not null,
+  author_id uuid references profiles(id) on delete set null,          -- null = posted anonymously
+  kind text not null check (kind in ('idea', 'change', 'bug', 'other')),
+  body text not null check (body = btrim(body) and char_length(body) between 3 and 500),
+  status text not null default 'new' check (status in ('new', 'planned', 'done', 'not_now')),
+  at timestamptz not null default now());
+create table if not exists suggestion_votes (
+  suggestion_id uuid not null references suggestions(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  primary key (suggestion_id, user_id));
+alter table suggestions enable row level security; alter table suggestion_votes enable row level security;
+revoke all on suggestions, suggestion_votes from anon, authenticated;
+
+create or replace function my_team() returns text language sql stable security definer set search_path = public as $$
+  select team from profiles where id = auth.uid()
+$$;
+drop function if exists suggestions_list();
+create or replace function suggestions_list()
+returns table (id uuid, kind text, body text, status text, at timestamptz, author text, mine boolean, votes int, voted boolean)
+language sql stable security definer set search_path = public as $$
+  select s.id, s.kind, s.body, s.status, s.at, p.name, s.author_id is not distinct from auth.uid() and s.author_id is not null,
+         (select count(*) from suggestion_votes v where v.suggestion_id = s.id)::int,
+         exists (select 1 from suggestion_votes v where v.suggestion_id = s.id and v.user_id = auth.uid())
+  from suggestions s left join profiles p on p.id = s.author_id
+  where auth.uid() is not null and s.team = my_team()
+  order by s.at desc
+$$;
+create or replace function suggest(p_kind text, p_body text, p_anonymous boolean default false) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare t text := my_team(); b text := btrim(regexp_replace(coalesce(p_body, ''), '\s+', ' ', 'g')); new_id uuid;
+begin
+  if t is null then raise exception 'Sign in first.'; end if;
+  if char_length(b) < 3 then raise exception 'Write a few words first.'; end if;
+  if char_length(b) > 500 then raise exception 'Keep it under 500 characters.'; end if;
+  if p_kind is null or p_kind not in ('idea', 'change', 'bug', 'other') then raise exception 'Pick idea, change, bug or other.'; end if;
+  insert into suggestions(team, author_id, kind, body) values (t, case when p_anonymous then null else auth.uid() end, p_kind, b)
+  returning suggestions.id into new_id;
+  return new_id;
+end $$;
+create or replace function vote_suggestion(p_id uuid, p_on boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from suggestions where id = p_id and team = my_team()) then raise exception 'That suggestion isn''t there any more.'; end if;
+  if p_on then insert into suggestion_votes values (p_id, auth.uid()) on conflict do nothing;
+  else delete from suggestion_votes where suggestion_id = p_id and user_id = auth.uid(); end if;
+end $$;
+create or replace function set_suggestion_status(p_id uuid, p_status text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not is_manager() then raise exception 'Only team leads can change the status.'; end if;
+  if p_status is null or p_status not in ('new', 'planned', 'done', 'not_now') then raise exception 'Pick new, planned, done or not now.'; end if;
+  update suggestions set status = p_status where id = p_id and team = my_team();
+  if not found then raise exception 'That suggestion isn''t there any more.'; end if;
+end $$;
+create or replace function remove_suggestion(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from suggestions where id = p_id and team = my_team() and (author_id = auth.uid() or is_manager());
+  if not found then raise exception 'You can only remove your own suggestions.'; end if;
+end $$;
+revoke execute on function my_team(), suggestions_list(), suggest(text, text, boolean), vote_suggestion(uuid, boolean),
+  set_suggestion_status(uuid, text), remove_suggestion(uuid) from public, anon;
+grant execute on function suggestions_list(), suggest(text, text, boolean), vote_suggestion(uuid, boolean),
+  set_suggestion_status(uuid, text), remove_suggestion(uuid) to authenticated;
+
 -- Retention (= CONFIG.retentionDays): run db/cleanup_job.sql once, after this file.
 
 -- Check: these should list your tables with "true" for row level security.

@@ -1,11 +1,12 @@
-import { CONFIG } from '../config.js?v=c48b594341';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=c48b594341';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=c48b594341';
-import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=c48b594341';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=c48b594341';
-import { esc, setHtml } from '../dom.js?v=c48b594341';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=c48b594341';
-import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=c48b594341';
+import { CONFIG } from '../config.js?v=b142b5df5f';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=b142b5df5f';
+import { setupIdeas } from '../ideas.js?v=b142b5df5f';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=b142b5df5f';
+import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=b142b5df5f';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=b142b5df5f';
+import { esc, setHtml } from '../dom.js?v=b142b5df5f';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=b142b5df5f';
+import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=b142b5df5f';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -13,7 +14,7 @@ function showGate(){$('#gate').classList.remove('hidden');$('#app').classList.ad
 $('#gateForm').addEventListener('submit',async e=>{e.preventDefault();const c=$('#code').value.trim().toUpperCase();
   if(CONFIG.backend==='api'){const btn=e.submitter;if(btn)btn.disabled=true;try{const m=await signIn(c,$('#pw').value);if(m.role==='agent'){await signOut();$('#gateErr').textContent="That's a staff code. Staff sign in on the main page (link below).";return}mgr=m.code;$('#pw').value='';$('#gateErr').textContent='';boot()}catch(err){$('#gateErr').textContent=err.message}finally{if(btn)btn.disabled=false}return}
   if(!MANAGER_CODES[c]){$('#gateErr').textContent=PILOT_USERS[c]?"That's a staff code. Staff sign in on the main page (link below).":"That code isn't recognised. Check it and try again.";return}mgr=c;sessionStorage.setItem(SESSION,c);$('#gateErr').textContent='';boot()});
-$('#signout').addEventListener('click',async()=>{sessionStorage.removeItem(SESSION);mgr=null;await signOut();showGate()});
+$('#signout').addEventListener('click',async()=>{ideas.show(false);sessionStorage.removeItem(SESSION);mgr=null;await signOut();showGate()});
 const adjUI=(c,s,dt,name)=>{const l=CONFIG.adjustmentLimits,d=dt===TODAY?'':` data-date="${dt}"`,lb=esc(s.label),nm=esc(name);return `<div class="adj"><button data-u="${c}" data-s="${s.key}" data-d="-5"${d} aria-label="Take 5 minutes off ${lb} for ${nm}" ${s.adjust<=l.min?'disabled':''}>−</button><output class="${s.adjust?'on':''}">${s.adjust>0?'+':''}${s.adjust} min</output><button data-u="${c}" data-s="${s.key}" data-d="5"${d} aria-label="Add 5 minutes to ${lb} for ${nm}" ${s.adjust>=l.max?'disabled':''}>+</button></div>`};
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-u]');if(!b)return;db=load();const dt=b.dataset.date||TODAY,u=((db.adj[dt]??={})[b.dataset.u]??={}),l=CONFIG.adjustmentLimits;
   const v=Math.max(l.min,Math.min(l.max,(u[b.dataset.s]||0)+Number(b.dataset.d)));if(v)u[b.dataset.s]=v;else delete u[b.dataset.s];save(db);render(true);if(det)draw()});
@@ -163,9 +164,9 @@ const liveText=(label,own,spare)=>`${label} · ${spare<0?mmss(Math.floor(-spare)
 function liveTick(){const at=now();$$('[data-live]').forEach(el=>{const t=Number(el.dataset.rt||(el.dataset.rt=at)),gone=(at-t)/1000,own=Number(el.dataset.left)-gone,spare=Number(el.dataset.spare)-gone;
     el.textContent=liveText(el.dataset.label,own,spare);el.classList.toggle('over',spare<0);el.classList.toggle('borrow',own<0&&spare>=0)});
   $$('[data-cell]').forEach(el=>el.textContent=mmss(Number(el.dataset.prior)+(at-Number(el.dataset.start))/1000))}
-let t1,t2,clock,tabsReady=false;
+let t1,t2,clock,tabsReady=false;const ideas=setupIdeas($('#ideas'),{who:()=>mgr,manager:true});
 function boot(){if(!mgr||!MANAGER_CODES[mgr])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');$('#who').textContent=MANAGER_CODES[mgr];if(CONFIG.backend==='api'){$('#demo')?.remove();$('#clear')?.remove()}db=load();purge(db);save(db);render(true);
-  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
+  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);ideas.show(t==='ideas');if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();syncUi(mgr);loadUiChoices();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000){loadLooks();loadUiChoices()}if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&mgr&&!det){db=load();render()}});
 setupPassword();setupTheme();setupApp();wireRacers($('#race'));
