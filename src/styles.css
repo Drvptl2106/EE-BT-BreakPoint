@@ -119,6 +119,26 @@ h2{font-family:var(--display);font-size:var(--fs-xl);font-weight:var(--fw-head);
 .brow.borrow .btrack.big i{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.3) 0 12px,transparent 12px 24px),linear-gradient(90deg,var(--accent),var(--warn))}
 .brow.on.over{background:var(--danger-soft)}.brow.over .btrack .bt{color:var(--stop)}
 .brow.over .btrack.big i{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.2) 0 12px,transparent 12px 24px),linear-gradient(90deg,var(--stop),var(--over))}
+/* the running break as a live card (like a ride in progress: big countdown, "back at", stages, I'm back) and the
+   "Up next" card that starts the next break in one tap (like "order again"). Teal while on time, amber while it borrows
+   from the other breaks, red once the day's break time is used up. */
+.brow.now,.upnext{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin:4px 0 8px;padding:20px;border-radius:var(--r-lg);background:var(--hero);color:var(--on-hero)}
+.brow.now+.brow,.upnext+.brow{border-top:0}
+.now-k{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.now-big{display:flex;align-items:baseline;gap:8px;line-height:1}.now-big b{font:800 60px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}.now-big small{font-size:18px;font-weight:600;opacity:.85}
+.now-big.sm b{font-size:30px;letter-spacing:-.02em}.now-big.sm small{font-size:16px}
+.eta{display:inline-flex;align-items:center;padding:6px 12px;border-radius:var(--r-pill);background:rgba(255,255,255,.14);font-weight:700;font-size:14px}
+.stages{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}.stages span{display:flex;flex-direction:column;gap:6px;font-size:11.5px;opacity:.75}
+.stages i{height:6px;border-radius:var(--r-pill);background:rgba(255,255,255,.22)}.stages .on{opacity:1;font-weight:700}.stages .on i{background:var(--accent)}
+.brow.now .say,.upnext .say{margin:0;font-size:15px;font-weight:600;color:inherit}
+.brow.now .btn,.upnext .btn{width:100%;min-height:52px;font-size:17px;border-radius:var(--r-md)}
+.brow.now.borrow,.brow.now.over{color:var(--ink)}.brow.now.borrow{background:var(--accent-soft)}.brow.now.over{background:var(--danger-soft)}
+.brow.now.borrow .now-k{color:var(--on-accent-soft)}.brow.now.over .now-k,.brow.now.over .now-big b{color:var(--danger)}
+.brow.now.borrow .eta,.brow.now.over .eta{background:rgba(0,0,0,.07)}.brow.now.borrow .stages i,.brow.now.over .stages i{background:rgba(0,0,0,.12)}
+.brow.now.borrow .stages .on i{background:var(--warning)}.brow.now.over .stages .on i{background:var(--danger)}
+.streak{display:inline-flex;align-items:center;padding:5px 11px;border-radius:var(--r-pill);background:var(--accent-soft);color:var(--on-accent-soft);font-size:13px;font-weight:700;white-space:nowrap}
+[data-ui=pro] .streak{background:var(--surface-3);color:var(--ink-2)}
+.tabs [data-tab]{position:relative}.tabs .has-new::after{content:"";position:absolute;top:4px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 2px var(--surface)}
 /* ---- agent: shift pie + motivation ---- */
 .shiftgrid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(240px,1fr);gap:22px;align-items:center}
 @media(max-width:760px){.shiftgrid{grid-template-columns:1fr}}

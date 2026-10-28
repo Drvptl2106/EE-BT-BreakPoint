@@ -40,6 +40,9 @@ export const CONFIG = {
   // Bounds for a manager's adjustment, in minutes.
   adjustmentLimits: { min: -30, max: 120 },
 
+  // Break alerts (src/notify.js): a heads-up this many minutes before a running break's time is up.
+  alertBeforeMinutes: 2,
+
   // A break left running this long is closed automatically and flagged.
   forgotToStopMinutes: 90,
 

@@ -1,6 +1,6 @@
 // The parts both pages share: the live clock (to the second), the Live pill, tabs, a small toast and "change password".
-import { CONFIG } from './config.js?v=dd56730b06';
-import { now, changePassword } from './core.js?v=dd56730b06';
+import { CONFIG } from './config.js?v=fbf0dd54c0';
+import { now, changePassword } from './core.js?v=fbf0dd54c0';
 
 const $ = s => document.querySelector(s);
 const API = CONFIG.backend === 'api';
