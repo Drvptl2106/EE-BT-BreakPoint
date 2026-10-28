@@ -1,14 +1,14 @@
-import { CONFIG } from '../config.js?v=b142b5df5f';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=b142b5df5f';
-import { myRewards, claimReward, setLook } from '../core.js?v=b142b5df5f';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=b142b5df5f';
-import { setupIdeas } from '../ideas.js?v=b142b5df5f';
-import { setupUi, syncUi, isPro } from '../ui.js?v=b142b5df5f';
-import { jokeFor, proNote } from '../jokes.js?v=b142b5df5f';
-import { esc, setHtml } from '../dom.js?v=b142b5df5f';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=b142b5df5f';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=b142b5df5f';
-import { toast } from '../chrome.js?v=b142b5df5f';
+import { CONFIG } from '../config.js?v=610734a0c5';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=610734a0c5';
+import { myRewards, claimReward, setLook } from '../core.js?v=610734a0c5';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=610734a0c5';
+import { setupIdeas } from '../ideas.js?v=610734a0c5';
+import { setupUi, syncUi, isPro } from '../ui.js?v=610734a0c5';
+import { jokeFor, proNote } from '../jokes.js?v=610734a0c5';
+import { esc, setHtml } from '../dom.js?v=610734a0c5';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=610734a0c5';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=610734a0c5';
+import { toast } from '../chrome.js?v=610734a0c5';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
