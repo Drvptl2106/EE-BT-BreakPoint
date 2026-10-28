@@ -1,6 +1,6 @@
 // The parts both pages share: the live clock (to the second), the Live pill, tabs, a small toast and "change password".
-import { CONFIG } from './config.js?v=9318095bf0';
-import { now, changePassword } from './core.js?v=9318095bf0';
+import { CONFIG } from './config.js?v=c48b594341';
+import { now, changePassword } from './core.js?v=c48b594341';
 
 const $ = s => document.querySelector(s);
 const API = CONFIG.backend === 'api';
@@ -56,7 +56,30 @@ export function setupPassword() {
     finally { b.disabled = false; }
   });
 }
-const SUN = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>';
+/* ---------------- the phone app ----------------
+   Both pages can be installed on a phone's home screen (app.webmanifest, manager.webmanifest): they then open full screen
+   with their own icon, and stay signed in. sw.js keeps the app's own files on the phone so it opens fast on a weak signal.
+   A small card offers to install it: Android shows the system Install button, iPhone explains Share > Add to Home Screen. */
+const INSTALL_KEY = 'bt-install-later', LATER_DAYS = 7;
+const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+export function setupApp() {
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost'))
+    navigator.serviceWorker.register('sw.js').catch(() => {});      // the app works the same without it
+  if (installed() || !matchMedia('(max-width: 700px), (pointer: coarse)').matches) return;
+  try { if (Date.now() - Number(localStorage.getItem(INSTALL_KEY) || 0) < LATER_DAYS * 864e5) return; } catch {}
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const show = (text, action) => {
+    if ($('#install')) return;
+    document.body.insertAdjacentHTML('beforeend', `<div class="install" id="install" role="dialog" aria-label="Install the app"><p>${text}</p>
+      <div class="row">${action ? '<button class="btn teal sm" id="installGo">Install</button>' : ''}<button class="btn ghost sm" id="installLater">Not now</button></div></div>`);
+    $('#installLater').addEventListener('click', () => { try { localStorage.setItem(INSTALL_KEY, Date.now()); } catch {} $('#install').remove(); });
+    $('#installGo')?.addEventListener('click', async () => { $('#install').remove(); await action(); });
+  };
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); show('<b>Install Break Point</b> on your phone: one tap from your home screen, full screen, and you stay signed in.', () => e.prompt()); });
+  if (ios) show('<b>Add Break Point to your home screen:</b> tap <b>Share</b> <span aria-hidden="true">⬆︎</span> at the bottom of Safari, then <b>Add to Home Screen</b>.');
+}
+
+const SUN ='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>';
 const MOON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" fill="currentColor"/></svg>';
 /** Sun/moon button: switches light and dark. Starts from the device setting; the choice is remembered on this device. */
 export function setupTheme() {

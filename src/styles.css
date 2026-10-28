@@ -180,7 +180,7 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .rank tr.hl{outline:3px solid var(--ee-yellow);outline-offset:-3px}
 .rank td:first-child{font:800 18px var(--display);width:52px}.rank tr.me{background:var(--teal-soft)}.rank svg{width:30px;height:30px;vertical-align:middle;margin-right:6px}
 .seg2{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px}.seg2 button{border:0;background:transparent;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13.5px;font-weight:600}.seg2 button[aria-pressed=true]{background:var(--teal);color:#fff}
-@media(max-width:700px){.who{margin-left:0}.tabs{order:3;width:100%;justify-content:space-between}.tabs button{flex:1}}
+
 @media(prefers-reduced-motion:reduce){.ring-fg,.btrack i,.brow,.racer{transition:none}.timer.over .ring-fg,.racer .av,.live i,.buddy,.blink,.arm-wave,.lookprev,.map .cloud,.map .coin,.map .star,.pep.pop p,.cust:hover .cust-av,.btrack.big i{animation:none}.cust{transition:none}}
 
 /* ================= manager page, and the Professional view on both pages: a calmer, more formal look =================
@@ -228,3 +228,41 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 #uiPick .dialog{max-width:520px}.uipick{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:520px){.uipick{grid-template-columns:1fr}}
 .uiopt{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:14px;cursor:pointer}
 .uiopt:hover,.uiopt:focus-visible{border-color:var(--teal)}.uiopt b{font-size:17px}.uiopt span{font-size:14px;color:var(--muted)}
+/* ================= the phone app (both pages, installed or in the browser) =================
+   On a big screen the header has text tabs and links; on a phone the tabs move to a bottom bar with icons (in thumb reach),
+   the header becomes one compact row of round buttons, the manager's tables turn into one card per person and the
+   details dialog fills the screen. The ":root body" prefix outranks the manager/Professional header styles above. */
+.tabs svg,.who .ico{display:none}
+.install{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:30;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.22)}
+.install p{margin:0 0 10px;font-size:14.5px}.install .row{display:flex;gap:8px;justify-content:flex-end}
+@media(max-width:700px){
+  :root body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
+  :root body .band .in{flex-wrap:nowrap;gap:8px;min-height:0;padding:calc(8px + env(safe-area-inset-top)) 12px 8px}
+  :root body .mark{font-size:20px}:root body .mark em{display:none}
+  :root body .who{gap:6px;margin-left:auto;flex-wrap:nowrap}:root body #who{display:none}
+  :root body .live{padding:5px 10px;gap:6px}:root body .live b{display:none}:root body .live time{font-size:14px}
+  :root body .who .link{display:inline-grid;place-items:center;width:34px;height:34px;padding:0;border-radius:50%;text-decoration:none;background:var(--band-2);color:#fff;border:0}
+  :root body.mgr .who .link,:root[data-ui=pro] body .who .link{background:var(--paper);border:1px solid var(--line);color:var(--ink);width:32px;height:32px}
+  :root body .who .link .lbl{display:none}:root body .who .ico{display:block}
+  :root body .tabs{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;gap:4px;align-self:auto;background:var(--surface);border-top:1px solid var(--line);border-radius:0;padding:6px 10px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(0,0,0,.06)}
+  :root body .tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:0;border-radius:12px;background:none;color:var(--muted);font-size:11.5px;font-weight:600}
+  :root body .tabs svg{display:block}
+  :root body .tabs button[aria-selected=true]{background:var(--teal-soft);color:var(--teal)}
+  #toast,#bt-sync{bottom:calc(84px + env(safe-area-inset-bottom))!important}
+  .gate{margin-top:8vh}
+  /* manager tables -> one card per person; each value shows its column name above it */
+  .team thead,.mgtable thead{display:none}
+  .team,.team tbody,.mgtable,.mgtable tbody{display:block}:root body .mgtable{min-width:0!important}
+  .team tr,.mgtable tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;padding:14px;border-bottom:1px solid var(--line)}
+  .team tr:last-child,.mgtable tr:last-child{border-bottom:0}
+  .team td,.mgtable td{padding:0;border:0;min-width:0}
+  .team td:nth-child(-n+3),.team td:nth-child(7){grid-column:1/-1}
+  .mgtable td:nth-child(1),.mgtable td:nth-child(4),.mgtable td:last-child{grid-column:1/-1}.mgtable td:nth-child(2){grid-column:span 2}
+  .team td.na{display:none}.team td:first-child{border-left:0}.team tr.over{box-shadow:inset 3px 0 0 var(--stop)}
+  td[data-label]::before{content:attr(data-label);display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .mgtable .person{display:flex;gap:8px;align-items:baseline}.mgtable td:last-child .btn{width:100%}
+  .team td.b{min-width:0}
+  .mgtable .cell{white-space:normal;display:flex;flex-direction:column}.mgtable .cell .adj{margin-top:auto;padding-top:6px}.mgtable .cell .of{font-size:12.5px}.mgtable .adj{gap:4px}.mgtable .adj output{font-size:12.5px}
+  /* the details dialog fills the screen */
+  :root body #dOv{padding:0;align-items:stretch}:root body #dOv .dialog{max-width:none;max-height:none;height:100%;border-radius:0;padding:calc(16px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
+}
