@@ -2,8 +2,8 @@
 // manager-page styling, formal wording, scores as a plain table). Everyone picks their own with the button in the header,
 // and is asked once, the first time they sign in. The choice is saved with their login (db/schema.sql, ui_prefs), so the
 // pilot can show which look people actually prefer, and on this device, so src/theme.js applies it before the page draws.
-import { myUiStyle, setUiStyle } from './core.js?v=610734a0c5';
-import { toast } from './chrome.js?v=610734a0c5';
+import { myUiStyle, setUiStyle } from './core.js?v=dd56730b06';
+import { toast } from './chrome.js?v=dd56730b06';
 
 const $ = s => document.querySelector(s), root = document.documentElement, KEY = 'bt-ui';
 export const LOOK_NAMES = { fun: 'Playful', pro: 'Professional' };
