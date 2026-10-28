@@ -1,11 +1,11 @@
-import { CONFIG } from '../config.js?v=9318095bf0';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=9318095bf0';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=9318095bf0';
-import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=9318095bf0';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=9318095bf0';
-import { esc, setHtml } from '../dom.js?v=9318095bf0';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, toast } from '../chrome.js?v=9318095bf0';
-import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=9318095bf0';
+import { CONFIG } from '../config.js?v=c48b594341';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=c48b594341';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=c48b594341';
+import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=c48b594341';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=c48b594341';
+import { esc, setHtml } from '../dom.js?v=c48b594341';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=c48b594341';
+import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=c48b594341';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -103,9 +103,9 @@ function card({c,name,rec:r,p,st},at){
   const shift=r?(r.shiftEnd?`${hhmm(r.shiftStart)}–${hhmm(r.shiftEnd)}`:`from ${hhmm(r.shiftStart)}`):'–',pct=r&&r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;
   const status=st.onBreak?`<span class="st ${st.key}" data-live data-left="${ownLeft(st.slot)}" data-spare="${spareLeft(st.slot)}" data-label="${esc(st.slot.label)}">${esc(liveText(st.slot.label,ownLeft(st.slot),spareLeft(st.slot)))}</span>`:`<span class="st ${st.key}">${esc(st.label)}</span>`;
   /* amber = ran past its own minutes but the person's other breaks covered it; red only once the day's total is used up */
-  const brk=s=>s?`<td class="b${s.over?' over':s.borrowed?' borrow':s.act?' act':''}"><div class="tr"><i style="width:${s.allowed?Math.min(100,s.used/(s.allowed*60)*100):s.used?100:0}%"></i></div><span>${Math.round(s.used/60)} / ${tidy(s.allowed)} min${s.over?` · ${Math.round(s.over/60)||'<1'} over`:s.borrowed?` · +${Math.round(s.borrowed/60)||'<1'} from ${s.from.length>1?'others':esc(s.from[0].label)}`:''}</span></td>`:'<td>–</td>';
+  const brk=s=>s?`<td data-label="${esc(s.label)}" class="b${s.over?' over':s.borrowed?' borrow':s.act?' act':''}"><div class="tr"><i style="width:${s.allowed?Math.min(100,s.used/(s.allowed*60)*100):s.used?100:0}%"></i></div><span>${Math.round(s.used/60)} / ${tidy(s.allowed)} min${s.over?` · ${Math.round(s.over/60)||'<1'} over`:s.borrowed?` · +${Math.round(s.borrowed/60)||'<1'} from ${s.from.length>1?'others':esc(s.from[0].label)}`:''}</span></td>`:'<td>–</td>';
   const extra=p.slice(3),ex=extra.length?`${extra.filter(s=>s.used>0).length}/${extra.length} used`:'–';
-  return `<tr class="${st.key}"><td><div class="person"><span class="av">${avatar(c,{look:LOOKS[c],mood:st.key==='over'?'worried':st.onBreak?'sleepy':'happy'})}</span><span><b>${esc(name)}</b><small>${c}</small></span></div></td><td>${status}</td><td>${shift}${r&&r.shiftEnd?`<div class="mini" title="${Math.floor(pct)}% of the shift done"><i style="width:${pct}%"></i></div>`:''}</td>${r?[0,1,2].map(i=>brk(p[i])).join(''):'<td>–</td><td>–</td><td>–</td>'}<td>${ex}</td></tr>`}
+  return `<tr class="${st.key}"><td><div class="person"><span class="av">${avatar(c,{look:LOOKS[c],mood:st.key==='over'?'worried':st.onBreak?'sleepy':'happy'})}</span><span><b>${esc(name)}</b><small>${c}</small></span></div></td><td>${status}</td><td data-label="Shift"${r?'':' class="na"'}>${shift}${r&&r.shiftEnd?`<div class="mini" title="${Math.floor(pct)}% of the shift done"><i style="width:${pct}%"></i></div>`:''}</td>${r?[0,1,2].map(i=>brk(p[i])).join(''):'<td class="na">–</td><td class="na">–</td><td class="na">–</td>'}<td data-label="Extra"${extra.length?'':' class="na"'}>${ex}</td></tr>`}
 $('#filters').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b)return;filter=b.dataset.f;renderDash(now(),true)});
 
 /* ---------- export: one row per person, day and break, for the pilot write-up ---------- */
@@ -153,8 +153,8 @@ function render(force){const at=now();if(dayKey(new Date(at))!==TODAY)TODAY=dayK
   $('#rows').innerHTML=Object.entries(U).map(([c,name])=>{const r=day[c],p=plan(r,adj[c],at,slotsFor(db,c,TODAY));let shift='<span style="color:var(--muted)">Not started</span>',pct=0,status='<span class="pill">Not started</span>';
     if(r){shift=r.shiftEnd?`${hhmm(r.shiftStart)} – ${hhmm(r.shiftEnd)}`:`${hhmm(r.shiftStart)} – <span style="color:var(--muted)">no end set</span>`;pct=r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;status=pct>=100?'<span class="pill">Finished</span>':'<span class="pill work">Working</span>';
       if(r.active){const s=p.find(x=>x.act);status=`<span class="pill brk" data-live data-left="${ownLeft(s)}" data-spare="${spareLeft(s)}" data-label="${esc(s.label)}"></span>`}}
-    const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(at-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell">${nm}${main}${adjUI(c,s,TODAY,name)}</td>`}).join('');
-    return `<tr><td class="person"><b>${esc(name)}</b><span>${c}${p.length>3?` · +${p.length-3} custom`:''}</span></td><td>${shift}</td><td><div class="mini"><i style="width:${pct}%"></i></div>${r&&r.shiftEnd?Math.floor(pct)+'%':'–'}</td><td>${status}</td>${cells}<td><button class="btn ghost sm" data-det="${c}">View more</button></td></tr>`}).join('');
+    const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(at-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell" data-label="${esc(s.defaultLabel)}">${nm}${main}${adjUI(c,s,TODAY,name)}</td>`}).join('');
+    return `<tr><td class="person"><b>${esc(name)}</b><span>${c}${p.length>3?` · +${p.length-3} custom`:''}</span></td><td data-label="Shift">${shift}</td><td data-label="Progress"><div class="mini"><i style="width:${pct}%"></i></div>${r&&r.shiftEnd?Math.floor(pct)+'%':'–'}</td><td>${status}</td>${cells}<td><button class="btn ghost sm" data-det="${c}">View more</button></td></tr>`}).join('');
   liveTick()}
 /* a running break: own = seconds left of its own minutes (negative = past them, borrowing from the person's other breaks),
    spare = seconds until the whole day's break time is used up (negative = really over) */
@@ -168,6 +168,6 @@ function boot(){if(!mgr||!MANAGER_CODES[mgr])return showGate();$('#gate').classL
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();syncUi(mgr);loadUiChoices();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000){loadLooks();loadUiChoices()}if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&mgr&&!det){db=load();render()}});
-setupPassword();setupTheme();wireRacers($('#race'));
+setupPassword();setupTheme();setupApp();wireRacers($('#race'));
 setupUi(()=>{if(mgr){renderDash(now(),true);drawRace();setTimeout(loadUiChoices,1500)}});
 (async()=>{if(CONFIG.backend==='api')$('#pw').classList.remove('hidden');try{await init();if(CONFIG.backend==='api'){const m=me();mgr=m&&m.role!=='agent'?m.code:null}boot()}catch(err){showGate();$('#gateErr').textContent=err.message}})();

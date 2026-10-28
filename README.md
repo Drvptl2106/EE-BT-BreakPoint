@@ -23,6 +23,20 @@ Open http://localhost:8080
 Demo mode: set `backend: 'fake'` in `src/config.js` to try it without a database. Data then stays in **one browser only**;
 the demo codes are `EE-001` to `EE-006` and `MGR-001`, and **Manage > Load demo team** fills in a team.
 
+## On a phone (the app)
+
+Break Point is built to be used on a phone. Both pages install to the home screen as their own app, with no app store:
+
+| | Staff app | Manager app |
+|---|---|---|
+| Open | https://drvptl2106.github.io/EE-BT-BreakPoint/ | https://drvptl2106.github.io/EE-BT-BreakPoint/manager.html |
+| iPhone (Safari) | Share > **Add to Home Screen** | same |
+| Android (Chrome) | tap **Install** on the card that appears (or menu > Install app) | same |
+
+Once installed it opens full screen with its own icon (teal for staff, white for managers), stays signed in, and has a
+bottom tab bar. The manager's tables turn into one card per person. It always shows live data; `sw.js` only keeps the app's
+own files on the phone so it opens fast on a weak signal. Every update to this repo reaches everyone the next time they open it.
+
 ## What it does
 
 **Agents (My day)**
@@ -72,6 +86,7 @@ audit trail nobody can edit. Breakathon gives agents names and points only, neve
 
 ```
 index.html, manager.html     the two pages (and their content-security policy)
+app.webmanifest, manager.webmanifest, icons/, sw.js   what makes each page an installable phone app
 src/config.js                every adjustable value: breaks, OH break names, Breakathon points and reward
 src/core.js                  break rules, Breakathon scoring, dashboard status and team pulse
 src/backend/api.js           the Supabase connection, clock sync and plain-English errors

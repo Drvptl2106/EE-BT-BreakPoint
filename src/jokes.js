@@ -1,7 +1,7 @@
 // The pep talk next to the shift pie: shop-floor banter and nosy questions that change with the time of day and the shift.
 // Pure text, no storage. Add your own freely; {left} becomes the time left in the shift. Keep it kind: we laugh with
 // customers and ourselves, never at a real person.
-import { durHM, hhmm } from './core.js?v=9318095bf0';
+import { durHM, hhmm } from './core.js?v=c48b594341';
 
 const BY_HOUR = [
   [0, 9, 'Early start', [

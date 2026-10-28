@@ -1,13 +1,13 @@
-import { CONFIG } from '../config.js?v=9318095bf0';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=9318095bf0';
-import { myRewards, claimReward, setLook } from '../core.js?v=9318095bf0';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=9318095bf0';
-import { setupUi, syncUi, isPro } from '../ui.js?v=9318095bf0';
-import { jokeFor, proNote } from '../jokes.js?v=9318095bf0';
-import { esc, setHtml } from '../dom.js?v=9318095bf0';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme } from '../chrome.js?v=9318095bf0';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=9318095bf0';
-import { toast } from '../chrome.js?v=9318095bf0';
+import { CONFIG } from '../config.js?v=c48b594341';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=c48b594341';
+import { myRewards, claimReward, setLook } from '../core.js?v=c48b594341';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=c48b594341';
+import { setupUi, syncUi, isPro } from '../ui.js?v=c48b594341';
+import { jokeFor, proNote } from '../jokes.js?v=c48b594341';
+import { esc, setHtml } from '../dom.js?v=c48b594341';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=c48b594341';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=c48b594341';
+import { toast } from '../chrome.js?v=c48b594341';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -135,6 +135,6 @@ function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.ad
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;showTab=setupTabs(t=>{tab=t;clearInterval(raceT);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});
-setupPassword();setupTheme();wireRacers($('#race'));
+setupPassword();setupTheme();setupApp();wireRacers($('#race'));
 setupUi(()=>{if(code&&rec())renderAll();drawRace();drawLook()});
 (async()=>{if(API)$('#pw').classList.remove('hidden');try{await init();if(API){const m=me();code=m&&m.role==='agent'?m.code:null}boot()}catch(err){showGate();$('#gateErr').textContent=err.message}})();
