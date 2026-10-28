@@ -62,6 +62,19 @@ with sync_playwright() as p:
     m.click('[data-tab="race"]'); m.wait_for_selector('.racer')
     ok('Minutes over' in m.inner_text('#race'), 'managers also see minutes over')
 
+    # ---- Ideas: anyone suggests (optionally anonymously), everyone votes, the team lead sets the status ----
+    pg.click('[data-tab="ideas"]'); pg.wait_for_selector('#ideaForm')
+    pg.fill('#ideaBody', 'A buzz one minute before my break ends'); pg.click('#ideaSend'); pg.wait_for_selector('.idea')
+    pg.click('[data-kind="bug"]'); pg.fill('#ideaBody', 'The clock froze once'); pg.check('#ideaAnon'); pg.click('#ideaSend'); pg.wait_for_timeout(400)
+    ideas = pg.inner_text('#ideaList')
+    ok('A buzz one minute' in ideas and 'You ·' in ideas and 'Anonymous ·' in ideas, 'staff can post a suggestion, with their name or anonymously')
+    pg.click('#ideaSort [data-sort="top"]'); pg.click('.vote'); pg.wait_for_timeout(300)
+    ok(pg.locator('.vote.on').count() == 1, 'votes count')
+    m.click('[data-tab="ideas"]'); m.wait_for_selector('.idea'); m.locator('[data-status]').first.select_option('planned'); m.wait_for_timeout(400)
+    pg.click('[data-tab="day"]'); pg.click('[data-tab="ideas"]'); pg.wait_for_timeout(500)
+    ok('Planned' in pg.inner_text('#ideaList'), 'the team lead marks one as planned and staff see it')
+    pg.click('[data-tab="race"]'); m.click('[data-tab="race"]')
+
     # ---- the Professional view: same features, no mascots or map, plain wording; the choice is recorded ----
     pg.click('#uiBtn'); pg.wait_for_timeout(300)
     ok(pg.get_attribute('html', 'data-ui') == 'pro' and pg.get_attribute('#uiBtn', 'aria-label') == 'Switch to the playful view', 'the header button switches to the professional view')

@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=c48b594341';
-import * as api from './backend/api.js?v=c48b594341';
-import { PILOT_USERS } from './pilot.js?v=c48b594341';
+import { CONFIG } from './config.js?v=b142b5df5f';
+import * as api from './backend/api.js?v=b142b5df5f';
+import { PILOT_USERS } from './pilot.js?v=b142b5df5f';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -80,6 +80,29 @@ export async function setUiStyle(code, style) {
   localStorage.setItem(UI_KEY, JSON.stringify(all));
 }
 export const teamUiStyles = async () => API ? api.teamUiStyles() : fakeUi();
+/* Suggestions (src/ideas.js). Database mode: shared with the team (db/schema.sql, suggestions). Demo mode: the same rules,
+   kept in this browser. Rows: { id, kind, body, status, at, author (null = anonymous), mine, votes, voted }. */
+const IDEAS_KEY = 'bt-ideas:v1';
+const fakeIdeas = () => { try { return JSON.parse(localStorage.getItem(IDEAS_KEY)) || []; } catch { return []; } };
+const saveIdeas = v => localStorage.setItem(IDEAS_KEY, JSON.stringify(v));
+const nameOf = code => PILOT_USERS[code] || code;
+export async function suggestionsList(code) {
+  if (API) return api.suggestionsList();
+  return fakeIdeas().map(s => ({ id: s.id, kind: s.kind, body: s.body, status: s.status, at: s.at, author: s.by ? nameOf(s.by) : null,
+    mine: !!s.by && s.by === code, votes: s.votes.length, voted: s.votes.includes(code) })).sort((a, b) => b.at.localeCompare(a.at));
+}
+export async function suggest(code, kind, body, anonymous) {
+  if (API) return api.suggest(kind, body, anonymous);
+  const b = String(body ?? '').replace(/\s+/g, ' ').trim();
+  if (b.length < 3) throw new Error('Write a few words first.');
+  if (b.length > 500) throw new Error('Keep it under 500 characters.');
+  saveIdeas([...fakeIdeas(), { id: String(Date.now()), kind, body: b, status: 'new', at: new Date(now()).toISOString(), by: anonymous ? null : code, votes: [] }]);
+}
+const editIdea = (id, fn) => { const all = fakeIdeas(), s = all.find(x => x.id === id); if (!s) throw new Error("That suggestion isn't there any more."); fn(s, all); saveIdeas(all.filter(x => !x.gone)); };
+export const voteSuggestion = async (code, id, on) => API ? api.voteSuggestion(id, on)
+  : editIdea(id, s => { s.votes = s.votes.filter(c => c !== code).concat(on ? [code] : []); });
+export const setSuggestionStatus = async (id, status) => API ? api.setSuggestionStatus(id, status) : editIdea(id, s => { s.status = status; });
+export const removeSuggestion = async id => API ? api.removeSuggestion(id) : editIdea(id, s => { s.gone = true; });
 export function purge(db){
   if (API) return;                                                              // the database deletes old rows itself (db/cleanup_job.sql)
   const c = new Date(); c.setDate(c.getDate() - CONFIG.retentionDays); const ck = dayKey(c);

@@ -1,8 +1,8 @@
 // Breakathon view, shared by both pages: an illustrated island where everyone's character runs along the road to the
 // Champion's Keep, the further the more punctual points they have, plus the ranking table.
 // Also the characters themselves (used on the dashboard cards and as the agent's pep-talk buddy).
-import { CONFIG } from './config.js?v=c48b594341';
-import { esc } from './dom.js?v=c48b594341';
+import { CONFIG } from './config.js?v=b142b5df5f';
+import { esc } from './dom.js?v=b142b5df5f';
 
 /* ---------------- the mascot ----------------
    A soft felt pebble with big googly eyes and a tiny mouth. No body, no fuss: personality comes from the SHAPE
