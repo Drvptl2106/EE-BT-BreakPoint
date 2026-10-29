@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { version } from '../scripts/stamp.mjs';
 const V = version();   // the same module URLs the pages use (see scripts/stamp.mjs)
 const { CONFIG } = await import('../src/config.js?v=' + V);
-const { plan, slotsFor, labelFor, cleanName, dayKey, weekScore, weekOf, statusOf, teamPulse, FILTERS } = await import('../src/core.js?v=' + V);
+const { plan, slotsFor, labelFor, cleanName, dayKey, weekScore, weekOf, statusOf, teamPulse, FILTERS, streakOf } = await import('../src/core.js?v=' + V);
 
 const MIN = 60000, NOW = new Date(2026, 9, 14, 15, 0).getTime();   // Wed 14 Oct 2026, 15:00 local
 const TODAY = dayKey(new Date(NOW));
@@ -14,6 +14,16 @@ const P = (r, adj = {}, slots = CONFIG.defaultSlots) => plan(r, adj, NOW, slots)
 test('config: the allowance is 15 + 15 + 30 and there are five neutral custom labels', () => {
   assert.deepEqual(CONFIG.defaultSlots.map(s => s.minutes), [15, 15, 30]);
   assert.deepEqual(Object.keys(CONFIG.customLabels), ['c1', 'c2', 'c3', 'c4', 'c5']);
+});
+
+test('streak: worked days in a row within the day\'s break time; days off don\'t break it, an over day does', () => {
+  const day = (n, ...breaks) => { const d = new Date(NOW); d.setDate(d.getDate() - n); return [dayKey(d), { breaks: breaks.map(([slot, len]) => ({ slot, start: NOW - n * 864e5, end: NOW - n * 864e5 + len * MIN })), active: null }]; };
+  const db = base();
+  for (const [k, r] of [day(1, ['break1', 15], ['lunch', 30]), day(2, ['break1', 20]), day(4, ['lunch', 30]), day(5, ['lunch', 75]), day(6, ['break1', 10])]) db.days[k] = { 'EE-001': r };
+  assert.equal(streakOf(db, 'EE-001', TODAY), 3, 'yesterday, the day before and day 4 (day 3 was a day off); day 5 went 15 min over the day');
+  db.days[TODAY] = { 'EE-001': { breaks: [], active: null } };
+  assert.equal(streakOf(db, 'EE-001', TODAY), 3, 'today without a break yet does not count either way');
+  assert.equal(streakOf(base(), 'EE-001', TODAY), 0);
 });
 
 test('config: there is no reason field anywhere', () => {

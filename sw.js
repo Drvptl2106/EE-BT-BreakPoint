@@ -36,3 +36,12 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;   // the database and fonts go straight to the network
   e.respondWith(url.searchParams.has('v') ? savedFirst(req) : networkFirst(req));
 });
+
+// Tapping a break alert (src/notify.js) brings the app back to the front, or opens it.
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    const open = list.find(c => new URL(c.url).pathname.endsWith('/index.html') || new URL(c.url).pathname.endsWith('/'));
+    return open ? open.focus() : self.clients.openWindow('./index.html');
+  }));
+});

@@ -40,6 +40,13 @@ own files on the phone so it opens fast on a weak signal. Every update to this r
 ## What it does
 
 **Agents (My day)**
+- **Up next:** when no break is running, the next break is one big button ("Start Break 1"), like "order again".
+- **Live break card:** a running break shows a big countdown, **Back at 14:36**, stages (Started → Halfway → 2 min left → Back) and *I'm back*,
+  like a ride in progress. Teal while on time, amber while it borrows from other breaks, red once the day's break time is used.
+- **Break alerts** (`src/notify.js`): offered the first time someone starts a break. A phone notification and buzz `alertBeforeMinutes`
+  (2) before the break's time is up, and again before the day's break time runs out. Without a push server the app has to be running:
+  an iPhone only alerts while it's open; Android keeps alerting for a while in the background.
+- **🔥 Streak:** on-time days in a row (days off don't break it). A **red dot** on the Ideas tab when someone else posted since you last looked.
 - One horizontal bar per break (Break 1, Break 2, Lunch, plus any **OH Break** the manager adds), with Start / Resume.
   The running break grows into a big loading bar with the countdown and a running commentary ("10 min done, only 5 left",
   "2 min over, that's coming off Lunch"), and the rest of the page stays usable. The tab title shows the countdown too.
@@ -97,6 +104,7 @@ src/core.js                  break rules, Breakathon scoring, dashboard status a
 src/backend/api.js           the Supabase connection, clock sync and plain-English errors
 src/pages/user.js, manager.js   one script per page
 src/chrome.js                header: live clock, Live pill, tabs, change password
+src/notify.js                break alerts (notification + buzz before the break time is up)      src/ideas.js   the Ideas tab
 src/race.js                  the Breakathon island map and the characters (also the pep-talk buddy)
 src/ui.js                    the Playful / Professional switch, the first-sign-in picker and saving the choice
 src/theme.js                 applies the saved light/dark choice and look before the page draws

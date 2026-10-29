@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=dd56730b06';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=dd56730b06';
-import { setupIdeas } from '../ideas.js?v=dd56730b06';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=dd56730b06';
-import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=dd56730b06';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=dd56730b06';
-import { esc, setHtml } from '../dom.js?v=dd56730b06';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=dd56730b06';
-import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=dd56730b06';
+import { CONFIG } from '../config.js?v=fbf0dd54c0';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=fbf0dd54c0';
+import { setupIdeas } from '../ideas.js?v=fbf0dd54c0';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=fbf0dd54c0';
+import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=fbf0dd54c0';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=fbf0dd54c0';
+import { esc, setHtml } from '../dom.js?v=fbf0dd54c0';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=fbf0dd54c0';
+import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=fbf0dd54c0';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -167,7 +167,7 @@ function liveTick(){const at=now();$$('[data-live]').forEach(el=>{const t=Number
 let t1,t2,clock,tabsReady=false;const ideas=setupIdeas($('#ideas'),{who:()=>mgr,manager:true});
 function boot(){if(!mgr||!MANAGER_CODES[mgr])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');$('#who').textContent=MANAGER_CODES[mgr];if(CONFIG.backend==='api'){$('#demo')?.remove();$('#clear')?.remove()}db=load();purge(db);save(db);render(true);
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);ideas.show(t==='ideas');if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
-  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();syncUi(mgr);loadUiChoices();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000){loadLooks();loadUiChoices()}if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
+  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();syncUi(mgr);loadUiChoices();ideas.peek();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000){loadLooks();loadUiChoices();if(tab!=='ideas')ideas.peek()}if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&mgr&&!det){db=load();render()}});
 setupPassword();setupTheme();setupApp();wireRacers($('#race'));
 setupUi(()=>{if(mgr){renderDash(now(),true);drawRace();setTimeout(loadUiChoices,1500)}});

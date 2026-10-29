@@ -1,14 +1,15 @@
-import { CONFIG } from '../config.js?v=dd56730b06';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=dd56730b06';
-import { myRewards, claimReward, setLook } from '../core.js?v=dd56730b06';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=dd56730b06';
-import { setupIdeas } from '../ideas.js?v=dd56730b06';
-import { setupUi, syncUi, isPro } from '../ui.js?v=dd56730b06';
-import { jokeFor, proNote } from '../jokes.js?v=dd56730b06';
-import { esc, setHtml } from '../dom.js?v=dd56730b06';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=dd56730b06';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=dd56730b06';
-import { toast } from '../chrome.js?v=dd56730b06';
+import { CONFIG } from '../config.js?v=fbf0dd54c0';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=fbf0dd54c0';
+import { myRewards, claimReward, setLook } from '../core.js?v=fbf0dd54c0';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=fbf0dd54c0';
+import { offerAlerts, checkAlerts } from '../notify.js?v=fbf0dd54c0';
+import { setupIdeas } from '../ideas.js?v=fbf0dd54c0';
+import { setupUi, syncUi, isPro } from '../ui.js?v=fbf0dd54c0';
+import { jokeFor, proNote } from '../jokes.js?v=fbf0dd54c0';
+import { esc, setHtml } from '../dom.js?v=fbf0dd54c0';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=fbf0dd54c0';
+import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=fbf0dd54c0';
+import { toast } from '../chrome.js?v=fbf0dd54c0';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -30,7 +31,7 @@ $('#endIn').addEventListener('change',e=>{if(!e.target.value)return;commit(r=>{l
 document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>commit(r=>{r.shiftEnd=r.shiftStart+Number(c.dataset.len)*36e5})));
 $('#bars').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   if(b.id==='tStop')return endBreak(false);
-  if(b.dataset.slot&&rec().active?.slot!==b.dataset.slot){commit(r=>{r.active={slot:b.dataset.slot,start:now()}});toast(isPro()?'Break started. The timer is running.':'Break started. Enjoy it, the timer is running.')}});
+  const slot=b.dataset.slot||b.dataset.next;if(slot&&rec().active?.slot!==slot){commit(r=>{r.active={slot,start:now()}});if(!offerAlerts())toast(isPro()?'Break started. The timer is running.':'Break started. Enjoy it, the timer is running.')}});
 function endBreak(auto){const a=rec()?.active;if(!a)return;const key=a.slot;
   commit(r=>{const x=r.active;if(!x)return;r.breaks.push({slot:x.slot,start:x.start,end:auto?x.start+CONFIG.forgotToStopMinutes*6e4:now(),...(auto?{flag:'forgot'}:{})});r.active=null});
   document.title='breakpoint';showResult(key,auto)}
@@ -62,18 +63,26 @@ function liveLine(s,p,at){const m=Math.floor(s.used/60),n=lender(p,s);
 function renderBars(at){const r=rec(),p=P(at),anyA=!!r.active;
   const tot=p.reduce((a,s)=>a+s.base,0),used=p.reduce((a,s)=>a+s.used,0);
   $('#brkSum').textContent=`${Math.round(used/60)} of ${tidy(tot)} min used today`;
-  setHtml($('#bars'),p.map(s=>{
+  /* nothing running: the next break as one big button, like "order again" */
+  const nx=anyA?null:p.find(s=>!s.done&&s.allowed>0&&s.left>0),
+    next=nx?`<div class="upnext"><div class="now-k">Up next</div><div class="now-big sm"><b>${esc(nx.label)}</b><small>${nx.used>0?`${Math.ceil(nx.left/60)} min left`:`${tidy(nx.allowed)} min`}</small></div>
+      <p class="say">${isPro()?'Your timer starts when you tap.':'Recharge time. Your timer starts when you tap.'}</p><button class="btn yellow" data-next="${nx.key}">${nx.used>0?'Resume':'Start'} ${esc(nx.label)}</button></div>`:'';
+  setHtml($('#bars'),next+p.map(s=>{
     const cap=s.allowed*60,over=s.over>0,borrow=!over&&s.borrowed>0,fill=cap>0?Math.min(100,s.used/cap*100):(s.used>0?100:0),
       cls=over?' over':borrow?' borrow':'';
     const notes=[s.borrowed>0?`<small class="${over?'bad':'warn'}">${fmtMin(s.borrowed)} came out of ${esc(names(s.from))}.</small>`:'',
       over?`<small class="bad">${fmtMin(s.over)} past today's break time.</small>`:'',
       s.deducted>0?`<small class="warn">${fmtMin(s.deducted*60)} went to ${esc(names(s.to))}, so this one is ${tidy(s.allowed)} min today.</small>`:'',
       s.adjust?`<small>${s.adjust>0?'+':''}${s.adjust} min from your manager.</small>`:''].filter(Boolean).join(' ');
+    /* the running break: a live card like a ride in progress (big countdown, "back at", stages, I'm back) */
     if(s.act){const mode=over?'over':s.left>0?'own':'borrow',secs=mode==='over'?s.over:mode==='own'?s.left:s.spare,
-        word=mode==='over'?'over':mode==='own'?'left':`left · from ${lender(p,s)?.label||'other breaks'}`;
-      return `<div class="brow on${cls||(mode==='borrow'?' borrow':'')}"><div class="bl"><b>${esc(s.label)}</b><span>${tidy(s.allowed)} min</span></div>
-        <div class="btrack big" role="timer" aria-label="${esc(s.label)}: ${mmss(Math.ceil(secs))} ${word}"><i style="width:${mode==='own'?fill:100}%"></i><span class="bt">${mode==='over'?'−':''}${mmss(Math.ceil(secs))} <small>${esc(word)}</small></span><span class="bu">${mmss(s.used)} / ${mmss(cap)}</span></div>
-        <div class="br"><button class="btn teal" id="tStop">I'm back</button></div><p class="say">${esc(liveLine(s,p,at))}</p></div>`}
+        word=mode==='over'?'over':mode==='own'?'left':`left · from ${lender(p,s)?.label||'other breaks'}`,lead=CONFIG.alertBeforeMinutes,
+        stage=over?4:mode==='borrow'||s.left<=lead*60?3:cap>0&&s.used/cap>=.5?2:1,
+        stages=['Started','Halfway',`${lead} min left`,'Back'].map((l,i)=>`<span class="${i<stage?'on':''}"><i></i>${l}</span>`).join('');
+      return `<div class="brow on now${cls||(mode==='borrow'?' borrow':'')}"><div class="now-k">On a break · ${esc(s.label)}</div>
+        <div class="now-big" role="timer" aria-label="${esc(s.label)}: ${mmss(Math.ceil(secs))} ${word}"><b>${mode==='over'?'−':''}${mmss(Math.ceil(secs))}</b><small>${esc(word)}</small></div>
+        <span class="eta">${mode==='over'?`Over by ${fmtMin(s.over)}`:`Back at ${hhmm(at+secs*1000)}`}</span><div class="stages" aria-hidden="true">${stages}</div>
+        <p class="say">${esc(liveLine(s,p,at))}</p><button class="btn yellow" id="tStop">I'm back</button></div>`}
     const st=s.done?(over?`Done · ${fmtMin(s.over)} over`:borrow?`Done · ${fmtMin(s.borrowed)} borrowed`:'Done'):s.used>0?`${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
     const btn=s.done||s.allowed<=0?`<button class="btn ghost sm" disabled>${s.allowed<=0&&!s.used?'No time left':'Done'}</button>`:`<button class="btn yellow sm" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
     return `<div class="brow${s.done?' done':''}${cls}"><div class="bl"><b>${esc(s.label)}</b><span>${st}</span></div>
@@ -95,11 +104,12 @@ function renderShift(at){const r=rec(),p=P(at),start=r.shiftStart,end=r.shiftEnd
 
 function renderAll(){const r=rec();if(!r)return;$('#who').textContent=r.name;$('#startIn').value=hhmm(r.shiftStart);$('#endIn').value=r.shiftEnd?hhmm(r.shiftEnd):'';
   document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',!!r.shiftEnd&&r.shiftEnd-r.shiftStart===Number(c.dataset.len)*36e5));
-  $('#startHint').textContent=r.shiftEnd?'':`Started ${hhmm(r.shiftStart)}. Add your end time or pick a shift length.`;tick()}
+  $('#startHint').textContent=r.shiftEnd?'':`Started ${hhmm(r.shiftStart)}. Add your end time or pick a shift length.`;
+  const k=streakOf(db,code,TODAY);$('#streak').classList.toggle('hidden',k<2);$('#streak').textContent=isPro()?`${k} on-time days in a row`:`🔥 ${k}-day streak`;tick()}
 
 function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new Date(at));ensureRec();renderAll();return}
   const r=rec();if(!r)return;if(r.active&&at-r.active.start>CONFIG.forgotToStopMinutes*6e4){endBreak(true);return}
-  renderBars(at);renderShift(at);
+  renderBars(at);renderShift(at);checkAlerts(P(at).find(x=>x.act),isPro());
   const p=P(at),end=r.shiftEnd,pct=end?(at-r.shiftStart)/(end-r.shiftStart)*100:null;
   const used=p.reduce((a,s)=>a+s.used,0),allowed=p.reduce((a,s)=>a+s.base,0);
   $('#sTaken').innerHTML=`${p.filter(s=>s.done).length} <small>of ${p.length}</small>`;$('#sUsed').innerHTML=`${Math.round(used/60)} <small>of ${tidy(allowed)} min</small>`;$('#sUsed').classList.toggle('bad',p.some(s=>s.over));
@@ -132,9 +142,9 @@ async function drawRace(){if(tab!=='race')return;try{
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);document.querySelectorAll('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 
 let t1,t2,clock,tabsReady=false;const ideas=setupIdeas($('#ideas'),{who:()=>code});
-function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();loadMine();syncUi(code);
+function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();loadMine();syncUi(code);ideas.peek();
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;showTab=setupTabs(t=>{tab=t;clearInterval(raceT);ideas.show(t==='ideas');if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
-  clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
+  clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(Date.now()%60000<CONFIG.refreshSeconds*1000&&tab!=='ideas')ideas.peek();if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});
 setupPassword();setupTheme();setupApp();wireRacers($('#race'));
 setupUi(()=>{if(code&&rec())renderAll();drawRace();drawLook()});

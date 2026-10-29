@@ -2,6 +2,8 @@
 # It runs in DEMO mode: set backend: 'fake' in src/config.js first (and put it back to 'api' afterwards).
 # Start the site (npm start), then: python3 tests/e2e/smoke.py [http://localhost:8080]
 import sys, re
+from datetime import datetime, timedelta
+END = (datetime.now() + timedelta(hours=2)).strftime('%H:%M')   # a shift end that is always still ahead, whatever time the test runs
 from playwright.sync_api import sync_playwright
 BASE = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:8080'
 errs = []
@@ -39,19 +41,21 @@ with sync_playwright() as p:
     m.click('[data-tab="manage"]'); m.click('button[data-det="EE-001"]')
     m.select_option('#cKey', 'c1'); m.fill('#cMin', '10'); m.check('input[name=sc][value=daily]'); m.click('#cAdd')
     ok('OH Break 1' in m.inner_text('#dBody'), 'OH Break 1 added')
-    m.fill('#dSe', '23:30'); m.dispatch_event('#dSe', 'change')
+    m.fill('#dSe', END); m.dispatch_event('#dSe', 'change')
     m.click('#dClose')
 
     # ---- agent: break bars (the OH break is a new bar), shift pie ticking, pep talk ----
     pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .brow')
     pg.wait_for_selector('#uiPick:not(.hidden)'); pg.click('#uiPick [data-pick="fun"]')
     ok(pg.locator('#bars .brow').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as its own bar')
-    ok(pg.input_value('#endIn') == '23:30', 'agent sees the shift end the manager set')
+    ok(pg.input_value('#endIn') == END, 'agent sees the shift end the manager set')
     w1 = pg.text_content('#worked'); pg.wait_for_timeout(1100)
     ok(w1 != pg.text_content('#worked'), 'shift clock ticks every second')
     ok(len(pg.text_content('#joke')) > 10, 'pep talk shown')
+    ok(pg.locator('#bars .upnext [data-next]').count() == 1 and 'Break 1' in pg.inner_text('#bars .upnext'), 'the next break is one big button')
     pg.click('#bars button[data-slot="break2"]'); pg.wait_for_timeout(1200)
-    ok(pg.locator('#bars .brow.on .btrack.big').count() == 1 and pg.is_visible('[data-tab="race"]'), 'a running break grows in its own row, the rest of the page stays usable')
+    ok(pg.locator('#bars .brow.on.now .now-big').count() == 1 and 'Back at' in pg.inner_text('#bars .now') and pg.is_visible('[data-tab="race"]'), 'a running break becomes a live card with the time to be back, the rest of the page stays usable')
+    if pg.locator('#alertAsk').count(): pg.click('#alertNo')
     pg.click('#tStop')
     ok(pg.locator('#bars .brow.on').count() == 0 and pg.is_visible('#toast'), 'ending a break shows the result as a note')
     ok(pg.inner_text('#bars button[data-slot="break2"]') == 'Resume', 'a part-used break can be resumed')
@@ -89,6 +93,15 @@ with sync_playwright() as p:
     m.reload(); m.click('[data-tab="manage"]'); m.wait_for_selector('#uiStats table')
     stats = m.inner_text('#uiStats')
     ok('Staff: Professional 1' in stats.replace('\n', ' ') and 'Team lead: Professional 1' in stats.replace('\n', ' '), 'the manager sees who picked which look: ' + stats[:80].replace('\n', ' '))
+    # ---- break alerts: a heads-up a couple of minutes before the break time is up ----
+    al = b.new_context(); al.grant_permissions(['notifications']); ap = al.new_page(); watch(ap)
+    ap.goto(BASE + '/index.html'); ap.fill('#code', 'EE-005'); ap.click('#gateForm button'); ap.wait_for_selector('#uiPick:not(.hidden)'); ap.click('#uiPick [data-pick="fun"]')
+    ap.click('#bars [data-next]'); ap.wait_for_timeout(300)
+    ap.evaluate('''() => { const k = 'bt-break-tracker:v1', db = JSON.parse(localStorage.getItem(k)); for (const d of Object.values(db.days)) if (d['EE-005']?.active) d['EE-005'].active.start = Date.now() - 13.5 * 60000; localStorage.setItem(k, JSON.stringify(db)); }''')
+    ap.reload(); ap.wait_for_selector('#bars .now'); ap.wait_for_timeout(1500)
+    ok('left on Break 1' in (ap.text_content('#toast') or ''), 'an alert fires shortly before the break time is up: ' + (ap.text_content('#toast') or '')[:60])
+    al.close()
+
     # ---- on a phone: bottom tab bar, cards instead of wide tables, installable ----
     ph = b.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True).new_page(); watch(ph)
     ph.goto(BASE + '/manager.html'); ph.fill('#code', 'MGR-001'); ph.click('#gateForm button'); ph.wait_for_selector('#app:not(.hidden)')

@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=dd56730b06';
-import * as api from './backend/api.js?v=dd56730b06';
-import { PILOT_USERS } from './pilot.js?v=dd56730b06';
+import { CONFIG } from './config.js?v=fbf0dd54c0';
+import * as api from './backend/api.js?v=fbf0dd54c0';
+import { PILOT_USERS } from './pilot.js?v=fbf0dd54c0';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -178,6 +178,18 @@ export function weekScore(db, code, from, to){
   }
   const overMinutes = Math.round(overSec/60);
   return { breaks, onTime, cleanDays, overMinutes, points: Math.max(0, onTime*B.pointsOnTime + cleanDays*B.pointsCleanDay - overMinutes*B.penaltyPerMinuteOver) };
+}
+/** On-time streak: worked days in a row (newest first, up to today) where the day's breaks stayed within the day's total.
+    Days off don't break it; today only counts once it has a break. Same "over" rule as weekScore(). */
+export function streakOf(db, code, today = dayKey()){
+  let n = 0;
+  for (const day of Object.keys(db.days || {}).filter(d => d <= today && db.days[d][code]?.breaks?.length).sort().reverse()) {
+    const all = plan({ ...db.days[day][code], active:null }, db.adj?.[day]?.[code], 0, slotsFor(db, code, day));
+    const cap = all.reduce((a,s) => a + Math.max(0, s.base)*60, 0), used = all.reduce((a,s) => a + s.used, 0);
+    if (used - cap >= CONFIG.overToleranceMinutes*60) break;
+    n++;
+  }
+  return n;
 }
 /** Ranked rows like the database returns: { code, name, breaks, onTime, cleanDays, overMinutes (managers only), points }. */
 export function teamScores(db, codes, from, to, showOver){

@@ -1,17 +1,19 @@
 // The Ideas tab on both pages: anyone can suggest an idea, a change or a bug fix (optionally anonymously), everyone in the
 // team sees them all and votes for the ones they want, and team leads mark them planned / done / not now. So what gets
 // built next is what the people using it asked for. The rules live in the database (db/schema.sql, suggestions).
-import { suggestionsList, suggest, voteSuggestion, setSuggestionStatus, removeSuggestion } from './core.js?v=dd56730b06';
-import { esc, setHtml } from './dom.js?v=dd56730b06';
-import { toast } from './chrome.js?v=dd56730b06';
+import { suggestionsList, suggest, voteSuggestion, setSuggestionStatus, removeSuggestion } from './core.js?v=fbf0dd54c0';
+import { esc, setHtml } from './dom.js?v=fbf0dd54c0';
+import { toast } from './chrome.js?v=fbf0dd54c0';
 
 const KINDS = { idea: ['💡', 'Idea'], change: ['✏️', 'Change'], bug: ['🐞', 'Bug'], other: ['💬', 'Other'] };
 const STATUS = { new: 'New', planned: 'Planned', done: 'Done', not_now: 'Not now' };
-const MAX = 500, REFRESH_MS = 15000;
+const MAX = 500, REFRESH_MS = 15000, SEEN_KEY = 'bt-ideas-seen';
+const seen = () => { try { return localStorage.getItem(SEEN_KEY) || ''; } catch { return ''; } };
 const ago = iso => { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
   return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
 
-/** root = the element to draw into. who() = the signed-in code. manager = team lead page. Returns { show(on) } for the tab switch. */
+/** root = the element to draw into. who() = the signed-in code. manager = team lead page. Returns { show(on) } for the tab switch
+    and peek(), which puts a red dot on the Ideas tab when someone else posted since you last looked. */
 export function setupIdeas(root, { who, manager = false }) {
   let rows = [], sort = 'top', kind = 'idea', timer = null, sending = false;
   root.innerHTML = `<section class="panel ideas"><div class="phead"><h2>Ideas</h2><span class="hint">Make Break Point better</span></div>
@@ -70,5 +72,9 @@ export function setupIdeas(root, { who, manager = false }) {
     try { await setSuggestionStatus(s.dataset.status, s.value); toast(`Marked as ${STATUS[s.value].toLowerCase()}.`); } catch (err) { toast(err.message); }
     load(); });
 
-  return { show(on) { clearInterval(timer); if (on) { load(); timer = setInterval(load, REFRESH_MS); } } };
+  const dot = on => document.querySelector('.tabs [data-tab="ideas"]')?.classList.toggle('has-new', on);
+  return {
+    show(on) { clearInterval(timer); if (on) { load(); timer = setInterval(load, REFRESH_MS); try { localStorage.setItem(SEEN_KEY, new Date().toISOString()); } catch {} dot(false); } },
+    async peek() { try { const list = await suggestionsList(who()), last = seen(); dot(list.some(s => !s.mine && (!last || s.at > last))); } catch {} },
+  };
 }
