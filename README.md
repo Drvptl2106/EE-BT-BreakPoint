@@ -122,6 +122,9 @@ docs/                        ARCHITECTURE.md, DATABASE.md
   to every file reference, so browsers load the new version instead of mixing old and new files. `npm test` fails if you forget.
 - **Keep-awake.** `.github/workflows/keep-awake.yml` pings the database once a day, because a free Supabase project pauses
   after a week without traffic (a quiet holiday week would do it).
+- **Claude tools.** `.mcp.json` gives Claude Code the Perplexity and Composio MCP servers. It holds no keys: set
+  `PERPLEXITY_API_KEY`, `COMPOSIO_API_KEY` and `COMPOSIO_MCP_URL` in the environment (for cloud sessions, in the
+  environment's settings) and start a new session.
 
 ## Ground rules for this repo
 
