@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=fbf0dd54c0';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=fbf0dd54c0';
-import { setupIdeas } from '../ideas.js?v=fbf0dd54c0';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=fbf0dd54c0';
-import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=fbf0dd54c0';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=fbf0dd54c0';
-import { esc, setHtml } from '../dom.js?v=fbf0dd54c0';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=fbf0dd54c0';
-import { raceHTML, avatar, placeRacers, wireRacers } from '../race.js?v=fbf0dd54c0';
+import { CONFIG } from '../config.js?v=2e77d6a93f';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=2e77d6a93f';
+import { setupIdeas } from '../ideas.js?v=2e77d6a93f';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=2e77d6a93f';
+import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=2e77d6a93f';
+import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=2e77d6a93f';
+import { esc, setHtml } from '../dom.js?v=2e77d6a93f';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=2e77d6a93f';
+import { raceHTML, avatar, wireRacers } from '../race.js?v=2e77d6a93f';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -139,7 +139,7 @@ async function drawRace(){if(tab!=='race')return;try{
     champ=last[0]?.points>0?last[0]:null;
     const prize=champ?(await teamRewards(l.from))[champ.code]||{}:null;
     const done=!!champ&&(db.custom[champ.code]||[]).some(x=>x.scope==='today'&&x.date===TODAY&&db.names?.[champ.code]?.[x.key]===REWARD);
-    setHtml($('#race'),raceHTML({rows,me:null,isManager:true,pro:isPro(),champion:champ,grant:champ?{done}:null,prize}));placeRacers($('#race'))}
+    setHtml($('#race'),raceHTML({rows,me:null,isManager:true,pro:isPro(),champion:champ,grant:champ?{done}:null,prize}))}
   catch(err){$('#race').innerHTML=`<p class="empty">${esc(err.message)}</p>`}}
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);$$('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 $('#race').addEventListener('click',e=>{if(e.target.id!=='grantBtn'||!champ)return;const c=champ.code;db=load();

@@ -62,9 +62,9 @@ with sync_playwright() as p:
 
     # ---- Breakathon on both pages ----
     pg.click('[data-tab="race"]'); pg.wait_for_selector('.racer')
-    ok(pg.locator('.racer').count() == 6 and 'Minutes over' not in pg.inner_text('#race'), 'agents see the race but not minutes over')
+    ok(pg.locator('.racer').count() == 6 and 'Min over' not in pg.inner_text('#race'), 'agents see the race but not minutes over')
     m.click('[data-tab="race"]'); m.wait_for_selector('.racer')
-    ok('Minutes over' in m.inner_text('#race'), 'managers also see minutes over')
+    ok('Min over' in m.inner_text('#race'), 'managers also see minutes over')
 
     # ---- Ideas: anyone suggests (optionally anonymously), everyone votes, the team lead sets the status ----
     pg.click('[data-tab="ideas"]'); pg.wait_for_selector('#ideaForm')

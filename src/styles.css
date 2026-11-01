@@ -205,31 +205,36 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 /* ---- Breakathon ---- */
 .champ{display:flex;gap:14px;align-items:center;background:var(--hero);color:var(--on-hero);border-radius:var(--r-lg);padding:14px 16px;flex-wrap:wrap}
 .champ b{color:var(--accent)}.champ .btn{margin-left:auto}
-.mapwrap{margin-top:16px;overflow-x:auto;border-radius:var(--r-lg);-webkit-overflow-scrolling:touch}
-@media(max-width:700px){.map{min-width:720px}.mapwrap::after{content:"Swipe to see the whole course";display:block;font-size:12px;color:var(--muted);padding:6px 2px 0}}
-.map{position:relative;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);background:#8FD8FF;aspect-ratio:1000/640;width:100%}
-.map>svg{position:absolute;inset:0;width:100%;height:100%}
-:root[data-theme=dark] .map>svg{filter:brightness(.78) saturate(.9)}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .map>svg{filter:brightness(.78) saturate(.9)}}
-.map .coin{transform-box:fill-box;transform-origin:center;animation:coin 1.6s ease-in-out infinite}@keyframes coin{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.25)}}
-.map .star{animation:star 2s ease-in-out infinite}@keyframes star{50%{opacity:.75}}
-.map .cloud{animation:drift 38s linear infinite}.map .cloud.c2{animation-duration:52s;animation-delay:-20s}@keyframes drift{from{transform:translateX(-160px)}to{transform:translateX(1160px)}}
-.racers{position:absolute;inset:0;pointer-events:none}.racer,.racer{position:absolute;left:0;top:0;transform:translate(-50%,-88%);transition:left 1.6s cubic-bezier(.3,1,.4,1),top 1.6s cubic-bezier(.3,1,.4,1);border:0;background:none;padding:0;cursor:pointer;z-index:2;text-align:center}
-.racer .av svg{width:100%;height:100%}.racer .av{display:block;width:clamp(30px,4.6vw,44px);height:clamp(30px,4.6vw,44px);margin:0 auto;animation:idle 1.6s ease-in-out infinite;filter:drop-shadow(0 3px 2px rgba(0,0,0,.35))}
-.racer:nth-child(2n) .av{animation-delay:.17s}.racer:nth-child(3n) .av{animation-delay:.33s}
-@keyframes idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-.racer .tag{display:block;margin:1px auto 0;max-width:74px;overflow:hidden;text-overflow:ellipsis;font:800 10.5px var(--body);color:#fff;background:rgba(5,30,33,.78);border-radius:999px;padding:1px 7px;white-space:nowrap}
-.racer.me .tag{background:var(--ee-yellow);color:var(--accent-ink)}.racer.me .av{filter:drop-shadow(0 0 6px var(--ee-yellow))}
-.racer:hover,.racer:focus-visible,.racer.sel{z-index:5}.racer .tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:6px;background:var(--surface);color:var(--ink);border-radius:var(--r-sm);padding:8px 10px;font-size:12.5px;white-space:nowrap;box-shadow:var(--shadow-2);text-align:left}
+/* the climb: one row per level from the star (a perfect week) down to the start; everyone stands on their level */
+.champ .av{width:50px;height:50px;flex:none}.champ .av svg{width:100%;height:100%}
+.you{display:flex;gap:14px;align-items:center;margin-top:14px;padding:14px 16px;border-radius:var(--r-lg);background:var(--primary-soft)}
+.you .av{width:56px;height:56px;flex:none}.you .av svg{width:100%;height:100%}
+.you-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}.you-b b{font-size:17px}.you-b span,.you-b small{font-size:13px;color:var(--ink-2)}
+.you-bar{height:8px;border-radius:var(--r-pill);background:var(--surface);overflow:hidden;margin-top:4px}.you-bar i{display:block;height:100%;border-radius:inherit;background:var(--primary)}
+.climb{list-style:none;margin:14px 0 0;padding:6px 14px;border-radius:var(--r-lg);background:var(--surface-2)}
+.rung{display:grid;grid-template-columns:42px 1fr;align-items:center;gap:10px;min-height:30px;border-bottom:1px dashed var(--line)}.rung:last-child{border-bottom:0}
+.rung .lvl{justify-self:center;display:grid;place-items:center;min-width:26px;height:24px;padding:0 6px;border-radius:var(--r-pill);font-size:12px;font-weight:800;color:var(--ink-2);background:var(--surface-3)}
+.rung.top .lvl{background:var(--accent);color:var(--on-accent);font-size:14px}.rung.busy .lvl{background:var(--primary);color:var(--on-primary)}
+.rung .goal{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.crowd{display:flex;flex-wrap:wrap;gap:4px 10px;padding:4px 0}
+.racer{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;padding:2px;cursor:pointer;color:inherit}
+.racer .av{display:block;width:40px;height:40px}.racer .av svg{width:100%;height:100%}
+.racer .tag{max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:700;color:var(--ink-2)}
+.racer.me .tag{color:var(--on-accent);background:var(--accent);border-radius:var(--r-pill);padding:0 7px}
+.racer:hover,.racer:focus-visible,.racer.sel{z-index:5}
+.racer .tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;width:max-content;max-width:200px;background:var(--toast-bg);color:#fff;border-radius:var(--r-sm);padding:8px 10px;font-size:12.5px;font-weight:500;line-height:1.4;text-align:left;box-shadow:var(--shadow-2)}
+.rules{margin-top:12px;font-size:13.5px;color:var(--ink-2)}.rules summary{cursor:pointer;font-weight:700;color:var(--ink)}.rules p{margin:8px 0 0}
+@media(max-width:520px){.rank .opt{display:none}.rank th,.rank td{padding:10px 8px}.rank td:first-child{width:28px}}
 .racer:hover .tip,.racer:focus-visible .tip,.racer.sel .tip{display:block}.racer .tip b{font-size:14px}
 .prize{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent);color:var(--on-accent);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;font-size:15.5px}
 .prize.done{display:block;background:var(--teal-soft);color:var(--ink)}.prize .btn.ghost{--btn-bg:transparent;--btn-fg:var(--on-accent);--btn-edge:transparent;border-color:rgba(0,0,0,.25)}
-.lookgrid{display:grid;grid-template-columns:150px 1fr;gap:20px;align-items:center}@media(max-width:600px){.lookgrid{grid-template-columns:1fr}.lookprev{margin:0 auto}}
-.lookprev{width:140px;height:140px;animation:bob 2.4s ease-in-out infinite}.lookprev svg{width:100%;height:100%}
+.lookgrid{display:grid;grid-template-columns:110px 1fr;gap:20px;align-items:center}@media(max-width:600px){.lookgrid{grid-template-columns:1fr;gap:8px}.lookprev{margin:0 auto}.lookgrid>div{min-width:0}}
+.lookprev{width:96px;height:96px;animation:bob 2.4s ease-in-out infinite}.lookprev svg{width:100%;height:100%}
 .swatches{display:flex;flex-wrap:wrap;gap:10px}
 .sw{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:74px;padding:8px 4px 6px;border-radius:var(--r-md);border:2px solid var(--line);background:var(--surface);cursor:pointer}
 .sw small{font-size:11.5px;color:var(--muted)}.sw.on{border-color:var(--teal);background:var(--teal-soft)}.sw:disabled{cursor:not-allowed}.sw.locked>:not(i):not(small){opacity:.35;filter:grayscale(.7)}
 .sw i{position:absolute;top:4px;right:6px;font-style:normal;font-size:13px}.sw.pick{border-color:var(--ee-yellow);box-shadow:0 0 0 3px rgba(255,224,60,.45);animation:pop .5s}
+@media(max-width:600px){.lookgrid .swatches{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}.lookgrid .sw{flex:none;width:64px;scroll-snap-align:start}}
 .sw .dot{width:34px;height:34px;border-radius:50%;box-shadow:inset -4px -5px 0 rgba(0,0,0,.15)}.sw .mini-av{width:40px;height:40px}.sw .mini-av svg{width:100%;height:100%}
 .arm-wave{transform-origin:14px 29px;animation:armwave 1.8s ease-in-out infinite}@keyframes armwave{0%,60%,100%{transform:rotate(0)}70%{transform:rotate(-14deg)}80%{transform:rotate(8deg)}90%{transform:rotate(-10deg)}}
 .rank tr.hl{outline:3px solid var(--ee-yellow);outline-offset:-3px}
@@ -272,7 +277,7 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 :is(.mgr,[data-ui=pro] body) .champ{background:var(--surface);color:var(--ink);border:1px solid var(--line)}:is(.mgr,[data-ui=pro] body) .champ b{color:var(--teal)}
 /* ================= the Professional view ([data-ui=pro], src/ui.js) =================
    Same features, no mascots: the look above on both pages, plus no map, no mascot button, a plain status line instead of the pep talk. */
-[data-ui=pro] .cust,[data-ui=pro] .peek,[data-ui=pro] .mapwrap,[data-ui=pro] #look,[data-ui=pro] .team .person .av,[data-ui=pro] td.empty .av{display:none}
+[data-ui=pro] .cust,[data-ui=pro] .peek,[data-ui=pro] #look,[data-ui=pro] .team .person .av,[data-ui=pro] td.empty .av{display:none}
 [data-ui=pro] .mgr .pulsebox{margin-top:14px}
 [data-ui=pro] .pep{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-md)}
 [data-ui=pro] .pep::before{background:var(--teal)}[data-ui=pro] .pep .k{color:var(--teal)}[data-ui=pro] .pep p{font:500 17px/1.45 var(--body);letter-spacing:0}
