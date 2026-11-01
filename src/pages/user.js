@@ -1,15 +1,15 @@
-import { CONFIG } from '../config.js?v=fbf0dd54c0';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=fbf0dd54c0';
-import { myRewards, claimReward, setLook } from '../core.js?v=fbf0dd54c0';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=fbf0dd54c0';
-import { offerAlerts, checkAlerts } from '../notify.js?v=fbf0dd54c0';
-import { setupIdeas } from '../ideas.js?v=fbf0dd54c0';
-import { setupUi, syncUi, isPro } from '../ui.js?v=fbf0dd54c0';
-import { jokeFor, proNote } from '../jokes.js?v=fbf0dd54c0';
-import { esc, setHtml } from '../dom.js?v=fbf0dd54c0';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=fbf0dd54c0';
-import { raceHTML, placeRacers, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=fbf0dd54c0';
-import { toast } from '../chrome.js?v=fbf0dd54c0';
+import { CONFIG } from '../config.js?v=f61f60fa65';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=f61f60fa65';
+import { myRewards, claimReward, setLook } from '../core.js?v=f61f60fa65';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=f61f60fa65';
+import { offerAlerts, checkAlerts } from '../notify.js?v=f61f60fa65';
+import { setupIdeas } from '../ideas.js?v=f61f60fa65';
+import { setupUi, syncUi, isPro } from '../ui.js?v=f61f60fa65';
+import { jokeFor, proNote } from '../jokes.js?v=f61f60fa65';
+import { esc, setHtml } from '../dom.js?v=f61f60fa65';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=f61f60fa65';
+import { raceHTML, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=f61f60fa65';
+import { toast } from '../chrome.js?v=f61f60fa65';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -137,7 +137,7 @@ $('#look').addEventListener('click',async e=>{const b=e.target.closest('.sw');if
 async function drawRace(){if(tab!=='race')return;try{
     const [rows,last]=await Promise.all([breakathon(weekOf(TODAY,week).from,weekOf(TODAY,week).to),breakathon(weekOf(TODAY,1).from,weekOf(TODAY,1).to)]);
     const champion=last[0]?.points>0?last[0]:null;
-    setHtml($('#race'),raceHTML({rows,me:code,isManager:false,pro:isPro(),champion,prize:champion?.code===code&&mine?{choice:mine.claimed,item:mine.claimed_item}:null}));placeRacers($('#race'));drawLook()}
+    setHtml($('#race'),raceHTML({rows,me:code,isManager:false,pro:isPro(),champion,prize:champion?.code===code&&mine?{choice:mine.claimed,item:mine.claimed_item}:null}));drawLook()}
   catch(err){$('#race').innerHTML=`<p class="empty">${esc(err.message)}</p>`}}
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);document.querySelectorAll('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 
