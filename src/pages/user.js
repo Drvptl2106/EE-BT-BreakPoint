@@ -1,15 +1,15 @@
-import { CONFIG } from '../config.js?v=2e77d6a93f';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=2e77d6a93f';
-import { myRewards, claimReward, setLook } from '../core.js?v=2e77d6a93f';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=2e77d6a93f';
-import { offerAlerts, checkAlerts } from '../notify.js?v=2e77d6a93f';
-import { setupIdeas } from '../ideas.js?v=2e77d6a93f';
-import { setupUi, syncUi, isPro } from '../ui.js?v=2e77d6a93f';
-import { jokeFor, proNote } from '../jokes.js?v=2e77d6a93f';
-import { esc, setHtml } from '../dom.js?v=2e77d6a93f';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=2e77d6a93f';
-import { raceHTML, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=2e77d6a93f';
-import { toast } from '../chrome.js?v=2e77d6a93f';
+import { CONFIG } from '../config.js?v=f61f60fa65';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=f61f60fa65';
+import { myRewards, claimReward, setLook } from '../core.js?v=f61f60fa65';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=f61f60fa65';
+import { offerAlerts, checkAlerts } from '../notify.js?v=f61f60fa65';
+import { setupIdeas } from '../ideas.js?v=f61f60fa65';
+import { setupUi, syncUi, isPro } from '../ui.js?v=f61f60fa65';
+import { jokeFor, proNote } from '../jokes.js?v=f61f60fa65';
+import { esc, setHtml } from '../dom.js?v=f61f60fa65';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=f61f60fa65';
+import { raceHTML, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=f61f60fa65';
+import { toast } from '../chrome.js?v=f61f60fa65';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';

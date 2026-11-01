@@ -56,7 +56,7 @@ own files on the phone so it opens fast on a weak signal. Every update to this r
   break time is used up, including any OH break the manager added.
 - The shift pie: time worked, breaks, overruns and time still to go, with the worked time ticking to the second.
 - A sales-floor pep talk that changes with the time of day (and is different every time you open the page), a live clock and a Live indicator.
-- **Breakathon:** a climb made for phones: one row per level, the star at the top (level 8) is a perfect week, and every 25 points lifts your mascot one level. A "you" card shows your rank and how close the next level is; tap anyone to see theirs.
+- **Breakathon:** a simple platform-game level made for phones: grassy islands zig-zag up the screen, joined by ladders, from START to a flag and a star at the top (level 8, a perfect week). Every 25 points lifts your mascot one island. A "you" card shows your rank and how close the next level is; tap anyone to see theirs.
 - **Mascots and prizes:** everyone has a little bean wearing a headset, in their own colour (any colour, any time). It delivers
   the pep talk and reacts quietly to your day. Last week's champion picks a prize: a 15 min extra break, or an accessory
   (cap, scarf, boots, bow, glasses, sprout) that's theirs for good.

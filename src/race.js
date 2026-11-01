@@ -1,8 +1,8 @@
 // Breakathon view, shared by both pages: an illustrated island where everyone's character runs along the road to the
 // Champion's Keep, the further the more punctual points they have, plus the ranking table.
 // Also the characters themselves (used on the dashboard cards and as the agent's pep-talk buddy).
-import { CONFIG } from './config.js?v=2e77d6a93f';
-import { esc } from './dom.js?v=2e77d6a93f';
+import { CONFIG } from './config.js?v=f61f60fa65';
+import { esc } from './dom.js?v=f61f60fa65';
 
 /* ---------------- the mascot ----------------
    One soft bean wearing a little headset (it's a contact centre): flat colour, dot eyes, a small smile and rosy cheeks,
@@ -56,10 +56,36 @@ export function avatar(code, { look, crown = false, mood = 'happy' } = {}) {
 const lookOf = r => ({ colour: r.colour, accessory: r.accessory });
 
 /* ---------------- the climb ----------------
-   Made for a phone: one row per level, from the star at the top (level CONFIG.breakathon.levels, a perfect week) down to
-   the start. Every CONFIG.breakathon.pointsPerLevel points lifts you one level, everyone stands on the level they have
-   reached, and the highest racer wins the week. A "you" card on top says where you are and how close the next level is.
-   The Professional look keeps the "you" card and the table only. */
+   A simple platform-game level made for a phone: grassy floating islands zig-zag up the screen, joined by ladders, in
+   front of soft mountains, from START at the bottom to a flag and a star at the top (level CONFIG.breakathon.levels, a
+   perfect week). Every CONFIG.breakathon.pointsPerLevel points lifts you one island, everyone stands on the island they
+   have reached, and the highest racer wins the week. A "you" card on top says where you are and how close the next level
+   is. The Professional look keeps the "you" card and the table only. */
+const SCENE_W = 360, SCENE_H = 640;
+/* one island per level, bottom to top, alternating left and right so each overlaps the next one for its ladder */
+const ISLANDS = Array.from({ length: CONFIG.breakathon.levels + 1 }, (_, i) => ({ x: i % 2 ? 168 : 22, y: 592 - i * 66, w: 170, left: !(i % 2) }));
+const island = ({ x, y, w, left }, lv, top) => `<g>
+  <path d="M${x + 6} ${y + 8}H${x + w - 6}q2 16-16 24-${(w - 32) / 2} 18-${w - 32} 0-18-8-16-24z" fill="#A86F3D"/>
+  <path d="M${x + 22} ${y + 26}q${(w - 44) / 2} 12 ${w - 44} 0" stroke="#8A5A30" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <rect x="${x - 2}" y="${y}" width="${w + 4}" height="12" rx="6" fill="#62BC45"/><rect x="${x + 8}" y="${y + 2}" width="${w - 16}" height="3" rx="1.5" fill="#8EDB68"/>
+  ${[.3, .7].map(t => `<path d="M${x + w * t} ${y}l3-7 2 7 3-5 2 5z" fill="#4FA236"/>`).join('')}
+  ${top ? '' : (() => { const sx = left ? x + 14 : x + w - 14;   // a little wooden sign with the level, at the far end from the ladder
+    return `<rect x="${sx - 1.5}" y="${y - 16}" width="3" height="16" fill="#7A4A26"/><rect x="${sx - 11}" y="${y - 30}" width="22" height="16" rx="3" fill="#E7B66B" stroke="#9C6B2E" stroke-width="1.5"/>
+      <text x="${sx}" y="${y - 18.5}" text-anchor="middle" font-size="${lv ? 11 : 7.5}" font-weight="800" fill="#5A3A00">${lv || 'START'}</text>`; })()}</g>`;
+const ladder = (x, top, bottom) => `<g stroke="#B9813F" stroke-width="3.2" stroke-linecap="round"><path d="M${x - 7} ${top}V${bottom}M${x + 7} ${top}V${bottom}"/>
+  ${Array.from({ length: Math.floor((bottom - top - 6) / 11) }, (_, k) => `<path d="M${x - 7} ${top + 8 + k * 11}h14"/>`).join('')}</g>`;
+const cloud = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})" fill="#fff" opacity=".9"><ellipse rx="26" ry="9"/><ellipse cx="-11" cy="-6" rx="13" ry="9"/><ellipse cx="10" cy="-7" rx="15" ry="10"/></g>`;
+const SCENE = (() => { const T = ISLANDS.at(-1);
+  return `<svg viewBox="0 0 ${SCENE_W} ${SCENE_H}" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+  <defs><linearGradient id="bt-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CCBF2"/><stop offset="1" stop-color="#DDF3FF"/></linearGradient></defs>
+  <rect width="${SCENE_W}" height="${SCENE_H}" fill="url(#bt-sky)"/>
+  ${cloud(70, 70, 1)}${cloud(290, 150, .8)}${cloud(60, 300, .7)}${cloud(300, 420, .6)}
+  <path d="M0 520L60 450L110 500L180 410L250 490L300 440L360 480V640H0z" fill="#B6DDF1"/><path d="M0 575L70 520L140 565L215 505L290 560L360 525V640H0z" fill="#9CCDE6"/>
+  ${ISLANDS.slice(0, -1).map((lo, i) => ladder(i % 2 ? 175 : 185, ISLANDS[i + 1].y + 9, lo.y + 2)).join('')}
+  ${ISLANDS.map((p, lv) => island(p, lv, lv === ISLANDS.length - 1)).join('')}
+  <g transform="translate(${T.x + T.w - 24} ${T.y})"><rect x="-1.5" y="-52" width="3" height="52" fill="#5B6469"/><path d="M1.5-52h22l-6 7 6 7h-22z" fill="#E8544F"/></g>
+  <g transform="translate(${T.x + 34} ${T.y - 40})"><circle r="15" fill="#FFF3A8" opacity=".7"/><path d="M0-11l3.2 6.7 7.3 1-5.3 5 1.3 7.3L0 5.6-6.5 9l1.3-7.3-5.3-5 7.3-1z" fill="#FFD84A" stroke="#C98A00" stroke-width="1.4" stroke-linejoin="round"/></g>
+</svg>`; })();
 const levelOf = points => Math.min(CONFIG.breakathon.levels, Math.floor(Math.max(0, points) / CONFIG.breakathon.pointsPerLevel));
 
 /** rows: ranked [{ code, name, breaks, onTime, cleanDays, overMinutes, points }]. */
@@ -79,14 +105,17 @@ export function raceHTML({ rows, me, isManager, champion, grant, prize, pro = fa
       <b>You're #${i + 1} of ${rows.length}</b><span>${pro ? '' : `Level ${lv} · `}${r.points} points · ${r.onTime}/${r.breaks} breaks on time</span>
       ${pro ? '' : `<div class="you-bar"><i style="width:${pct}%"></i></div><small>${toNext ? `${toNext} points to level ${lv + 1}` : 'Perfect week! You reached the star.'}</small>`}</div></div>`;
   }
-  const racer = (x, k) => { const lv = levelOf(x.points), toNext = lv >= B.levels ? 0 : (lv + 1) * B.pointsPerLevel - x.points;
-    return `<button class="racer${x.code === me ? ' me' : ''}" data-code="${esc(x.code)}" aria-label="${esc(x.name)}, level ${lv}, ${x.points} points, rank ${k + 1}">
-      <span class="av">${avatar(x.code, { crown: k === 0 && x.points > 0, look: lookOf(x) })}</span><span class="tag">${x.code === me ? 'You' : esc(x.name)}</span>
+  const racer = (x, k, cx, cy) => { const lv = levelOf(x.points), toNext = lv >= B.levels ? 0 : (lv + 1) * B.pointsPerLevel - x.points;
+    return `<button class="racer${x.code === me ? ' me' : ''}${cx > SCENE_W * .66 ? ' tip-l' : cx < SCENE_W * .34 ? ' tip-r' : ''}" data-code="${esc(x.code)}" style="left:${(cx / SCENE_W * 100).toFixed(2)}%;top:${(cy / SCENE_H * 100).toFixed(2)}%" aria-label="${esc(x.name)}, level ${lv}, ${x.points} points, rank ${k + 1}">
+      <span class="av">${avatar(x.code, { crown: k === 0 && x.points > 0, look: lookOf(x) })}</span>${x.code === me ? '<span class="tag">You</span>' : ''}
       <span class="tip"><b>${k + 1}. ${esc(x.name)}</b><br>${x.points} points${toNext ? ` · ${toNext} to level ${lv + 1}` : ' · at the star'}<br>${x.onTime}/${x.breaks} breaks on time${isManager ? ` · ${x.overMinutes ?? 0} min over` : ''}</span></button>`; };
-  const climb = pro || !rows.length ? '' : `<ol class="climb" aria-label="Levels">${[...Array(B.levels + 1)].map((_, k) => { const lv = B.levels - k,
-      here = rows.map((x, n) => [x, n]).filter(([x]) => levelOf(x.points) === lv);
-      return `<li class="rung${lv === B.levels ? ' top' : ''}${here.length ? ' busy' : ''}"><span class="lvl">${lv === B.levels ? '★' : lv || 'Start'}</span>
-        <div class="crowd">${here.map(([x, n]) => racer(x, n)).join('') || (lv === B.levels ? '<span class="goal">Perfect week</span>' : '')}</div></li>`; }).join('')}</ol>`;
+  /* everyone stands on their island, spread out between the ladder and the sign; tap someone for their card */
+  const climb = pro || !rows.length ? '' : `<div class="scene">${SCENE}<div class="racers">${ISLANDS.map((p, lv) => {
+      const here = rows.map((x, n) => [x, n]).filter(([x]) => levelOf(x.points) === lv); if (!here.length) return '';
+      const from = p.left ? p.x + 40 : p.x + 30, to = p.left ? p.x + p.w - 26 : p.x + p.w - 40, step = here.length > 1 ? Math.min(34, (to - from) / (here.length - 1)) : 0,
+        mid = (from + to) / 2;
+      return here.map(([x, n], k) => racer(x, n, mid + (k - (here.length - 1) / 2) * step, p.y)).join('');
+    }).join('')}</div></div>`;
   const table = `<div class="scroll" style="margin-top:16px"><table class="rank"><thead><tr><th>#</th><th>${pro ? 'Name' : 'Racer'}</th>${pro ? '' : '<th class="opt">Level</th>'}<th>Points</th><th>On time</th><th class="opt">Clean days</th>${isManager ? '<th>Min over</th>' : ''}</tr></thead><tbody>${rows.map((x, k) =>
     `<tr class="${x.code === me ? 'me' : ''}" data-code="${esc(x.code)}"><td>${k + 1}</td><td class="person">${pro ? '' : avatar(x.code, { look: lookOf(x) })}<b style="display:inline">${esc(x.name)}${x.code === me ? ' (you)' : ''}</b></td>${pro ? '' : `<td class="opt">${levelOf(x.points)}</td>`}<td><b>${x.points}</b></td><td>${x.onTime}/${x.breaks}</td><td class="opt">${x.cleanDays || '–'}</td>${isManager ? `<td class="${x.overMinutes ? 'bad' : ''}">${x.overMinutes ?? 0}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
   const rules = pro
