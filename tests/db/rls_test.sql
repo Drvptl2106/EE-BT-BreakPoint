@@ -355,6 +355,28 @@ select t.denied('select purge_old_data()');
 select t.ok(true, 'nobody signed in can run the cleanup by hand');
 commit;
 
+-- ---------- start fresh (runs last: it wipes the pilot team's data) ----------
+insert into shifts(user_id, day, shift_start) values ('00000000-0000-0000-0000-00000000000d', current_date - 2, now() - interval '2 days');
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select t.denied($$select reset_team_data('START FRESH')$$);
+select t.ok(true, 'an agent cannot start fresh');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
+select t.denied($$select reset_team_data('start fresh please')$$);
+select t.ok(true, 'starting fresh needs the exact words');
+select reset_team_data('START FRESH');
+select t.ok(t.n('select * from shifts') = 0 and t.n('select * from pilot_stats(current_date - 60, current_date)') = 0, 'the team lead starts fresh: no shifts or pilot data left for the team');
+select t.ok(t.n('select * from profiles') = 3, 'everyone keeps their login and profile');
+select t.ok(t.n($$select * from audit_log where action = 'reset_team'$$) = 1 and t.n($$select * from audit_log where action <> 'reset_team'$$) = 0, 'the change history keeps one "started fresh" entry');
+commit;
+select t.ok(t.n($$select * from shifts s join profiles p on p.id = s.user_id where p.team = 'other'$$) >= 1, 'another team''s data is untouched');
+select t.ok(t.n($$select * from shifts s join profiles p on p.id = s.user_id where p.team = 'pilot'$$) = 0
+  and t.n($$select * from daily_stats d join profiles p on p.id = d.user_id where p.team = 'pilot'$$) = 0
+  and t.n($$select * from adjustments a join profiles p on p.id = a.user_id where p.team = 'pilot'$$) = 0
+  and t.n($$select * from rewards r join profiles p on p.id = r.user_id where p.team = 'pilot'$$) = 0
+  and t.n($$select * from avatars a join profiles p on p.id = a.user_id where p.team = 'pilot'$$) = 0
+  and t.n($$select * from ui_prefs u join profiles p on p.id = u.user_id where p.team = 'pilot'$$) = 0, 'everything else of the team is gone too');
+
 -- ---------- every table has row level security on ----------
 select t.ok(not exists (select 1 from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and not relrowsecurity), 'row level security is on for every table');
 select t.ok(not exists (select 1 from information_schema.columns where table_schema = 'public' and column_name ilike '%reason%'), 'no reason column anywhere');

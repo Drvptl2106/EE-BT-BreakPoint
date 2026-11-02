@@ -10,8 +10,8 @@
 //
 // Every failure is turned into a sentence that says WHAT is wrong and WHERE to fix it (see explain()),
 // so "wrong password" only ever means a wrong code or password.
-import { CONFIG } from '../config.js?v=60136fd5bd';
-import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=60136fd5bd';
+import { CONFIG } from '../config.js?v=c65a64a838';
+import { PILOT_USERS, MANAGER_CODES } from '../pilot.js?v=c65a64a838';
 
 const EMAIL_DOMAIN = '@pilot.local';            // code EE-1001  ->  ee-1001@pilot.local (same as scripts/create_logins.mjs)
 const pad = n => String(n).padStart(2, '0');
@@ -352,6 +352,8 @@ export const setSuggestionStatus = (id, status) => rpc('set_suggestion_status', 
 export const removeSuggestion = id => rpc('remove_suggestion', { p_id: id });
 /** Pilot data: one row per person per day (live for the last 14 days, saved totals before that). Team leads get their team. */
 export const pilotStats = (from, to) => rpc('pilot_stats', { p_from: from, p_to: to });
+/** Team leads: wipe the team's app data and start fresh (keeps logins). The database checks the role and the words. */
+export async function resetTeam(confirmText) { await rpc('reset_team_data', { p_confirm: confirmText }); await fullPull(); }
 /** Change the signed-in person's password. */
 export async function changePassword(password) {
   const pw = String(password ?? '');

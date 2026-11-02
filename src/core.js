@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=60136fd5bd';
-import * as api from './backend/api.js?v=60136fd5bd';
-import { PILOT_USERS } from './pilot.js?v=60136fd5bd';
+import { CONFIG } from './config.js?v=c65a64a838';
+import * as api from './backend/api.js?v=c65a64a838';
+import { PILOT_USERS } from './pilot.js?v=c65a64a838';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -119,6 +119,13 @@ export async function pilotStats(from, to) {
       first_break_at: iso(b.length ? Math.min(...b.map(x => x.start)) : 0), last_break_end: iso(b.length ? Math.max(...b.map(x => x.end)) : 0) });
   }
   return out;
+}
+/** Team leads: wipe the team's app data and start fresh, keeping everyone's login (db/schema.sql, reset_team_data).
+    Demo mode clears everything this browser keeps. */
+export async function resetTeam(confirmText) {
+  if (API) return api.resetTeam(confirmText);
+  if (confirmText !== 'START FRESH') throw new Error('Type START FRESH to confirm.');
+  for (const k of [KEY, LOOKS_KEY, UI_KEY, IDEAS_KEY]) localStorage.removeItem(k);
 }
 export function purge(db){
   if (API) return;                                                              // the database deletes old rows itself (db/cleanup_job.sql)

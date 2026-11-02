@@ -593,6 +593,32 @@ revoke execute on function day_stats(date, date), snapshot_daily_stats() from pu
 revoke execute on function pilot_stats(date, date) from public, anon;
 grant execute on function pilot_stats(date, date) to authenticated;
 
+-- ---------- start fresh: a team lead wipes the team's app data ----------
+-- For starting the real pilot after testing (Manage > Start fresh). Deletes, for the caller's team only: shifts and
+-- breaks, adjustments, OH breaks, break names, the change history, pilot data, Breakathon prizes and looks, Ideas and
+-- votes, and look choices. Keeps everyone's login, profile, code and team, so nobody needs a new password.
+-- Leaves one 'reset_team' entry in the change history saying who did it and when.
+create or replace function reset_team_data(p_confirm text) returns void
+language plpgsql security definer set search_path = public as $$
+declare t text := my_team();
+begin
+  if auth.uid() is null or not is_manager() then raise exception 'Only team leads can start fresh.'; end if;
+  if p_confirm is distinct from 'START FRESH' then raise exception 'Type START FRESH to confirm.'; end if;
+  delete from shifts             where user_id in (select id from profiles where team = t);   -- breaks go with their shift
+  delete from adjustments        where user_id in (select id from profiles where team = t);
+  delete from custom_break_rules where user_id in (select id from profiles where team = t);
+  delete from break_names        where user_id in (select id from profiles where team = t);
+  delete from daily_stats        where team = t or user_id in (select id from profiles where team = t);
+  delete from rewards            where user_id in (select id from profiles where team = t);
+  delete from avatars            where user_id in (select id from profiles where team = t);
+  delete from ui_prefs           where user_id in (select id from profiles where team = t);
+  delete from suggestions        where team = t;                                              -- votes go with them
+  delete from audit_log          where target_id in (select id from profiles where team = t) or actor_id in (select id from profiles where team = t);
+  insert into audit_log(actor_id, action, target_id) values (auth.uid(), 'reset_team', auth.uid());
+end $$;
+revoke execute on function reset_team_data(text) from public, anon;
+grant execute on function reset_team_data(text) to authenticated;
+
 -- Retention (= CONFIG.retentionDays): run db/cleanup_job.sql once, after this file.
 
 -- Check: these should list your tables with "true" for row level security.

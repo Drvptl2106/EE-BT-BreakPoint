@@ -80,6 +80,8 @@ own files on the phone so it opens fast on a weak signal. Every update to this r
 - **Pilot summary** (Manage tab): on-time rate, average break minutes a day against the allowance, minutes and days over,
   auto-closed breaks, per person and for the team, from the pilot start (`pilotStart` in `src/config.js`) or any date.
   **Pilot data (CSV)** downloads one row per person per day for the whole period, so it grows as the pilot goes on.
+- **Start fresh** (Manage tab): wipes all of the team's app data (breaks, history, pilot data, prizes and looks, Ideas, look
+  choices) after typing START FRESH, e.g. once testing is over. Everyone keeps their login and password.
 - **Breakathon:** the race with minutes over, what last week's champion picked, and a button to give the extra break if they chose it.
 
 ## Security in one paragraph

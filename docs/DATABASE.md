@@ -88,6 +88,9 @@ Break start and stop times are stamped by the database clock when an agent start
 | `daily_stats` | one row per person per day for the pilot: breaks, minutes used and allowed, minutes over, on time, auto-closed, first and last break time. Saved every night before the 14-day cleanup, kept 180 days | only the nightly job (`snapshot_daily_stats`); read through `pilot_stats()` |
 | `audit_log` | every manager change (and an agent moving their own shift times): who, when, what, before, after | only the database triggers |
 
+**Starting fresh:** Manage > Start fresh calls `reset_team_data('START FRESH')`, which deletes the caller's team's data (not logins or
+profiles) and leaves one `reset_team` entry in the change history. Only team leads can run it, and only for their own team.
+
 Making someone a manager is a `role` in `profiles` (or `manager` in the login list). It is never a code in the page.
 
 ## Honest limits

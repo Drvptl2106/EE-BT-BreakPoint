@@ -125,6 +125,12 @@ with sync_playwright() as p:
     with m.expect_download() as dl: m.click('#pilotCsv')
     rows = open(dl.value.path()).read().splitlines()
     ok(rows[0].startswith('date,weekday,code,name') and len(rows) > 20, f'the Pilot data CSV has one row per person per day ({len(rows) - 1} rows)')
+    # ---- start fresh: wipes the team's data after a typed confirmation ----
+    m.click('#freshBtn'); m.wait_for_selector('#freshOv')
+    ok(m.is_disabled('#freshGo'), 'starting fresh needs the words typed first')
+    m.fill('#freshIn', 'START FRESH'); m.click('#freshGo'); m.wait_for_timeout(600)
+    m.click('[data-tab="dash"]'); m.wait_for_timeout(300)
+    ok('Nobody has clocked in yet today' in m.inner_text('#pulse') and m.locator('#freshOv').count() == 0, 'after starting fresh the team has no data')
     ok(not logs, 'no JS or CSP errors: ' + '; '.join(logs)[:300])
     b.close()
 print('\nRESULT:', 'ALL PASSED' if not errs else f'{len(errs)} FAILED'); sys.exit(1 if errs else 0)

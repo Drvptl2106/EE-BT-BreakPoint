@@ -309,6 +309,8 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .pilottable td.bad{color:var(--danger);font-weight:700}.pilottable .person b{white-space:nowrap}
 @media(max-width:700px){.pilot-kpis{grid-template-columns:1fr 1fr}.pilottable .opt,.uitable .opt{display:none}.pilottable th,.pilottable td,.uitable th,.uitable td{padding:9px 8px}
   #dBody td,#dBody th{padding:8px 6px}#dBody input[type=time]{width:100%;min-width:0;padding:6px 4px}}
+.panel.danger{border:1px solid color-mix(in srgb,var(--danger) 35%,var(--line))}.panel.danger h2{color:var(--danger)}
+.btn.danger{--btn-bg:var(--danger);--btn-fg:#fff;--btn-edge:var(--danger-strong)}
 /* ================= the phone app (both pages, installed or in the browser) =================
    On a big screen the header has text tabs and links; on a phone the tabs move to a bottom bar with icons (in thumb reach),
    the header becomes one compact row of round buttons, the manager's tables turn into one card per person and the

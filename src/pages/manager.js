@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=60136fd5bd';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=60136fd5bd';
-import { setupIdeas } from '../ideas.js?v=60136fd5bd';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=60136fd5bd';
-import { teamLooks, teamRewards, teamUiStyles, pilotStats } from '../core.js?v=60136fd5bd';
-import { load, save, purge, dayKey, workDayOf, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=60136fd5bd';
-import { esc, setHtml } from '../dom.js?v=60136fd5bd';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=60136fd5bd';
-import { raceHTML, avatar, wireRacers } from '../race.js?v=60136fd5bd';
+import { CONFIG } from '../config.js?v=c65a64a838';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=c65a64a838';
+import { setupIdeas } from '../ideas.js?v=c65a64a838';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=c65a64a838';
+import { teamLooks, teamRewards, teamUiStyles, pilotStats, resetTeam } from '../core.js?v=c65a64a838';
+import { load, save, purge, dayKey, workDayOf, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=c65a64a838';
+import { esc, setHtml } from '../dom.js?v=c65a64a838';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=c65a64a838';
+import { raceHTML, avatar, wireRacers } from '../race.js?v=c65a64a838';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -67,6 +67,7 @@ function describe(h){const {c}=det,sl=h.slot_key?esc(labelFor(db,c,h.slot_key)):
     case 'add_custom_break':return `Added ${sl}: ${esc(a)}`;
     case 'remove_custom_break':return `Removed ${sl} (was ${esc(b)})`;
     case 'edit_custom_break':return `Changed ${sl}: ${esc(b)} → ${esc(a)}`;
+    case 'reset_team':return 'Started fresh: all team data wiped';
     case 'rename_break':{const def=esc(CONFIG.defaultSlots.find(s=>s.key===h.slot_key)?.label||CONFIG.customLabels[h.slot_key]);return `Renamed ${def}: “${b?esc(b):def}” → “${a?esc(a):def}”`}
     default:return esc(h.action)}}
 $('#dBody').addEventListener('change',e=>{const t=e.target;if(t.id==='dDate'){det.date=t.value;return draw()}
@@ -139,6 +140,22 @@ $('#pilotCsv').addEventListener('click',async()=>{await loadPilot();if(!PILOT?.l
   const out=[['date','weekday','code','name','shift_start','shift_end','shift_hours','breaks_taken','sittings','break_minutes','allowance_minutes','minutes_over','breaks_on_time','on_time_rate','auto_closed','manager_adjust_minutes','first_break','last_break_end'],
     ...PILOT.map(r=>[r.day,DN[new Date(r.day+'T12:00:00').getDay()],r.code,r.name,t(r.shift_start),t(r.shift_end),hrs(r.shift_start,r.shift_end),r.breaks,r.sittings,r.break_minutes,r.allowance_minutes,r.minutes_over,r.on_time,r.breaks?Math.round(r.on_time/r.breaks*100)+'%':'',r.auto_closed,r.adjust_minutes,t(r.first_break_at),t(r.last_break_end)])];
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.map(x=>x.map(csvCell).join(',')).join('\r\n')],{type:'text/csv'}));a.download=`breakpoint-pilot-${pilotFrom()}-to-${TODAY}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)});
+
+/* ---------- start fresh: wipe the team's data (keeps logins), behind a typed confirmation ---------- */
+$('#freshBtn').addEventListener('click',()=>{
+  document.body.insertAdjacentHTML('beforeend',`<div class="overlay" id="freshOv"><form class="dialog small" id="freshForm" role="dialog" aria-modal="true" aria-labelledby="freshT">
+    <h3 id="freshT" style="margin-top:0">Start fresh?</h3><p style="margin:0 0 8px">This deletes, for everyone in your team:</p>
+    <ul class="hint" style="margin:0 0 10px;padding-left:18px"><li>all breaks, shifts, adjustments, OH breaks and break names</li><li>the change history and the pilot data</li><li>Breakathon prizes and mascot looks</li><li>Ideas and votes, and everyone's Playful / Professional choice</li></ul>
+    <p style="margin:0 0 10px"><b>Everyone keeps their login and password.</b> This can't be undone, so download the CSVs first if you want a copy.</p>
+    <label class="hint" for="freshIn">Type <b>START FRESH</b> to confirm</label><input id="freshIn" autocomplete="off" autocapitalize="characters" placeholder="START FRESH" style="width:100%;margin:6px 0 10px">
+    <p class="err" id="freshErr" role="alert"></p><div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost" id="freshNo">Cancel</button><button class="btn danger" id="freshGo" disabled>Delete everything</button></div></form></div>`);
+  const close=()=>$('#freshOv').remove();
+  $('#freshIn').focus();$('#freshIn').addEventListener('input',e=>{$('#freshGo').disabled=e.target.value.trim()!=='START FRESH'});
+  $('#freshNo').addEventListener('click',close);
+  $('#freshForm').addEventListener('submit',async e=>{e.preventDefault();const b=$('#freshGo');b.disabled=true;
+    try{await resetTeam($('#freshIn').value.trim());close();db=load();render(true);loadPilot();loadUiChoices();drawRace();toast('All done. Your team starts fresh from now.',5000)}
+    catch(err){$('#freshErr').textContent=err.message;b.disabled=false}});
+});
 
 /* ---------- interface choice: which look each person picked, for the pilot write-up (src/ui.js) ---------- */
 let UIC={};
