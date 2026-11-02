@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=43e6565416';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=43e6565416';
-import { setupIdeas } from '../ideas.js?v=43e6565416';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=43e6565416';
-import { teamLooks, teamRewards, teamUiStyles, pilotStats } from '../core.js?v=43e6565416';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=43e6565416';
-import { esc, setHtml } from '../dom.js?v=43e6565416';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=43e6565416';
-import { raceHTML, avatar, wireRacers } from '../race.js?v=43e6565416';
+import { CONFIG } from '../config.js?v=60136fd5bd';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=60136fd5bd';
+import { setupIdeas } from '../ideas.js?v=60136fd5bd';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=60136fd5bd';
+import { teamLooks, teamRewards, teamUiStyles, pilotStats } from '../core.js?v=60136fd5bd';
+import { load, save, purge, dayKey, workDayOf, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=60136fd5bd';
+import { esc, setHtml } from '../dom.js?v=60136fd5bd';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=60136fd5bd';
+import { raceHTML, avatar, wireRacers } from '../race.js?v=60136fd5bd';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -28,7 +28,7 @@ $('#demo').addEventListener('click',()=>{db=load();const at=now();let i=0;
     i++}save(db);render(true);loadPilot()});
 $('#clear').addEventListener('click',()=>{if(!confirm("Clear today's data for everyone? This can't be undone."))return;db=load();delete db.days[TODAY];delete db.adj[TODAY];save(db);render(true)});
 /* ---------- details dialog ---------- */
-document.addEventListener('click',e=>{const b=e.target.closest('button[data-det]');if(b){det={c:b.dataset.det,date:TODAY};db=load();draw();$('#dOv').classList.remove('hidden')}});
+document.addEventListener('click',e=>{const b=e.target.closest('button[data-det]');if(b){db=load();det={c:b.dataset.det,date:workDayOf(db,b.dataset.det,now())};draw();$('#dOv').classList.remove('hidden')}});
 $('#dClose').addEventListener('click',()=>{det=null;$('#dOv').classList.add('hidden')});
 function draw(){const {c,date}=det,r=db.days[date]?.[c],p=plan(r,db.adj[date]?.[c],now(),slotsFor(db,c,date)),L=k=>esc(labelFor(db,c,k)),N=esc(U[c]);
   const dates=[...new Set([TODAY,...Object.keys(db.days).filter(d=>db.days[d][c])])].sort().reverse(),cust=db.custom[c]||[];
@@ -88,7 +88,8 @@ $('#dBody').addEventListener('click',e=>{const t=e.target.closest('button');if(!
 /* ---------- dashboard (view only): filters, team pulse, one card per person ---------- */
 let filter='all',tab='dash',lastDash='',LOOKS={};
 async function loadLooks(){try{const l=await teamLooks();if(JSON.stringify(l)!==JSON.stringify(LOOKS)){LOOKS=l;renderDash(now(),true)}}catch{}}
-const teamNow=at=>Object.entries(U).map(([c,name])=>{const r=db.days[TODAY]?.[c],p=plan(r,db.adj[TODAY]?.[c],at,slotsFor(db,c,TODAY));return {c,name,rec:r,p,st:statusOf(r,p,at)}});
+/* each person's current shift: still yesterday's for someone working past midnight (src/core.js, workDayOf) */
+const teamNow=at=>Object.entries(U).map(([c,name])=>{const dk=workDayOf(db,c,at),r=db.days[dk]?.[c],p=plan(r,db.adj[dk]?.[c],at,slotsFor(db,c,dk));return {c,name,rec:r,p,st:statusOf(r,p,at)}});
 function renderDash(at,force){if(tab!=='dash'&&!force)return;const sig=JSON.stringify(db)+filter+Math.floor(at/1e4);if(!force&&sig===lastDash)return;lastDash=sig;
   const team=teamNow(at),f=FILTERS.find(x=>x.key===filter),list=team.filter(t=>f.test(t.st,t.p));
   setHtml($('#filters'),FILTERS.map(x=>{const n=team.filter(t=>x.test(t.st,t.p)).length;return `<button class="fbtn${x.key==='over'&&n?' bad':''}" data-f="${x.key}" aria-pressed="${filter===x.key}"><span>${x.label}</span><b>${n}</b></button>`}).join(''));
@@ -173,11 +174,11 @@ $('#race').addEventListener('click',e=>{if(e.target.id!=='grantBtn'||!champ)retu
 
 /* ---------- team table (Manage tab) ---------- */
 function render(force){const at=now();if(dayKey(new Date(at))!==TODAY)TODAY=dayKey(new Date(at));renderDash(at,force);const sig=JSON.stringify(db)+Math.floor(at/6e4);if(!force&&sig===lastSig)return;lastSig=sig;
-  const day=db.days[TODAY]||{},adj=db.adj[TODAY]||{};CONFIG.defaultSlots.forEach((s,i)=>$('#h'+i).textContent=`${s.label} (${s.minutes} min)`);
-  $('#rows').innerHTML=Object.entries(U).map(([c,name])=>{const r=day[c],p=plan(r,adj[c],at,slotsFor(db,c,TODAY));let shift='<span style="color:var(--muted)">Not started</span>',pct=0,status='<span class="pill">Not started</span>';
+  CONFIG.defaultSlots.forEach((s,i)=>$('#h'+i).textContent=`${s.label} (${s.minutes} min)`);
+  $('#rows').innerHTML=Object.entries(U).map(([c,name])=>{const dk=workDayOf(db,c,at),r=db.days[dk]?.[c],p=plan(r,db.adj[dk]?.[c],at,slotsFor(db,c,dk));let shift='<span style="color:var(--muted)">Not started</span>',pct=0,status='<span class="pill">Not started</span>';
     if(r){shift=r.shiftEnd?`${hhmm(r.shiftStart)} – ${hhmm(r.shiftEnd)}`:`${hhmm(r.shiftStart)} – <span style="color:var(--muted)">no end set</span>`;pct=r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;status=pct>=100?'<span class="pill">Finished</span>':'<span class="pill work">Working</span>';
       if(r.active){const s=p.find(x=>x.act);status=`<span class="pill brk" data-live data-left="${ownLeft(s)}" data-spare="${spareLeft(s)}" data-label="${esc(s.label)}"></span>`}}
-    const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(at-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell" data-label="${esc(s.defaultLabel)}">${nm}${main}${adjUI(c,s,TODAY,name)}</td>`}).join('');
+    const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(at-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell" data-label="${esc(s.defaultLabel)}">${nm}${main}${adjUI(c,s,dk,name)}</td>`}).join('');
     return `<tr><td class="person"><b>${esc(name)}</b><span>${c}${p.length>3?` · +${p.length-3} custom`:''}</span></td><td data-label="Shift">${shift}</td><td data-label="Progress"><div class="mini"><i style="width:${pct}%"></i></div>${r&&r.shiftEnd?Math.floor(pct)+'%':'–'}</td><td>${status}</td>${cells}<td><button class="btn ghost sm" data-det="${c}">View more</button></td></tr>`}).join('');
   liveTick()}
 /* a running break: own = seconds left of its own minutes (negative = past them, borrowing from the person's other breaks),

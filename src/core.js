@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=43e6565416';
-import * as api from './backend/api.js?v=43e6565416';
-import { PILOT_USERS } from './pilot.js?v=43e6565416';
+import { CONFIG } from './config.js?v=60136fd5bd';
+import * as api from './backend/api.js?v=60136fd5bd';
+import { PILOT_USERS } from './pilot.js?v=60136fd5bd';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -195,6 +195,15 @@ export function weekScore(db, code, from, to){
   }
   const overMinutes = Math.round(overSec/60);
   return { breaks, onTime, cleanDays, overMinutes, points: Math.max(0, onTime*B.pointsOnTime + cleanDays*B.pointsCleanDay - overMinutes*B.penaltyPerMinuteOver) };
+}
+/** The day someone's current shift belongs to: the day it started. A shift (or a break) still running after midnight
+    stays on the day it began until it ends, so nobody gets a fresh allowance at 00:00 and a running break never gets lost.
+    A shift with no end time counts as running for up to 14 hours. */
+export function workDayOf(db, code, at){
+  const today = dayKey(new Date(at)), y = new Date(at); y.setDate(y.getDate() - 1);
+  const yk = dayKey(y), r = db.days?.[yk]?.[code];
+  if (db.days?.[today]?.[code] || !r) return today;
+  return r.active || (r.shiftEnd ? at < r.shiftEnd : at - r.shiftStart < 14 * 36e5) ? yk : today;
 }
 /** On-time streak: worked days in a row (newest first, up to today) where the day's breaks stayed within the day's total.
     Days off don't break it; today only counts once it has a break. Same "over" rule as weekScore(). */

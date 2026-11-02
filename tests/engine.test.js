@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { version } from '../scripts/stamp.mjs';
 const V = version();   // the same module URLs the pages use (see scripts/stamp.mjs)
 const { CONFIG } = await import('../src/config.js?v=' + V);
-const { plan, slotsFor, labelFor, cleanName, dayKey, weekScore, weekOf, statusOf, teamPulse, FILTERS, streakOf } = await import('../src/core.js?v=' + V);
+const { plan, slotsFor, labelFor, cleanName, dayKey, weekScore, weekOf, statusOf, teamPulse, FILTERS, streakOf, workDayOf } = await import('../src/core.js?v=' + V);
 
 const MIN = 60000, NOW = new Date(2026, 9, 14, 15, 0).getTime();   // Wed 14 Oct 2026, 15:00 local
 const TODAY = dayKey(new Date(NOW));
@@ -24,6 +24,18 @@ test('streak: worked days in a row within the day\'s break time; days off don\'t
   db.days[TODAY] = { 'EE-001': { breaks: [], active: null } };
   assert.equal(streakOf(db, 'EE-001', TODAY), 3, 'today without a break yet does not count either way');
   assert.equal(streakOf(base(), 'EE-001', TODAY), 0);
+});
+
+test('midnight: a shift running past midnight stays on the day it started until it ends', () => {
+  const at = new Date(2026, 10, 5, 0, 30).getTime(), y = '2026-11-04', d = '2026-11-05', H = 36e5;
+  const db = (rec, todayToo) => ({ ...base(), days: { [y]: { 'EE-001': rec }, ...(todayToo ? { [d]: { 'EE-001': { breaks: [], active: null, shiftStart: at } } } : {}) } });
+  assert.equal(workDayOf(db({ shiftStart: at - 8 * H, shiftEnd: at + H, breaks: [] }), 'EE-001', at), y, 'still on shift at 00:30');
+  assert.equal(workDayOf(db({ shiftStart: at - 9 * H, shiftEnd: at - H, breaks: [] }), 'EE-001', at), d, 'the shift ended at 23:30');
+  assert.equal(workDayOf(db({ shiftStart: at - 9 * H, shiftEnd: at - H, breaks: [], active: { slot: 'lunch', start: at - 40 * MIN } }), 'EE-001', at), y, 'a break still running keeps it');
+  assert.equal(workDayOf(db({ shiftStart: at - 6 * H, shiftEnd: null, breaks: [] }), 'EE-001', at), y, 'no end time: counts as running for up to 14 hours');
+  assert.equal(workDayOf(db({ shiftStart: at - 15 * H, shiftEnd: null, breaks: [] }), 'EE-001', at), d);
+  assert.equal(workDayOf(db({ shiftStart: at - 8 * H, shiftEnd: at + H, breaks: [] }, true), 'EE-001', at), d, 'a shift already started today wins');
+  assert.equal(workDayOf(base(), 'EE-001', at), d, 'nobody worked yesterday');
 });
 
 test('config: there is no reason field anywhere', () => {

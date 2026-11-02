@@ -102,6 +102,15 @@ with sync_playwright() as p:
     ok('left on Break 1' in (ap.text_content('#toast') or ''), 'an alert fires shortly before the break time is up: ' + (ap.text_content('#toast') or '')[:60])
     al.close()
 
+    # ---- midnight: a shift and a break running past 00:00 stay on the day they started ----
+    nc = b.new_context(); nc.clock.install(time=datetime(2026, 11, 4, 23, 58)); np_ = nc.new_page(); watch(np_)
+    np_.goto(BASE + '/index.html'); np_.fill('#code', 'EE-006'); np_.click('#gateForm button'); np_.wait_for_selector('#uiPick:not(.hidden)'); np_.click('#uiPick [data-pick="pro"]')
+    np_.fill('#endIn', '02:00'); np_.dispatch_event('#endIn', 'change'); np_.click('#bars [data-next]')
+    if np_.locator('#alertAsk').count(): np_.click('#alertNo')
+    np_.clock.run_for(6 * 60 * 1000); np_.wait_for_timeout(500)
+    ok(np_.locator('#bars .now').count() == 1 and np_.input_value('#endIn') == '02:00', 'at 00:04 the break started at 23:58 is still running, on the same shift')
+    nc.close()
+
     # ---- on a phone: bottom tab bar, cards instead of wide tables, installable ----
     ph = b.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True).new_page(); watch(ph)
     ph.goto(BASE + '/manager.html'); ph.fill('#code', 'MGR-001'); ph.click('#gateForm button'); ph.wait_for_selector('#app:not(.hidden)')
