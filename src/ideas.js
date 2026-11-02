@@ -1,9 +1,9 @@
 // The Ideas tab on both pages: anyone can suggest an idea, a change or a bug fix (optionally anonymously), everyone in the
 // team sees them all and votes for the ones they want, and team leads mark them planned / done / not now. So what gets
 // built next is what the people using it asked for. The rules live in the database (db/schema.sql, suggestions).
-import { suggestionsList, suggest, voteSuggestion, setSuggestionStatus, removeSuggestion } from './core.js?v=f61f60fa65';
-import { esc, setHtml } from './dom.js?v=f61f60fa65';
-import { toast } from './chrome.js?v=f61f60fa65';
+import { suggestionsList, suggest, voteSuggestion, setSuggestionStatus, removeSuggestion } from './core.js?v=43e6565416';
+import { esc, setHtml } from './dom.js?v=43e6565416';
+import { toast } from './chrome.js?v=43e6565416';
 
 const KINDS = { idea: ['💡', 'Idea'], change: ['✏️', 'Change'], bug: ['🐞', 'Bug'], other: ['💬', 'Other'] };
 const STATUS = { new: 'New', planned: 'Planned', done: 'Done', not_now: 'Not now' };

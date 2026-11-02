@@ -110,6 +110,12 @@ with sync_playwright() as p:
     ok(ph.evaluate("getComputedStyle(document.querySelector('.tabs')).position") == 'fixed', 'phone: the tabs sit in a bottom bar')
     ok(ph.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'phone: nothing is wider than the screen')
     ok(ph.locator('link[rel=manifest]').count() == 1 and ph.evaluate("'serviceWorker' in navigator"), 'phone: the app can be installed')
+    # ---- pilot data: the summary and a CSV with one row per person per day ----
+    m.click('[data-tab="manage"]'); m.wait_for_selector('#pilotStats table')
+    ok('breaks on time' in m.inner_text('#pilotStats') and m.locator('#pilotStats tbody tr').count() >= 5, 'the Pilot summary shows each person')
+    with m.expect_download() as dl: m.click('#pilotCsv')
+    rows = open(dl.value.path()).read().splitlines()
+    ok(rows[0].startswith('date,weekday,code,name') and len(rows) > 20, f'the Pilot data CSV has one row per person per day ({len(rows) - 1} rows)')
     ok(not logs, 'no JS or CSP errors: ' + '; '.join(logs)[:300])
     b.close()
 print('\nRESULT:', 'ALL PASSED' if not errs else f'{len(errs)} FAILED'); sys.exit(1 if errs else 0)

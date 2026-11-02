@@ -507,6 +507,92 @@ revoke execute on function my_team(), suggestions_list(), suggest(text, text, bo
 grant execute on function suggestions_list(), suggest(text, text, boolean), vote_suggestion(uuid, boolean),
   set_suggestion_status(uuid, text), remove_suggestion(uuid) to authenticated;
 
+-- ---------- pilot data: one summary row per person per day ----------
+-- Break records are deleted after 14 days, which would leave nothing to analyse after a longer pilot. So every night,
+-- before that cleanup, each day's totals are saved here: breaks, minutes used against the allowance, minutes over,
+-- breaks on time, auto-closed breaks, and when the first break started and the last one ended. No break-by-break times.
+-- Kept for 180 days (db/cleanup_job.sql). Team leads read their team's rows through pilot_stats() (the Pilot data CSV
+-- and the Pilot summary on the Manage tab); agents only their own. Nobody reads or writes the table directly.
+create table if not exists daily_stats (
+  user_id uuid not null references profiles(id) on delete cascade,
+  day date not null,
+  team text not null,
+  shift_start timestamptz, shift_end timestamptz,
+  breaks int not null, sittings int not null,
+  break_minutes numeric not null, allowance_minutes numeric not null, minutes_over numeric not null,
+  on_time int not null, auto_closed int not null, adjust_minutes int not null,
+  first_break_at timestamptz, last_break_end timestamptz,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day));
+alter table daily_stats enable row level security;
+revoke all on daily_stats from anon, authenticated;
+
+-- Each person's totals per day, worked out from the break records (same rules as breakathon() and plan() in src/core.js:
+-- the day's breaks are one pot, and a day only goes over once its total is used up, with 24 seconds of grace).
+drop function if exists day_stats(date, date);
+create or replace function day_stats(p_from date, p_to date)
+returns table (user_id uuid, day date, team text, shift_start timestamptz, shift_end timestamptz, breaks int, sittings int,
+               break_minutes numeric, allowance_minutes numeric, minutes_over numeric, on_time int, auto_closed int, adjust_minutes int,
+               first_break_at timestamptz, last_break_end timestamptz)
+language sql stable security definer set search_path = public as $$
+  with sh as (select s.id, s.user_id, s.day, s.shift_start, s.shift_end, p.team from shifts s join profiles p on p.id = s.user_id
+              where s.day between p_from and p_to and p.role = 'agent'),
+  seg as (select b.shift_id, b.slot_key, b.started_at, b.ended_at, b.flag, extract(epoch from b.ended_at - b.started_at) as secs
+          from sh join break_segments b on b.shift_id = sh.id),
+  used as (select shift_id, slot_key, sum(secs) as secs from seg group by 1, 2),
+  slots as (select sh.id as shift_id, sh.user_id, sh.day, d.slot_key, d.minutes
+            from sh cross join (values ('break1', 15), ('break2', 15), ('lunch', 30)) as d(slot_key, minutes)   -- = CONFIG.defaultSlots
+            union all
+            select sh.id, sh.user_id, sh.day, c.slot_key, c.minutes from sh join custom_break_rules c on c.user_id = sh.user_id
+            where c.scope = 'daily' or (c.scope = 'today' and c.day = sh.day) or (c.scope = 'days' and extract(dow from sh.day)::int = any(c.weekdays))),
+  slot as (select sl.shift_id, greatest(0, sl.minutes + coalesce(a.minutes, 0)) * 60 as cap, coalesce(a.minutes, 0) as adj, u.secs
+           from slots sl
+           left join adjustments a on a.user_id = sl.user_id and a.day = sl.day and a.slot_key = sl.slot_key
+           left join used u on u.shift_id = sl.shift_id and u.slot_key = sl.slot_key),
+  per as (select shift_id, count(secs) as n, count(secs) filter (where secs - cap < 24) as ok_own,
+                 coalesce(sum(secs), 0) as used, sum(cap) as cap, sum(adj) as adj from slot group by 1),
+  segs as (select shift_id, count(*) as sittings, count(*) filter (where flag = 'forgot') as forgot, min(started_at) as first_at, max(ended_at) as last_at
+           from seg group by 1)
+  select sh.user_id, sh.day, sh.team, sh.shift_start, sh.shift_end, per.n::int, coalesce(segs.sittings, 0)::int,
+         round(per.used / 60.0, 1), round(per.cap / 60.0, 1),
+         case when per.used - per.cap < 24 then 0 else round((per.used - per.cap) / 60.0, 1) end,
+         (case when per.used - per.cap < 24 then per.n else per.ok_own end)::int,
+         coalesce(segs.forgot, 0)::int, per.adj::int, segs.first_at, segs.last_at
+  from sh join per on per.shift_id = sh.id left join segs on segs.shift_id = sh.id
+$$;
+-- Save the last 15 days' totals (re-done every night, so a team lead's later corrections are picked up).
+create or replace function snapshot_daily_stats() returns void language sql security definer set search_path = public as $$
+  insert into daily_stats (user_id, day, team, shift_start, shift_end, breaks, sittings, break_minutes, allowance_minutes, minutes_over,
+                           on_time, auto_closed, adjust_minutes, first_break_at, last_break_end, updated_at)
+  select *, now() from day_stats(current_date - 15, current_date)
+  on conflict (user_id, day) do update set team = excluded.team, shift_start = excluded.shift_start, shift_end = excluded.shift_end,
+    breaks = excluded.breaks, sittings = excluded.sittings, break_minutes = excluded.break_minutes, allowance_minutes = excluded.allowance_minutes,
+    minutes_over = excluded.minutes_over, on_time = excluded.on_time, auto_closed = excluded.auto_closed, adjust_minutes = excluded.adjust_minutes,
+    first_break_at = excluded.first_break_at, last_break_end = excluded.last_break_end, updated_at = now()
+$$;
+-- What the pages read: live totals while the break records still exist (the last 14 days), saved totals before that.
+-- Team leads get their team, agents only themselves.
+drop function if exists pilot_stats(date, date);
+create or replace function pilot_stats(p_from date, p_to date)
+returns table (code text, name text, day date, shift_start timestamptz, shift_end timestamptz, breaks int, sittings int,
+               break_minutes numeric, allowance_minutes numeric, minutes_over numeric, on_time int, auto_closed int, adjust_minutes int,
+               first_break_at timestamptz, last_break_end timestamptz)
+language sql stable security definer set search_path = public as $$
+  with me as (select id, team, role from profiles where id = auth.uid()),
+  rows as (select l.* from day_stats(greatest(p_from, current_date - 14), p_to) l
+           union all
+           select d.user_id, d.day, d.team, d.shift_start, d.shift_end, d.breaks, d.sittings, d.break_minutes, d.allowance_minutes,
+                  d.minutes_over, d.on_time, d.auto_closed, d.adjust_minutes, d.first_break_at, d.last_break_end
+           from daily_stats d where d.day between p_from and least(p_to, current_date - 15))
+  select p.code, p.name, r.day, r.shift_start, r.shift_end, r.breaks, r.sittings, r.break_minutes, r.allowance_minutes, r.minutes_over,
+         r.on_time, r.auto_closed, r.adjust_minutes, r.first_break_at, r.last_break_end
+  from rows r join profiles p on p.id = r.user_id join me on (me.role in ('manager', 'admin') and r.team = me.team) or r.user_id = me.id
+  order by r.day, p.code
+$$;
+revoke execute on function day_stats(date, date), snapshot_daily_stats() from public, anon, authenticated;
+revoke execute on function pilot_stats(date, date) from public, anon;
+grant execute on function pilot_stats(date, date) to authenticated;
+
 -- Retention (= CONFIG.retentionDays): run db/cleanup_job.sql once, after this file.
 
 -- Check: these should list your tables with "true" for row level security.

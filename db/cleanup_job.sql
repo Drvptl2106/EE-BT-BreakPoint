@@ -1,12 +1,15 @@
 -- Old-data cleanup for breakpoint. Run once in the Supabase SQL editor, AFTER db/schema.sql. Safe to re-run.
--- Every night at 03:15 UTC it deletes everything older than 14 days (= CONFIG.retentionDays in src/config.js;
--- if you change one, change the other). Deleting a shift also deletes its breaks.
+-- Every night at 03:15 UTC it first saves each day's totals for the pilot (daily_stats, see db/schema.sql), then deletes
+-- the break records older than 14 days (= CONFIG.retentionDays in src/config.js; if you change one, change the other)
+-- and the saved daily totals older than 180 days. Deleting a shift also deletes its breaks.
 -- Needs the pg_cron extension. The first line switches it on; if that line fails, switch it on in
 -- Database > Extensions > pg_cron instead and run the file again.
 
 create extension if not exists pg_cron;
 
 create or replace function purge_old_data() returns void language sql security definer set search_path = public as $$
+  select snapshot_daily_stats();
+  delete from daily_stats        where day < current_date - 180;
   delete from shifts             where day < current_date - 14;
   delete from adjustments        where day < current_date - 14;
   delete from custom_break_rules where scope = 'today' and day < current_date - 14;

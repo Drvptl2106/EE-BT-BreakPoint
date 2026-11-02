@@ -46,6 +46,10 @@ export const CONFIG = {
   // A break left running this long is closed automatically and flagged.
   forgotToStopMinutes: 90,
 
+  // The first day of the pilot: the Pilot summary and the Pilot data CSV (Manage tab) start here unless the team lead picks
+  // another date. Daily totals are kept for 180 days (db/cleanup_job.sql), break-by-break records for retentionDays.
+  pilotStart: '2026-11-04',
+
   // How often the screen re-checks the data source, in seconds.
   refreshSeconds: 10,
 

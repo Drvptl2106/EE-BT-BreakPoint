@@ -315,6 +315,27 @@ select t.denied($$select * from suggestions_list()$$);
 select t.ok(true, 'signed-out visitors see no suggestions');
 commit;
 
+-- ---------- pilot data (daily totals) ----------
+insert into daily_stats (user_id, day, team, breaks, sittings, break_minutes, allowance_minutes, minutes_over, on_time, auto_closed, adjust_minutes)
+values ('00000000-0000-0000-0000-00000000000a', current_date - 40, 'pilot', 3, 3, 58, 60, 0, 3, 0, 0);   -- a day saved long ago
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
+select t.ok(t.n($$select * from pilot_stats(current_date - 60, current_date) where code = 'EE-1001'$$) >= 3, 'the team lead gets one row per day per person, live and saved');
+select t.ok((select minutes_over || '/' || on_time || '/' || breaks from pilot_stats(current_date - 7, current_date - 7) where code = 'EE-1001') = '5.0/0/1', 'a day 5 minutes past its total counts as over, the long break not on time');
+select t.ok((select break_minutes || '/' || allowance_minutes || '/' || minutes_over from pilot_stats(current_date - 8, current_date - 8) where code = 'EE-1001') = '25.0/60.0/0', 'a long break within the day''s total is not over');
+select t.ok((select breaks from pilot_stats(current_date - 40, current_date - 40) where code = 'EE-1001') = 3, 'saved days from before the 14-day cleanup are included');
+select t.ok(t.n($$select * from pilot_stats(current_date - 60, current_date) where code = 'EE-2001'$$) = 0, 'but not another team''s people');
+select t.denied($$select * from daily_stats$$);
+select t.denied($$select snapshot_daily_stats()$$);
+select t.ok(true, 'nobody reads the saved totals directly or runs the snapshot by hand');
+commit;
+begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true); set local role authenticated;
+select t.ok(t.n($$select * from pilot_stats(current_date - 60, current_date) where code <> 'EE-1001'$$) = 0, 'an agent only gets their own daily totals');
+commit;
+begin; set local role anon;
+select t.denied($$select * from pilot_stats(current_date - 60, current_date)$$);
+select t.ok(true, 'signed-out visitors get no pilot data');
+commit;
+
 -- ---------- cleanup job ----------
 insert into shifts(user_id, day, shift_start) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, now() - interval '20 days');
 insert into adjustments(user_id, day, slot_key, minutes) values ('00000000-0000-0000-0000-00000000000a', current_date - 20, 'lunch', 5);
@@ -324,6 +345,10 @@ select t.ok(t.n('select * from shifts where day < current_date - 14') = 0, 'clea
 select t.ok(t.n('select * from adjustments where day < current_date - 14') = 0, 'cleanup removes old adjustments');
 select t.ok(t.n($$select * from audit_log where action = 'old'$$) = 0, 'cleanup removes old audit entries');
 select t.ok(t.n('select * from shifts') = 6, 'cleanup keeps recent shifts');
+select t.ok(t.n($$select * from daily_stats where day = current_date - 7$$) >= 1 and t.n($$select * from daily_stats where day = current_date - 40$$) = 1, 'cleanup saves the recent days'' totals first and keeps older saved totals');
+insert into daily_stats (user_id, day, team, breaks, sittings, break_minutes, allowance_minutes, minutes_over, on_time, auto_closed, adjust_minutes) values ('00000000-0000-0000-0000-00000000000a', current_date - 200, 'pilot', 1, 1, 15, 60, 0, 1, 0, 0);
+select purge_old_data();
+select t.ok(t.n($$select * from daily_stats where day < current_date - 180$$) = 0, 'saved totals older than 180 days are deleted');
 select t.ok(t.n($$select * from cron.job where jobname = 'break-track-purge'$$) = 1, 'nightly job is scheduled');
 begin; select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', true); set local role authenticated;
 select t.denied('select purge_old_data()');

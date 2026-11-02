@@ -14,7 +14,8 @@ Do all of this in the **same** project as `supabaseUrl` in `src/config.js`. Chec
    "isn't set up" until you do. Re-running keeps all data.
    It is safe to run again, and it upgrades a project that ran an older version (it keeps the data and drops the tables of the removed ranking feature).
    The last result lists every table with "row level security on" = true.
-2. **Nightly cleanup.** New query > paste `db/cleanup_job.sql` > Run. If the first line fails, switch on
+2. **Nightly cleanup.** New query > paste `db/cleanup_job.sql` > Run. **Run it again whenever it changes** (it now saves each day's
+   totals for the pilot before deleting old break records). If the first line fails, switch on
    Database > Extensions > `pg_cron` and run it again. The last result shows one job, `break-track-purge`.
 3. **Sign-ups off.** Authentication > Sign In / Providers > turn **off** "Allow new users to sign up" > Save.
    Nobody can then create their own login; only the script below can.
@@ -84,6 +85,7 @@ Break start and stop times are stamped by the database clock when an agent start
 | `break_names` | a manager's name for a break, per person | managers of that team |
 | `ui_prefs` | which look someone picked (Playful or Professional), their first pick, when, and how often they switched | only `set_ui_style()`, for yourself |
 | `suggestions`, `suggestion_votes` | the Ideas tab: kind, text (500 max), status, author (none if anonymous), one vote per person | only the suggestion functions (`suggest`, `vote_suggestion`, `set_suggestion_status` for team leads, `remove_suggestion`) |
+| `daily_stats` | one row per person per day for the pilot: breaks, minutes used and allowed, minutes over, on time, auto-closed, first and last break time. Saved every night before the 14-day cleanup, kept 180 days | only the nightly job (`snapshot_daily_stats`); read through `pilot_stats()` |
 | `audit_log` | every manager change (and an agent moving their own shift times): who, when, what, before, after | only the database triggers |
 
 Making someone a manager is a `role` in `profiles` (or `manager` in the login list). It is never a code in the page.

@@ -302,6 +302,13 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
 .ikind{font-weight:700;color:var(--ink)}.istatus{padding:1px 8px;border-radius:var(--r-pill);background:var(--pill-none);font-weight:700;color:var(--ink)}
 .st-planned .istatus{background:var(--pill-brk);color:var(--pill-brk-ink)}.st-done .istatus{background:var(--teal-soft);color:var(--teal)}
 .imeta select{font-size:13px;padding:2px 6px;min-height:0;border-radius:var(--r-xs);border:1px solid var(--line);background:var(--surface)}.imeta .link{font-size:12.5px;padding:0}
+/* ================= Manage tab: Pilot summary (src/pages/manager.js) ================= */
+.pilot-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.pilot-kpis div{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);padding:12px}
+.pilot-kpis b{display:block;font-size:22px;font-weight:800}.pilot-kpis span{font-size:12.5px;color:var(--ink-2)}
+.pfrom{display:inline-flex;align-items:center;gap:6px}.pfrom input{padding:5px 8px;border-radius:var(--r-xs);border:1px solid var(--line);background:var(--surface);font-size:14px}
+.pilottable td.bad{color:var(--danger);font-weight:700}.pilottable .person b{white-space:nowrap}
+@media(max-width:700px){.pilot-kpis{grid-template-columns:1fr 1fr}.pilottable .opt,.uitable .opt{display:none}.pilottable th,.pilottable td,.uitable th,.uitable td{padding:9px 8px}
+  #dBody td,#dBody th{padding:8px 6px}#dBody input[type=time]{width:100%;min-width:0;padding:6px 4px}}
 /* ================= the phone app (both pages, installed or in the browser) =================
    On a big screen the header has text tabs and links; on a phone the tabs move to a bottom bar with icons (in thumb reach),
    the header becomes one compact row of round buttons, the manager's tables turn into one card per person and the
