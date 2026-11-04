@@ -1,15 +1,15 @@
-import { CONFIG } from '../config.js?v=c65a64a838';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=c65a64a838';
-import { myRewards, claimReward, setLook } from '../core.js?v=c65a64a838';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, workDayOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=c65a64a838';
-import { offerAlerts, checkAlerts } from '../notify.js?v=c65a64a838';
-import { setupIdeas } from '../ideas.js?v=c65a64a838';
-import { setupUi, syncUi, isPro } from '../ui.js?v=c65a64a838';
-import { jokeFor, proNote } from '../jokes.js?v=c65a64a838';
-import { esc, setHtml } from '../dom.js?v=c65a64a838';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=c65a64a838';
-import { raceHTML, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=c65a64a838';
-import { toast } from '../chrome.js?v=c65a64a838';
+import { CONFIG } from '../config.js?v=c85a4b0b52';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=c85a4b0b52';
+import { myRewards, claimReward, setLook } from '../core.js?v=c85a4b0b52';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, workDayOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=c85a4b0b52';
+import { offerAlerts, checkAlerts } from '../notify.js?v=c85a4b0b52';
+import { setupIdeas } from '../ideas.js?v=c85a4b0b52';
+import { setupUi, syncUi, isPro } from '../ui.js?v=c85a4b0b52';
+import { jokeFor, proNote } from '../jokes.js?v=c85a4b0b52';
+import { esc, setHtml } from '../dom.js?v=c85a4b0b52';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=c85a4b0b52';
+import { raceHTML, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=c85a4b0b52';
+import { toast } from '../chrome.js?v=c85a4b0b52';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -36,58 +36,46 @@ function endBreak(auto){const a=rec()?.active;if(!a)return;const key=a.slot;
   commit(r=>{const x=r.active;if(!x)return;r.breaks.push({slot:x.slot,start:x.start,end:auto?x.start+CONFIG.forgotToStopMinutes*6e4:now(),...(auto?{flag:'forgot'}:{})});r.active=null});
   document.title='breakpoint';showResult(key,auto)}
 /* after a break: a short message that doesn't get in the way */
-function showResult(key,auto){const p=P(now()),s=p.find(x=>x.key===key);let body;
-  if(auto)body=`Your break was left running for ${CONFIG.forgotToStopMinutes} minutes, so we closed it. Your manager will see it flagged.`;
-  else if(s.over>0)body=`${s.label}: ${fmtMin(s.over)} past today's break time, so your manager will see it.`;
-  else if(s.borrowed>0)body=`${s.label} ran ${fmtMin(s.borrowed)} long, so that came off ${names(s.from)}. You have ${fmtMin(s.spare)} of break time left today.`;
-  else if(s.left>=10)body=`Welcome back. You still have ${fmtMin(s.left)} of ${s.label} for later.`;
-  else body=`Welcome back. ${s.label} done, right on time.`;
+function showResult(key,auto){const p=P(now()),s=p.find(x=>x.key===key),last=s?.segs.at(-1),took=last?Math.round((last.end-last.start)/6e4):0;
+  const total=p.reduce((a,x)=>a+Math.max(0,x.base),0)*60,used=p.reduce((a,x)=>a+x.used,0),over=used-total;
+  const body=auto?`Your break was still running after ${CONFIG.forgotToStopMinutes} minutes, so it was closed. If that's not right, your team lead can fix it.`
+    :over>=CONFIG.overToleranceMinutes*60?`Welcome back. ${s.label}: ${took} min. You're ${mins(over)} min over today's break time.`
+    :`Welcome back. ${s.label}: ${took} min. ${mins(total-used)} min of break time left today.`;
   toast(body,7000)}
-const names=list=>list.map(x=>x.label).join(list.length===2?' and ':', ').replace(/, ([^,]*)$/,' and $1');
-/* the break that a running one borrows from next: the ones after it first, then from the start */
-const lender=(p,s)=>{const i=p.indexOf(s);return [...p.slice(i+1),...p.slice(0,i)].find(x=>x.left>0)};
-
-/* ---------- the break bars: one row per break (plus any OH break the manager adds). The running one grows and talks.
-   Going past a break's own minutes borrows from the others (amber); only going past the whole day's break time is red. ---------- */
-function liveLine(s,p,at){const m=Math.floor(s.used/60),n=lender(p,s);
-  if(isPro()){if(s.over>0)return `${fmtMin(s.over)} past today's total break time. Your team lead can see this.`;
-    if(s.left<=0)return `${s.label} is used up, so this time comes off ${n?n.label:'your other breaks'}. ${Math.ceil(s.spare/60)} min of break time left today.`;
-    if(s.left<=60)return n?`Under a minute left. After that, time comes off ${n.label}.`:'Under a minute of break time left today.';
-    return `${m} min used, ${Math.ceil(s.left/60)} min left. Due back at ${hhmm(at+s.left*1000)}.`}
-  if(s.over>0)return `${fmtMin(s.over)} past today's break time. Your manager can see this one. Run!`;
-  if(s.left<=0)return `${s.label} is used up, so this is coming off ${n?n.label:'your other breaks'}. ${Math.ceil(s.spare/60)} min of break time left today. Leg it!`;
-  if(s.left<=60)return n?`Under a minute left. After that it comes off ${n.label}.`:'Under a minute left, and it\'s your last break time today. Head back.';
-  if(s.left<=s.allowed*60/3)return `${m} min done, only ${Math.ceil(s.left/60)} left. Start heading back.`;
-  if(s.used<60)return "Clock's running. Enjoy it, you've earned it.";
-  return `${m} min done, ${Math.ceil(s.left/60)} min to go. Back at ${hhmm(at+s.left*1000)}.`}
-function renderBars(at){const r=rec(),p=P(at),anyA=!!r.active;
-  const tot=p.reduce((a,s)=>a+s.base,0),used=p.reduce((a,s)=>a+s.used,0);
-  $('#brkSum').textContent=`${Math.round(used/60)} of ${tidy(tot)} min used today`;
-  /* nothing running: the next break as one big button, like "order again" */
-  const nx=anyA?null:p.find(s=>!s.done&&s.allowed>0&&s.left>0),
-    next=nx?`<div class="upnext"><div class="now-k">Up next</div><div class="now-big sm"><b>${esc(nx.label)}</b><small>${nx.used>0?`${Math.ceil(nx.left/60)} min left`:`${tidy(nx.allowed)} min`}</small></div>
-      <p class="say">${isPro()?'Your timer starts when you tap.':'Recharge time. Your timer starts when you tap.'}</p><button class="btn yellow" data-next="${nx.key}">${nx.used>0?'Resume':'Start'} ${esc(nx.label)}</button></div>`:'';
-  setHtml($('#bars'),next+p.map(s=>{
-    const cap=s.allowed*60,over=s.over>0,borrow=!over&&s.borrowed>0,fill=cap>0?Math.min(100,s.used/cap*100):(s.used>0?100:0),
-      cls=over?' over':borrow?' borrow':'';
-    const notes=[s.borrowed>0?`<small class="${over?'bad':'warn'}">${fmtMin(s.borrowed)} came out of ${esc(names(s.from))}.</small>`:'',
-      over?`<small class="bad">${fmtMin(s.over)} past today's break time.</small>`:'',
-      s.deducted>0?`<small class="warn">${fmtMin(s.deducted*60)} went to ${esc(names(s.to))}, so this one is ${tidy(s.allowed)} min today.</small>`:'',
-      s.adjust?`<small>${s.adjust>0?'+':''}${s.adjust} min from your manager.</small>`:''].filter(Boolean).join(' ');
-    /* the running break: a live card like a ride in progress (big countdown, "back at", stages, I'm back) */
-    if(s.act){const mode=over?'over':s.left>0?'own':'borrow',secs=mode==='over'?s.over:mode==='own'?s.left:s.spare,
-        word=mode==='over'?'over':mode==='own'?'left':`left · from ${lender(p,s)?.label||'other breaks'}`,lead=CONFIG.alertBeforeMinutes,
-        stage=over?4:mode==='borrow'||s.left<=lead*60?3:cap>0&&s.used/cap>=.5?2:1,
-        stages=['Started','Halfway',`${lead} min left`,'Back'].map((l,i)=>`<span class="${i<stage?'on':''}"><i></i>${l}</span>`).join('');
-      return `<div class="brow on now${cls||(mode==='borrow'?' borrow':'')}"><div class="now-k">On a break · ${esc(s.label)}</div>
-        <div class="now-big" role="timer" aria-label="${esc(s.label)}: ${mmss(Math.ceil(secs))} ${word}"><b>${mode==='over'?'−':''}${mmss(Math.ceil(secs))}</b><small>${esc(word)}</small></div>
-        <span class="eta">${mode==='over'?`Over by ${fmtMin(s.over)}`:`Back at ${hhmm(at+secs*1000)}`}</span><div class="stages" aria-hidden="true">${stages}</div>
-        <p class="say">${esc(liveLine(s,p,at))}</p><button class="btn yellow" id="tStop">I'm back</button></div>`}
-    const st=s.done?(over?`Done · ${fmtMin(s.over)} over`:borrow?`Done · ${fmtMin(s.borrowed)} borrowed`:'Done'):s.used>0?`${Math.ceil(s.left/60)} min left`:`${tidy(s.allowed)} min`;
-    const btn=s.done||s.allowed<=0?`<button class="btn ghost sm" disabled>${s.allowed<=0&&!s.used?'No time left':'Done'}</button>`:`<button class="btn yellow sm" data-slot="${s.key}" ${anyA?'disabled':''}>${s.used>0?'Resume':'Start'}</button>`;
-    return `<div class="brow${s.done?' done':''}${cls}"><div class="bl"><b>${esc(s.label)}</b><span>${st}</span></div>
-      <div class="btrack" role="meter" aria-label="${esc(s.label)}: ${Math.round(s.used/60)} of ${tidy(s.allowed)} minutes used" aria-valuemin="0" aria-valuemax="${tidy(s.allowed)}" aria-valuenow="${Math.min(tidy(s.allowed),Math.round(s.used/60))}"><i style="width:${fill}%"></i><span class="bu">${Math.floor(s.used/60)} / ${tidy(s.allowed)} min</span></div>
-      <div class="br">${btn}</div>${notes?`<p class="say">${notes}</p>`:''}</div>`}).join(''))}
+/* ---------- today's break time as one ring ----------
+   The day's breaks are one pot (plan() in src/core.js), so the ring shows the whole day: each break taken in its own colour,
+   what's left in grey, red only once the day's total is used up. One number in the middle (minutes left today, or a
+   stopwatch while on a break), one big button, and a plain list of what was taken when. No "borrowed" maths on screen. */
+const RING_COLS=['#0E9F94','#5B8DEF','#F2B705','#A47BE0','#46B36B','#F08A4B','#E36B9A','#3FB8D6'];
+const mins=sec=>Math.round(Math.max(0,sec)/60),R=86,RC=2*Math.PI*R;
+const arcSvg=(a,b,col,w=18,r=R)=>b>a?`<circle cx="100" cy="100" r="${r}" fill="none" stroke="${col}" stroke-width="${w}" stroke-dasharray="${(b-a)*2*Math.PI*r} ${2*Math.PI*r}" stroke-dashoffset="${-a*2*Math.PI*r}"/>`:'';
+function renderBars(at){const r=rec(),p=P(at),run=p.find(s=>s.act),col=k=>RING_COLS[p.findIndex(s=>s.key===k)%RING_COLS.length];
+  const total=p.reduce((a,s)=>a+Math.max(0,s.base),0)*60,used=p.reduce((a,s)=>a+s.used,0),left=Math.max(0,total-used),over=Math.max(0,used-total),
+    isOver=over>=CONFIG.overToleranceMinutes*60;
+  $('#brkSum').textContent=`${mins(used)} of ${mins(total)} min used`;
+  /* the ring: every sitting in the order it happened, in its break's colour; anything past the day's total in red, outside */
+  const sit=[...(r.breaks||[]).map(b=>({k:b.slot,s:(b.end-b.start)/1000,t:b.start})),...(r.active?[{k:r.active.slot,s:Math.max(0,(at-r.active.start)/1000),t:r.active.start}]:[])].sort((x,y)=>x.t-y.t);
+  let pos=0,g=arcSvg(0,1,'var(--surface-3)');
+  for(const x of sit){const e=pos+x.s/(total||1);g+=arcSvg(Math.min(1,pos),Math.min(1,e),col(x.k));pos=e}
+  if(isOver)g+=arcSvg(0,Math.min(1,over/(total||1)),'var(--danger)',6,100);
+  const mid=run?`<b>${mmss((at-run.act.start)/1000)}</b><span>on ${esc(run.label)}</span><small class="${isOver?'bad':''}">${isOver?`${mins(over)} min over today`:`${mins(left)} min left today`}</small>`
+    :isOver?`<b>${mins(over)}</b><span>min over today</span>`:`<b>${mins(left)}</b><span>min break time left today</span>`;
+  let act;
+  if(run){const own=Math.max(0,run.base*60-run.used);
+    act=`<div class="times">${own>0?`<span>Planned: back at <b>${hhmm(at+own*1000)}</b></span>`:''}${isOver?`<span class="bad">Over by <b>${mins(over)} min</b></span>`:`<span>Latest: <b>${hhmm(at+left*1000)}</b></span>`}</div>
+      <button class="btn yellow big" id="tStop">I'm back</button>`}
+  else{const open=p.filter(s=>s.left>0&&s.allowed>0&&!s.done),nx=open[0];
+    act=nx?`<button class="btn yellow big" data-next="${nx.key}">${nx.used>0?'Resume':'Start'} ${esc(nx.label)}</button>
+      ${open.length>1?`<div class="chips2" aria-label="Other breaks">${open.slice(1).map(s=>`<button class="chipb" data-slot="${s.key}"><i style="background:${col(s.key)}"></i>${s.used>0?'Resume ':''}${esc(s.label)}</button>`).join('')}</div>`:''}`
+      :`<p class="say">All your breaks are taken${left>0?`. ${mins(left)} min left today if you need it.`:'.'}</p>`}
+  /* a plain list: what was taken when, or how long each one usually is */
+  const row=s=>{const d=`<i class="dot" style="background:${col(s.key)}"></i>`,segs=s.segs.map(b=>`${hhmm(b.start)}–${hhmm(b.end)}`).join(', ');
+    const note=[s.adjust?`${s.adjust>0?'+':''}${s.adjust} min from your team lead`:'',s.segs.some(b=>b.flag)?'closed automatically':''].filter(Boolean).join(' · ');
+    if(s.act)return `<li class="on">${d}<div><b>${esc(s.label)}</b><small>On now · since ${hhmm(s.act.start)}${segs?` · earlier ${segs}`:''}</small></div><span class="t">${mins(s.used)} min</span></li>`;
+    if(s.used>0)return `<li>${d}<div><b>${esc(s.label)}</b><small>${segs}${note?` · ${note}`:''}</small></div><span class="t">${mins(s.used)} min</span></li>`;
+    return `<li class="todo">${d}<div><b>${esc(s.label)}</b><small>Not taken yet · usually ${Math.max(0,s.base)} min${note?` · ${note}`:''}</small></div><span class="t">–</span></li>`};
+  setHtml($('#bars'),`<div class="ringwrap"><div class="ring${run?' on':''}${isOver?' over':''}" role="timer" aria-live="off"><svg viewBox="0 0 200 200" aria-hidden="true">${g}</svg><div class="mid">${mid}</div></div>${act}</div>
+    <ul class="blist" aria-label="Today's breaks">${p.map(row).join('')}</ul>`)}
 
 /* ---------- the shift pie: worked, breaks, over and still to go, with the time ticking to the second ---------- */
 const C=2*Math.PI*90,arc=(a,b,col)=>b>a?`<circle cx="110" cy="110" r="90" stroke="${col}" stroke-dasharray="${(b-a)*C} ${C}" stroke-dashoffset="${-a*C}"/>`:'';

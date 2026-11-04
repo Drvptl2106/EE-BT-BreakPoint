@@ -4,9 +4,9 @@
 // phone supports it, and always shows the in-app toast. Asked for once, the first time someone starts a break.
 // Limit: without a push server the page has to be running, so an iPhone only alerts while the app is open; Android also
 // alerts for a while after the app goes to the background.
-import { CONFIG } from './config.js?v=c65a64a838';
-import { fmtMin } from './core.js?v=c65a64a838';
-import { toast } from './chrome.js?v=c65a64a838';
+import { CONFIG } from './config.js?v=c85a4b0b52';
+import { fmtMin } from './core.js?v=c85a4b0b52';
+import { toast } from './chrome.js?v=c85a4b0b52';
 
 const ASKED_KEY = 'bt-alerts-asked', fired = new Set();
 const $ = s => document.querySelector(s);

@@ -311,6 +311,25 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:12p
   #dBody td,#dBody th{padding:8px 6px}#dBody input[type=time]{width:100%;min-width:0;padding:6px 4px}}
 .panel.danger{border:1px solid color-mix(in srgb,var(--danger) 35%,var(--line))}.panel.danger h2{color:var(--danger)}
 .btn.danger{--btn-bg:var(--danger);--btn-fg:#fff;--btn-edge:var(--danger-strong)}
+/* ================= My day: today's break time as one ring (src/pages/user.js, renderBars) ================= */
+.ringwrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:4px 0 6px}
+.ring{position:relative;width:min(240px,68vw);aspect-ratio:1}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 34px}
+.ring .mid b{font:800 54px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.ring.on .mid b{font-size:46px}.ring.over .mid b{color:var(--danger)}
+.ring .mid span{margin-top:4px;font-size:14px;font-weight:600;color:var(--ink-2);line-height:1.3}
+.ring .mid small{margin-top:8px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill);background:var(--surface-3)}.ring .mid small.bad{background:var(--danger-soft);color:var(--danger)}
+.times{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.times span{padding:6px 12px;border-radius:var(--r-pill);background:var(--surface-2);border:1px solid var(--line);font-size:14px}.times span.bad{background:var(--danger-soft);color:var(--danger);border-color:transparent}
+.ringwrap .btn.big{width:100%;max-width:420px;min-height:56px;font-size:18px;border-radius:var(--r-md)}
+.ringwrap .say{margin:0;text-align:center;color:var(--ink-2)}
+.chips2{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.chipb{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--r-pill);border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;cursor:pointer}.chipb i{width:10px;height:10px;border-radius:50%}
+.blist{list-style:none;margin:10px 0 0;padding:0}
+.blist li{display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;padding:12px 2px;border-top:1px solid var(--line)}
+.blist .dot{width:12px;height:12px;border-radius:50%}.blist li.todo .dot{opacity:.35}
+.blist b{display:block;font-size:15.5px}.blist small{color:var(--ink-2);font-size:13px}.blist .t{font-weight:800;font-variant-numeric:tabular-nums}
+.blist li.on b{color:var(--primary)}.blist li.todo .t{color:var(--ink-2);font-weight:500}
 /* ================= the phone app (both pages, installed or in the browser) =================
    On a big screen the header has text tabs and links; on a phone the tabs move to a bottom bar with icons (in thumb reach),
    the header becomes one compact row of round buttons, the manager's tables turn into one card per person and the

@@ -45,20 +45,20 @@ with sync_playwright() as p:
     m.click('#dClose')
 
     # ---- agent: break bars (the OH break is a new bar), shift pie ticking, pep talk ----
-    pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .brow')
+    pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .ring')
     pg.wait_for_selector('#uiPick:not(.hidden)'); pg.click('#uiPick [data-pick="fun"]')
-    ok(pg.locator('#bars .brow').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as its own bar')
+    ok(pg.locator('#bars .blist li').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows in the list')
     ok(pg.input_value('#endIn') == END, 'agent sees the shift end the manager set')
     w1 = pg.text_content('#worked'); pg.wait_for_timeout(1100)
     ok(w1 != pg.text_content('#worked'), 'shift clock ticks every second')
     ok(len(pg.text_content('#joke')) > 10, 'pep talk shown')
-    ok(pg.locator('#bars .upnext [data-next]').count() == 1 and 'Break 1' in pg.inner_text('#bars .upnext'), 'the next break is one big button')
+    ok(pg.locator('#bars [data-next]').count() == 1 and 'Break 1' in pg.inner_text('#bars [data-next]'), 'the next break is one big button')
     pg.click('#bars button[data-slot="break2"]'); pg.wait_for_timeout(1200)
-    ok(pg.locator('#bars .brow.on.now .now-big').count() == 1 and 'Back at' in pg.inner_text('#bars .now') and pg.is_visible('[data-tab="race"]'), 'a running break becomes a live card with the time to be back, the rest of the page stays usable')
+    ok(pg.locator('#bars .ring.on').count() == 1 and 'on Break 2' in pg.inner_text('#bars .ring') and 'Latest' in pg.inner_text('#bars') and pg.is_visible('[data-tab="race"]'), 'a running break shows a stopwatch in the ring and when to be back, the rest of the page stays usable')
     if pg.locator('#alertAsk').count(): pg.click('#alertNo')
     pg.click('#tStop')
-    ok(pg.locator('#bars .brow.on').count() == 0 and pg.is_visible('#toast'), 'ending a break shows the result as a note')
-    ok(pg.inner_text('#bars button[data-slot="break2"]') == 'Resume', 'a part-used break can be resumed')
+    ok(pg.locator('#bars .ring.on').count() == 0 and pg.is_visible('#toast'), 'ending a break shows the result as a note')
+    ok('Resume' in pg.inner_text('#bars [data-slot="break2"]'), 'a part-used break can be resumed')
 
     # ---- Breakathon on both pages ----
     pg.click('[data-tab="race"]'); pg.wait_for_selector('.racer')
@@ -85,8 +85,8 @@ with sync_playwright() as p:
     ok(pg.locator('.racer').count() == 0 and pg.locator('#race table.rank tr').count() == 7 and 'Level' not in pg.inner_text('#race'), 'weekly scores show as a plain table')
     ok(pg.inner_text('[data-tab="race"]') == 'Weekly scores' and not pg.is_visible('#look'), 'no game names or mascot panel')
     pg.click('[data-tab="day"]')
-    ok(not pg.is_visible('#custBtn') and pg.locator('#bars .brow').count() == 4, 'no mascot button, and the breaks work the same')
-    pg.reload(); pg.wait_for_selector('#bars .brow')
+    ok(not pg.is_visible('#custBtn') and pg.locator('#bars .blist li').count() == 4, 'no mascot button, and the breaks work the same')
+    pg.reload(); pg.wait_for_selector('#bars .ring')
     ok(pg.get_attribute('html', 'data-ui') == 'pro' and not pg.is_visible('#uiPick'), 'the choice is remembered and not asked again')
     m.click('#uiBtn'); m.click('[data-tab="dash"]'); m.wait_for_timeout(300)
     ok(not m.is_visible('#peek') and 'wake' not in m.inner_text('#pulse'), 'manager professional view: no mascot, plain wording')
@@ -98,7 +98,7 @@ with sync_playwright() as p:
     ap.goto(BASE + '/index.html'); ap.fill('#code', 'EE-005'); ap.click('#gateForm button'); ap.wait_for_selector('#uiPick:not(.hidden)'); ap.click('#uiPick [data-pick="fun"]')
     ap.click('#bars [data-next]'); ap.wait_for_timeout(300)
     ap.evaluate('''() => { const k = 'bt-break-tracker:v1', db = JSON.parse(localStorage.getItem(k)); for (const d of Object.values(db.days)) if (d['EE-005']?.active) d['EE-005'].active.start = Date.now() - 13.5 * 60000; localStorage.setItem(k, JSON.stringify(db)); }''')
-    ap.reload(); ap.wait_for_selector('#bars .now'); ap.wait_for_timeout(1500)
+    ap.reload(); ap.wait_for_selector('#bars .ring.on'); ap.wait_for_timeout(1500)
     ok('left on Break 1' in (ap.text_content('#toast') or ''), 'an alert fires shortly before the break time is up: ' + (ap.text_content('#toast') or '')[:60])
     al.close()
 
@@ -108,7 +108,7 @@ with sync_playwright() as p:
     np_.fill('#endIn', '02:00'); np_.dispatch_event('#endIn', 'change'); np_.click('#bars [data-next]')
     if np_.locator('#alertAsk').count(): np_.click('#alertNo')
     np_.clock.run_for(6 * 60 * 1000); np_.wait_for_timeout(500)
-    ok(np_.locator('#bars .now').count() == 1 and np_.input_value('#endIn') == '02:00', 'at 00:04 the break started at 23:58 is still running, on the same shift')
+    ok(np_.locator('#bars .ring.on').count() == 1 and np_.input_value('#endIn') == '02:00', 'at 00:04 the break started at 23:58 is still running, on the same shift')
     nc.close()
 
     # ---- on a phone: bottom tab bar, cards instead of wide tables, installable ----
@@ -120,7 +120,7 @@ with sync_playwright() as p:
     ok(ph.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'phone: nothing is wider than the screen')
     ok(ph.locator('link[rel=manifest]').count() == 1 and ph.evaluate("'serviceWorker' in navigator"), 'phone: the app can be installed')
     # ---- pilot data: the summary and a CSV with one row per person per day ----
-    m.click('[data-tab="manage"]'); m.wait_for_selector('#pilotStats table')
+    m.click('[data-tab="manage"]'); m.fill('#pilotFrom', (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')); m.dispatch_event('#pilotFrom', 'change'); m.wait_for_selector('#pilotStats table')
     ok('breaks on time' in m.inner_text('#pilotStats') and m.locator('#pilotStats tbody tr').count() >= 5, 'the Pilot summary shows each person')
     with m.expect_download() as dl: m.click('#pilotCsv')
     rows = open(dl.value.path()).read().splitlines()

@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=c65a64a838';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=c65a64a838';
-import { setupIdeas } from '../ideas.js?v=c65a64a838';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=c65a64a838';
-import { teamLooks, teamRewards, teamUiStyles, pilotStats, resetTeam } from '../core.js?v=c65a64a838';
-import { load, save, purge, dayKey, workDayOf, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=c65a64a838';
-import { esc, setHtml } from '../dom.js?v=c65a64a838';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=c65a64a838';
-import { raceHTML, avatar, wireRacers } from '../race.js?v=c65a64a838';
+import { CONFIG } from '../config.js?v=c85a4b0b52';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=c85a4b0b52';
+import { setupIdeas } from '../ideas.js?v=c85a4b0b52';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=c85a4b0b52';
+import { teamLooks, teamRewards, teamUiStyles, pilotStats, resetTeam } from '../core.js?v=c85a4b0b52';
+import { load, save, purge, dayKey, workDayOf, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=c85a4b0b52';
+import { esc, setHtml } from '../dom.js?v=c85a4b0b52';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=c85a4b0b52';
+import { raceHTML, avatar, wireRacers } from '../race.js?v=c85a4b0b52';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
