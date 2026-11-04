@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=f61f60fa65';
-import * as api from './backend/api.js?v=f61f60fa65';
-import { PILOT_USERS } from './pilot.js?v=f61f60fa65';
+import { CONFIG } from './config.js?v=c65a64a838';
+import * as api from './backend/api.js?v=c65a64a838';
+import { PILOT_USERS } from './pilot.js?v=c65a64a838';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -103,6 +103,30 @@ export const voteSuggestion = async (code, id, on) => API ? api.voteSuggestion(i
   : editIdea(id, s => { s.votes = s.votes.filter(c => c !== code).concat(on ? [code] : []); });
 export const setSuggestionStatus = async (id, status) => API ? api.setSuggestionStatus(id, status) : editIdea(id, s => { s.status = status; });
 export const removeSuggestion = async id => API ? api.removeSuggestion(id) : editIdea(id, s => { s.gone = true; });
+/* Pilot data (Manage > Pilot summary, and the Pilot data CSV): one row per person per day, with the same rules as
+   pilot_stats() in db/schema.sql. Database mode keeps these for 180 days; demo mode works them out from this browser. */
+export async function pilotStats(from, to) {
+  if (API) return api.pilotStats(from, to);
+  const db = fakeLoad(), out = [], r1 = n => Math.round(n * 10) / 10, iso = ms => ms ? new Date(ms).toISOString() : null;
+  for (const day of Object.keys(db.days).filter(d => d >= from && d <= to).sort()) for (const [code, r] of Object.entries(db.days[day])) {
+    if (!PILOT_USERS[code]) continue;
+    const all = plan({ ...r, active: null }, db.adj?.[day]?.[code], 0, slotsFor(db, code, day)), took = all.filter(s => s.segs.length);
+    const cap = all.reduce((a, s) => a + Math.max(0, s.base) * 60, 0), used = all.reduce((a, s) => a + s.used, 0);
+    const over = used - cap >= CONFIG.overToleranceMinutes * 60 ? used - cap : 0, b = r.breaks || [];
+    out.push({ code, name: PILOT_USERS[code], day, shift_start: iso(r.shiftStart), shift_end: iso(r.shiftEnd), breaks: took.length, sittings: b.length,
+      break_minutes: r1(used / 60), allowance_minutes: r1(cap / 60), minutes_over: r1(over / 60), on_time: over ? took.filter(s => !s.overBase).length : took.length,
+      auto_closed: b.filter(x => x.flag).length, adjust_minutes: all.reduce((a, s) => a + s.adjust, 0),
+      first_break_at: iso(b.length ? Math.min(...b.map(x => x.start)) : 0), last_break_end: iso(b.length ? Math.max(...b.map(x => x.end)) : 0) });
+  }
+  return out;
+}
+/** Team leads: wipe the team's app data and start fresh, keeping everyone's login (db/schema.sql, reset_team_data).
+    Demo mode clears everything this browser keeps. */
+export async function resetTeam(confirmText) {
+  if (API) return api.resetTeam(confirmText);
+  if (confirmText !== 'START FRESH') throw new Error('Type START FRESH to confirm.');
+  for (const k of [KEY, LOOKS_KEY, UI_KEY, IDEAS_KEY]) localStorage.removeItem(k);
+}
 export function purge(db){
   if (API) return;                                                              // the database deletes old rows itself (db/cleanup_job.sql)
   const c = new Date(); c.setDate(c.getDate() - CONFIG.retentionDays); const ck = dayKey(c);
@@ -178,6 +202,15 @@ export function weekScore(db, code, from, to){
   }
   const overMinutes = Math.round(overSec/60);
   return { breaks, onTime, cleanDays, overMinutes, points: Math.max(0, onTime*B.pointsOnTime + cleanDays*B.pointsCleanDay - overMinutes*B.penaltyPerMinuteOver) };
+}
+/** The day someone's current shift belongs to: the day it started. A shift (or a break) still running after midnight
+    stays on the day it began until it ends, so nobody gets a fresh allowance at 00:00 and a running break never gets lost.
+    A shift with no end time counts as running for up to 14 hours. */
+export function workDayOf(db, code, at){
+  const today = dayKey(new Date(at)), y = new Date(at); y.setDate(y.getDate() - 1);
+  const yk = dayKey(y), r = db.days?.[yk]?.[code];
+  if (db.days?.[today]?.[code] || !r) return today;
+  return r.active || (r.shiftEnd ? at < r.shiftEnd : at - r.shiftStart < 14 * 36e5) ? yk : today;
 }
 /** On-time streak: worked days in a row (newest first, up to today) where the day's breaks stayed within the day's total.
     Days off don't break it; today only counts once it has a break. Same "over" rule as weekScore(). */

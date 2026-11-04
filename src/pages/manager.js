@@ -1,12 +1,12 @@
-import { CONFIG } from '../config.js?v=f61f60fa65';
-import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=f61f60fa65';
-import { setupIdeas } from '../ideas.js?v=f61f60fa65';
-import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=f61f60fa65';
-import { teamLooks, teamRewards, teamUiStyles } from '../core.js?v=f61f60fa65';
-import { load, save, purge, dayKey, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=f61f60fa65';
-import { esc, setHtml } from '../dom.js?v=f61f60fa65';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=f61f60fa65';
-import { raceHTML, avatar, wireRacers } from '../race.js?v=f61f60fa65';
+import { CONFIG } from '../config.js?v=c65a64a838';
+import { MANAGER_CODES, PILOT_USERS, SESSION_MGR } from '../pilot.js?v=c65a64a838';
+import { setupIdeas } from '../ideas.js?v=c65a64a838';
+import { setupUi, syncUi, isPro, LOOK_NAMES } from '../ui.js?v=c65a64a838';
+import { teamLooks, teamRewards, teamUiStyles, pilotStats, resetTeam } from '../core.js?v=c65a64a838';
+import { load, save, purge, dayKey, workDayOf, hhmm, mmss, tidy, atTime, slotsFor, labelFor, cleanName, plan, STORAGE_KEY, init, refresh, me, signIn, signOut, history, now, statusOf, FILTERS, teamPulse, breakathon, weekOf } from '../core.js?v=c65a64a838';
+import { esc, setHtml } from '../dom.js?v=c65a64a838';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp, toast } from '../chrome.js?v=c65a64a838';
+import { raceHTML, avatar, wireRacers } from '../race.js?v=c65a64a838';
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],U=PILOT_USERS,SESSION=SESSION_MGR,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let TODAY=dayKey(new Date(now())),db=load(),mgr=CONFIG.backend==='api'?null:sessionStorage.getItem(SESSION),lastSig='',det=null;
@@ -25,10 +25,10 @@ $('#demo').addEventListener('click',()=>{db=load();const at=now();let i=0;
       if(i%5===3){r.breaks.push({slot:'break1',start:b1,end:b1+15*6e4});if(i===3)r.breaks.push({slot:'lunch',start:b1+60*6e4,end:b1+90*6e4});r.active={slot:'break2',start:at-(i===3?19:5)*6e4}}d[c]=r}
     for(let k=1;k<=6;k++){const t=new Date();t.setDate(t.getDate()-k);const dk=dayKey(t);if(db.days[dk]?.[c])continue;t.setHours(9,0,0,0);const s=t.getTime(),o=(x)=>((i+k)%(i+3)===0?x:0);
       (db.days[dk]??={})[c]={name,shiftStart:s,shiftEnd:s+9*36e5,active:null,breaks:[{slot:'break1',start:s+90*6e4,end:s+(105+o(3))*6e4},{slot:'lunch',start:s+240*6e4,end:s+(270+o(4))*6e4},{slot:'break2',start:s+420*6e4,end:s+(435+(i===4?2:0))*6e4}]}}
-    i++}save(db);render(true)});
+    i++}save(db);render(true);loadPilot()});
 $('#clear').addEventListener('click',()=>{if(!confirm("Clear today's data for everyone? This can't be undone."))return;db=load();delete db.days[TODAY];delete db.adj[TODAY];save(db);render(true)});
 /* ---------- details dialog ---------- */
-document.addEventListener('click',e=>{const b=e.target.closest('button[data-det]');if(b){det={c:b.dataset.det,date:TODAY};db=load();draw();$('#dOv').classList.remove('hidden')}});
+document.addEventListener('click',e=>{const b=e.target.closest('button[data-det]');if(b){db=load();det={c:b.dataset.det,date:workDayOf(db,b.dataset.det,now())};draw();$('#dOv').classList.remove('hidden')}});
 $('#dClose').addEventListener('click',()=>{det=null;$('#dOv').classList.add('hidden')});
 function draw(){const {c,date}=det,r=db.days[date]?.[c],p=plan(r,db.adj[date]?.[c],now(),slotsFor(db,c,date)),L=k=>esc(labelFor(db,c,k)),N=esc(U[c]);
   const dates=[...new Set([TODAY,...Object.keys(db.days).filter(d=>db.days[d][c])])].sort().reverse(),cust=db.custom[c]||[];
@@ -67,6 +67,7 @@ function describe(h){const {c}=det,sl=h.slot_key?esc(labelFor(db,c,h.slot_key)):
     case 'add_custom_break':return `Added ${sl}: ${esc(a)}`;
     case 'remove_custom_break':return `Removed ${sl} (was ${esc(b)})`;
     case 'edit_custom_break':return `Changed ${sl}: ${esc(b)} → ${esc(a)}`;
+    case 'reset_team':return 'Started fresh: all team data wiped';
     case 'rename_break':{const def=esc(CONFIG.defaultSlots.find(s=>s.key===h.slot_key)?.label||CONFIG.customLabels[h.slot_key]);return `Renamed ${def}: “${b?esc(b):def}” → “${a?esc(a):def}”`}
     default:return esc(h.action)}}
 $('#dBody').addEventListener('change',e=>{const t=e.target;if(t.id==='dDate'){det.date=t.value;return draw()}
@@ -88,7 +89,8 @@ $('#dBody').addEventListener('click',e=>{const t=e.target.closest('button');if(!
 /* ---------- dashboard (view only): filters, team pulse, one card per person ---------- */
 let filter='all',tab='dash',lastDash='',LOOKS={};
 async function loadLooks(){try{const l=await teamLooks();if(JSON.stringify(l)!==JSON.stringify(LOOKS)){LOOKS=l;renderDash(now(),true)}}catch{}}
-const teamNow=at=>Object.entries(U).map(([c,name])=>{const r=db.days[TODAY]?.[c],p=plan(r,db.adj[TODAY]?.[c],at,slotsFor(db,c,TODAY));return {c,name,rec:r,p,st:statusOf(r,p,at)}});
+/* each person's current shift: still yesterday's for someone working past midnight (src/core.js, workDayOf) */
+const teamNow=at=>Object.entries(U).map(([c,name])=>{const dk=workDayOf(db,c,at),r=db.days[dk]?.[c],p=plan(r,db.adj[dk]?.[c],at,slotsFor(db,c,dk));return {c,name,rec:r,p,st:statusOf(r,p,at)}});
 function renderDash(at,force){if(tab!=='dash'&&!force)return;const sig=JSON.stringify(db)+filter+Math.floor(at/1e4);if(!force&&sig===lastDash)return;lastDash=sig;
   const team=teamNow(at),f=FILTERS.find(x=>x.key===filter),list=team.filter(t=>f.test(t.st,t.p));
   setHtml($('#filters'),FILTERS.map(x=>{const n=team.filter(t=>x.test(t.st,t.p)).length;return `<button class="fbtn${x.key==='over'&&n?' bad':''}" data-f="${x.key}" aria-pressed="${filter===x.key}"><span>${x.label}</span><b>${n}</b></button>`}).join(''));
@@ -116,6 +118,45 @@ $('#csv').addEventListener('click',()=>{db=load();const out=[['date','code','nam
     for(const s of p)if(s.segs.length)out.push([day,c,U[c]||r.name,s.label,s.segs.map(b=>`${hhmm(b.start)}-${hhmm(b.end)}`).join(' '),tidy(s.used/60),s.base,tidy(s.borrowed/60),tidy(s.over/60),s.segs.some(b=>b.flag)?'yes':''])}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.map(x=>x.map(csvCell).join(',')).join('\r\n')],{type:'text/csv'}));a.download=`breaks-${TODAY}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)});
 
+/* ---------- pilot summary and the Pilot data CSV: one row per person per day, from the pilot start (or the chosen date) to today ---------- */
+let PILOT=null;
+const pilotFrom=()=>$('#pilotFrom').value||PILOT_DEFAULT(),pct=(a,b)=>b?Math.round(a/b*100)+'%':'–',num=v=>Number(v)||0;
+async function loadPilot(){try{PILOT=await pilotStats(pilotFrom(),TODAY)}catch{PILOT=null}drawPilot()}
+function drawPilot(){const el=$('#pilotStats');if(!el)return;
+  if(!PILOT){el.innerHTML='<p class="hint">Not recorded yet. Run the latest db/schema.sql and db/cleanup_job.sql in Supabase.</p>';return}
+  if(!PILOT.length){el.innerHTML=`<p class="hint">No breaks recorded since ${esc(pilotFrom())} yet. This fills in as people use the app.</p>`;return}
+  const by={};for(const r of PILOT)(by[r.code]??=[]).push(r);
+  const tot=rs=>{const t={days:rs.length,breaks:0,onTime:0,mins:0,allow:0,over:0,overDays:0,auto:0};for(const r of rs){t.breaks+=num(r.breaks);t.onTime+=num(r.on_time);t.mins+=num(r.break_minutes);t.allow+=num(r.allowance_minutes);t.over+=num(r.minutes_over);t.overDays+=num(r.minutes_over)>0;t.auto+=num(r.auto_closed)}return t};
+  const all=tot(PILOT),people=Object.keys(by).sort();
+  el.innerHTML=`<div class="pilot-kpis">${[[pct(all.onTime,all.breaks),'breaks on time'],[`${Math.round(all.mins/all.days)} / ${Math.round(all.allow/all.days)}`,'avg break min a day (used / allowed)'],[all.overDays,`day${all.overDays===1?'':'s'} over the total`],[all.auto,'auto-closed breaks']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+    <p class="hint">${all.days} worked day${all.days===1?'':'s'} from ${people.length} ${people.length===1?'person':'people'} since ${esc(pilotFrom())}.</p>
+    <div class="scroll"><table class="pilottable"><thead><tr><th>Person</th><th class="opt">Days</th><th>On time</th><th>Avg a day</th><th>Min over</th><th class="opt">Days over</th><th class="opt">Auto-closed</th></tr></thead><tbody>${people.map(c=>{const t=tot(by[c]);
+      return `<tr><td class="person"><b>${esc(by[c][0].name)}</b><span>${esc(c)}</span></td><td class="opt">${t.days}</td><td>${pct(t.onTime,t.breaks)}</td><td>${Math.round(t.mins/t.days)} <span class="of">/ ${Math.round(t.allow/t.days)}</span></td><td class="${t.over?'bad':''}">${Math.round(t.over)}</td><td class="opt">${t.overDays}</td><td class="opt">${t.auto}</td></tr>`}).join('')}</tbody></table></div>`}
+/* before the pilot starts (testing), default to the last two weeks so there is something to look at */
+const PILOT_DEFAULT=()=>{if(TODAY>=CONFIG.pilotStart)return CONFIG.pilotStart;const d=new Date(TODAY+'T12:00:00');d.setDate(d.getDate()-13);return dayKey(d)};
+$('#pilotFrom').value=PILOT_DEFAULT();$('#pilotFrom').addEventListener('change',loadPilot);
+$('#pilotCsv').addEventListener('click',async()=>{await loadPilot();if(!PILOT?.length)return toast('Nothing recorded for that period yet.');
+  const t=v=>v?hhmm(Date.parse(v)):'',hrs=(a,b)=>a&&b?tidy((Date.parse(b)-Date.parse(a))/36e5):'';
+  const out=[['date','weekday','code','name','shift_start','shift_end','shift_hours','breaks_taken','sittings','break_minutes','allowance_minutes','minutes_over','breaks_on_time','on_time_rate','auto_closed','manager_adjust_minutes','first_break','last_break_end'],
+    ...PILOT.map(r=>[r.day,DN[new Date(r.day+'T12:00:00').getDay()],r.code,r.name,t(r.shift_start),t(r.shift_end),hrs(r.shift_start,r.shift_end),r.breaks,r.sittings,r.break_minutes,r.allowance_minutes,r.minutes_over,r.on_time,r.breaks?Math.round(r.on_time/r.breaks*100)+'%':'',r.auto_closed,r.adjust_minutes,t(r.first_break_at),t(r.last_break_end)])];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.map(x=>x.map(csvCell).join(',')).join('\r\n')],{type:'text/csv'}));a.download=`breakpoint-pilot-${pilotFrom()}-to-${TODAY}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)});
+
+/* ---------- start fresh: wipe the team's data (keeps logins), behind a typed confirmation ---------- */
+$('#freshBtn').addEventListener('click',()=>{
+  document.body.insertAdjacentHTML('beforeend',`<div class="overlay" id="freshOv"><form class="dialog small" id="freshForm" role="dialog" aria-modal="true" aria-labelledby="freshT">
+    <h3 id="freshT" style="margin-top:0">Start fresh?</h3><p style="margin:0 0 8px">This deletes, for everyone in your team:</p>
+    <ul class="hint" style="margin:0 0 10px;padding-left:18px"><li>all breaks, shifts, adjustments, OH breaks and break names</li><li>the change history and the pilot data</li><li>Breakathon prizes and mascot looks</li><li>Ideas and votes, and everyone's Playful / Professional choice</li></ul>
+    <p style="margin:0 0 10px"><b>Everyone keeps their login and password.</b> This can't be undone, so download the CSVs first if you want a copy.</p>
+    <label class="hint" for="freshIn">Type <b>START FRESH</b> to confirm</label><input id="freshIn" autocomplete="off" autocapitalize="characters" placeholder="START FRESH" style="width:100%;margin:6px 0 10px">
+    <p class="err" id="freshErr" role="alert"></p><div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost" id="freshNo">Cancel</button><button class="btn danger" id="freshGo" disabled>Delete everything</button></div></form></div>`);
+  const close=()=>$('#freshOv').remove();
+  $('#freshIn').focus();$('#freshIn').addEventListener('input',e=>{$('#freshGo').disabled=e.target.value.trim()!=='START FRESH'});
+  $('#freshNo').addEventListener('click',close);
+  $('#freshForm').addEventListener('submit',async e=>{e.preventDefault();const b=$('#freshGo');b.disabled=true;
+    try{await resetTeam($('#freshIn').value.trim());close();db=load();render(true);loadPilot();loadUiChoices();drawRace();toast('All done. Your team starts fresh from now.',5000)}
+    catch(err){$('#freshErr').textContent=err.message;b.disabled=false}});
+});
+
 /* ---------- interface choice: which look each person picked, for the pilot write-up (src/ui.js) ---------- */
 let UIC={};
 async function loadUiChoices(){try{UIC=await teamUiStyles()}catch{UIC=null}drawUiChoices()}
@@ -125,8 +166,8 @@ function drawUiChoices(){const el=$('#uiStats');if(!el)return;
   if(!UIC){el.innerHTML='<p class="hint">Not recorded yet. Run the latest db/schema.sql in Supabase to start recording it.</p>';return}
   const ppl=uiPeople(),line=role=>{const g=ppl.filter(p=>p.role===role),n=k=>g.filter(p=>(UIC[p.c]?.style||null)===k).length;
     return g.length?`<p style="margin:4px 0"><b>${role}:</b> ${LOOK_NAMES.pro} <b>${n('pro')}</b> · ${LOOK_NAMES.fun} <b>${n('fun')}</b> · Not chosen yet <b>${n(null)}</b></p>`:''};
-  el.innerHTML=line('Staff')+line('Team lead')+`<div class="scroll" style="margin-top:10px"><table><thead><tr><th>Person</th><th>Role</th><th>Using now</th><th>First pick</th><th>Switches</th><th>Last changed</th></tr></thead><tbody>${ppl.map(p=>{const u=UIC[p.c];
-    return `<tr><td class="person"><b>${esc(p.n)}</b><span>${esc(p.c)}</span></td><td>${p.role}</td><td>${u?LOOK_NAMES[u.style]:'<span class="of">Not chosen yet</span>'}</td><td>${u?`${LOOK_NAMES[u.first_style]} <span class="of">${uiDay(u.first_at)}</span>`:'–'}</td><td>${u?u.switches:'–'}</td><td>${u?uiDay(u.changed_at):'–'}</td></tr>`}).join('')}</tbody></table></div>`}
+  el.innerHTML=line('Staff')+line('Team lead')+`<div class="scroll" style="margin-top:10px"><table class="uitable"><thead><tr><th>Person</th><th class="opt">Role</th><th>Using now</th><th>First pick</th><th class="opt">Switches</th><th class="opt">Last changed</th></tr></thead><tbody>${ppl.map(p=>{const u=UIC[p.c];
+    return `<tr><td class="person"><b>${esc(p.n)}</b><span>${esc(p.c)}</span></td><td class="opt">${p.role}</td><td>${u?LOOK_NAMES[u.style]:'<span class="of">Not yet</span>'}</td><td>${u?`${LOOK_NAMES[u.first_style]} <span class="of">${uiDay(u.first_at)}</span>`:'–'}</td><td class="opt">${u?u.switches:'–'}</td><td class="opt">${u?uiDay(u.changed_at):'–'}</td></tr>`}).join('')}</tbody></table></div>`}
 $('#uiCsv').addEventListener('click',async()=>{await loadUiChoices();if(!UIC)return toast('Nothing recorded yet.');
   const out=[['code','name','role','using_now','first_pick','first_picked_at','switches','last_changed_at'],...uiPeople().map(p=>{const u=UIC[p.c];return [p.c,p.n,p.role,u?LOOK_NAMES[u.style]:'',u?LOOK_NAMES[u.first_style]:'',u?.first_at||'',u?u.switches:'',u?.changed_at||'']})];
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.map(x=>x.map(csvCell).join(',')).join('\r\n')],{type:'text/csv'}));a.download=`interface-choice-${TODAY}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)});
@@ -150,11 +191,11 @@ $('#race').addEventListener('click',e=>{if(e.target.id!=='grantBtn'||!champ)retu
 
 /* ---------- team table (Manage tab) ---------- */
 function render(force){const at=now();if(dayKey(new Date(at))!==TODAY)TODAY=dayKey(new Date(at));renderDash(at,force);const sig=JSON.stringify(db)+Math.floor(at/6e4);if(!force&&sig===lastSig)return;lastSig=sig;
-  const day=db.days[TODAY]||{},adj=db.adj[TODAY]||{};CONFIG.defaultSlots.forEach((s,i)=>$('#h'+i).textContent=`${s.label} (${s.minutes} min)`);
-  $('#rows').innerHTML=Object.entries(U).map(([c,name])=>{const r=day[c],p=plan(r,adj[c],at,slotsFor(db,c,TODAY));let shift='<span style="color:var(--muted)">Not started</span>',pct=0,status='<span class="pill">Not started</span>';
+  CONFIG.defaultSlots.forEach((s,i)=>$('#h'+i).textContent=`${s.label} (${s.minutes} min)`);
+  $('#rows').innerHTML=Object.entries(U).map(([c,name])=>{const dk=workDayOf(db,c,at),r=db.days[dk]?.[c],p=plan(r,db.adj[dk]?.[c],at,slotsFor(db,c,dk));let shift='<span style="color:var(--muted)">Not started</span>',pct=0,status='<span class="pill">Not started</span>';
     if(r){shift=r.shiftEnd?`${hhmm(r.shiftStart)} – ${hhmm(r.shiftEnd)}`:`${hhmm(r.shiftStart)} – <span style="color:var(--muted)">no end set</span>`;pct=r.shiftEnd?Math.max(0,Math.min(100,(at-r.shiftStart)/(r.shiftEnd-r.shiftStart)*100)):0;status=pct>=100?'<span class="pill">Finished</span>':'<span class="pill work">Working</span>';
       if(r.active){const s=p.find(x=>x.act);status=`<span class="pill brk" data-live data-left="${ownLeft(s)}" data-spare="${spareLeft(s)}" data-label="${esc(s.label)}"></span>`}}
-    const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(at-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell" data-label="${esc(s.defaultLabel)}">${nm}${main}${adjUI(c,s,TODAY,name)}</td>`}).join('');
+    const cells=p.slice(0,3).map(s=>{const nm=s.label!==s.defaultLabel?`<span class="of">${esc(s.label)} · </span>`:'',main=s.act?`<span class="u" data-cell data-start="${s.act.start}" data-prior="${s.used-(at-s.act.start)/1000}"></span> <span class="of">/ ${tidy(s.allowed)} min</span>`:s.used>0?`<span class="u${s.over?' bad':''}">${tidy(s.used/60)}</span> <span class="of">/ ${tidy(s.allowed)} min${s.segs.some(b=>b.flag)?' · auto-closed':''}</span>`:`<span class="of">Not taken · ${tidy(s.allowed)} min</span>`;return `<td class="cell" data-label="${esc(s.defaultLabel)}">${nm}${main}${adjUI(c,s,dk,name)}</td>`}).join('');
     return `<tr><td class="person"><b>${esc(name)}</b><span>${c}${p.length>3?` · +${p.length-3} custom`:''}</span></td><td data-label="Shift">${shift}</td><td data-label="Progress"><div class="mini"><i style="width:${pct}%"></i></div>${r&&r.shiftEnd?Math.floor(pct)+'%':'–'}</td><td>${status}</td>${cells}<td><button class="btn ghost sm" data-det="${c}">View more</button></td></tr>`}).join('');
   liveTick()}
 /* a running break: own = seconds left of its own minutes (negative = past them, borrowing from the person's other breaks),
@@ -166,8 +207,8 @@ function liveTick(){const at=now();$$('[data-live]').forEach(el=>{const t=Number
   $$('[data-cell]').forEach(el=>el.textContent=mmss(Number(el.dataset.prior)+(at-Number(el.dataset.start))/1000))}
 let t1,t2,clock,tabsReady=false;const ideas=setupIdeas($('#ideas'),{who:()=>mgr,manager:true});
 function boot(){if(!mgr||!MANAGER_CODES[mgr])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');$('#who').textContent=MANAGER_CODES[mgr];if(CONFIG.backend==='api'){$('#demo')?.remove();$('#clear')?.remove()}db=load();purge(db);save(db);render(true);
-  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);ideas.show(t==='ideas');if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
-  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();syncUi(mgr);loadUiChoices();ideas.peek();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000){loadLooks();loadUiChoices();if(tab!=='ideas')ideas.peek()}if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
+  clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;setupTabs(t=>{tab=t;clearInterval(raceT);ideas.show(t==='ideas');if(t==='manage')loadPilot();if(t==='dash')renderDash(now(),true);if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
+  clearInterval(t1);clearInterval(t2);t1=setInterval(liveTick,1000);loadLooks();syncUi(mgr);loadUiChoices();loadPilot();ideas.peek();t2=setInterval(async()=>{if(det)return;if(Date.now()%60000<CONFIG.refreshSeconds*1000){loadLooks();loadUiChoices();if(tab==='manage')loadPilot();if(tab!=='ideas')ideas.peek()}if(CONFIG.backend==='api'){try{await refresh();setLive(true)}catch{setLive(false)}}db=load();render()},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&mgr&&!det){db=load();render()}});
 setupPassword();setupTheme();setupApp();wireRacers($('#race'));
 setupUi(()=>{if(mgr){renderDash(now(),true);drawRace();setTimeout(loadUiChoices,1500)}});

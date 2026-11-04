@@ -1,15 +1,15 @@
-import { CONFIG } from '../config.js?v=f61f60fa65';
-import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=f61f60fa65';
-import { myRewards, claimReward, setLook } from '../core.js?v=f61f60fa65';
-import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=f61f60fa65';
-import { offerAlerts, checkAlerts } from '../notify.js?v=f61f60fa65';
-import { setupIdeas } from '../ideas.js?v=f61f60fa65';
-import { setupUi, syncUi, isPro } from '../ui.js?v=f61f60fa65';
-import { jokeFor, proNote } from '../jokes.js?v=f61f60fa65';
-import { esc, setHtml } from '../dom.js?v=f61f60fa65';
-import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=f61f60fa65';
-import { raceHTML, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=f61f60fa65';
-import { toast } from '../chrome.js?v=f61f60fa65';
+import { CONFIG } from '../config.js?v=c65a64a838';
+import { PILOT_USERS, MANAGER_CODES, SESSION_USER } from '../pilot.js?v=c65a64a838';
+import { myRewards, claimReward, setLook } from '../core.js?v=c65a64a838';
+import { load, save, purge, dayKey, hhmm, mmss, durHM, fmtMin, tidy, atTime, slotsFor, plan, streakOf, workDayOf, STORAGE_KEY, init, refresh, me, signIn, signOut, now, breakathon, weekOf } from '../core.js?v=c65a64a838';
+import { offerAlerts, checkAlerts } from '../notify.js?v=c65a64a838';
+import { setupIdeas } from '../ideas.js?v=c65a64a838';
+import { setupUi, syncUi, isPro } from '../ui.js?v=c65a64a838';
+import { jokeFor, proNote } from '../jokes.js?v=c65a64a838';
+import { esc, setHtml } from '../dom.js?v=c65a64a838';
+import { startClock, setLive, setupTabs, setupPassword, setupTheme, setupApp } from '../chrome.js?v=c65a64a838';
+import { raceHTML, wireRacers, avatar, prizeHTML, lookPanelHTML, itemName } from '../race.js?v=c65a64a838';
+import { toast } from '../chrome.js?v=c65a64a838';
 
 const $=s=>document.querySelector(s),SESSION=SESSION_USER,USERS=PILOT_USERS,API=CONFIG.backend==='api';
 let TODAY=dayKey(new Date(now())),code=API?null:localStorage.getItem(SESSION),db=load(),tab='day';
@@ -107,7 +107,7 @@ function renderAll(){const r=rec();if(!r)return;$('#who').textContent=r.name;$('
   $('#startHint').textContent=r.shiftEnd?'':`Started ${hhmm(r.shiftStart)}. Add your end time or pick a shift length.`;
   const k=streakOf(db,code,TODAY);$('#streak').classList.toggle('hidden',k<2);$('#streak').textContent=isPro()?`${k} on-time days in a row`:`🔥 ${k}-day streak`;tick()}
 
-function tick(){const at=now();if(dayKey(new Date(at))!==TODAY){TODAY=dayKey(new Date(at));ensureRec();renderAll();return}
+function tick(){const at=now(),wd=workDayOf(db,code,at);if(wd!==TODAY){TODAY=wd;ensureRec();renderAll();return}   // a new working day (not just midnight)
   const r=rec();if(!r)return;if(r.active&&at-r.active.start>CONFIG.forgotToStopMinutes*6e4){endBreak(true);return}
   renderBars(at);renderShift(at);checkAlerts(P(at).find(x=>x.act),isPro());
   const p=P(at),end=r.shiftEnd,pct=end?(at-r.shiftStart)/(end-r.shiftStart)*100:null;
@@ -142,7 +142,7 @@ async function drawRace(){if(tab!=='race')return;try{
 $('#weekSel').addEventListener('click',e=>{const b=e.target.closest('button[data-week]');if(!b)return;week=Number(b.dataset.week);document.querySelectorAll('#weekSel button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawRace()});
 
 let t1,t2,clock,tabsReady=false;const ideas=setupIdeas($('#ideas'),{who:()=>code});
-function boot(){if(!code||!USERS[code])return showGate();$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();loadMine();syncUi(code);ideas.peek();
+function boot(){if(!code||!USERS[code])return showGate();db=load();TODAY=workDayOf(db,code,now());$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');ensureRec();renderAll();loadMine();syncUi(code);ideas.peek();
   clearInterval(clock);clock=startClock();if(!tabsReady){tabsReady=true;showTab=setupTabs(t=>{tab=t;clearInterval(raceT);ideas.show(t==='ideas');if(t==='race'){drawRace();raceT=setInterval(drawRace,60000)}})}
   clearInterval(t1);clearInterval(t2);t1=setInterval(tick,1000);t2=setInterval(async()=>{if(Date.now()%60000<CONFIG.refreshSeconds*1000&&tab!=='ideas')ideas.peek();if(API){try{if(await refresh()){db=load();renderAll()}setLive(true)}catch{setLive(false)}return}const s=localStorage.getItem(STORAGE_KEY);if(s!==JSON.stringify(db)){db=load();renderAll()}},CONFIG.refreshSeconds*1000)}
 window.addEventListener('storage',e=>{if(e.key===STORAGE_KEY&&code){db=load();renderAll()}});

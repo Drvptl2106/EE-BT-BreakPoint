@@ -76,7 +76,12 @@ own files on the phone so it opens fast on a weak signal. Every update to this r
   a "team pulse" in plain English ("Almost everyone has had Break 1, still to go: User 3", "User 4 is 6 min over, go wake User 4 up"),
   and a live card per person.
 - **Manage:** +/- 5 minute adjustments, and per person: shift start and end, break history (edit, remove, log a missed break),
-  OH breaks (today, chosen weekdays or every day), break names, and the change history. Export the last 14 days as CSV.
+  OH breaks (today, chosen weekdays or every day), break names, and the change history. Export the last 14 days' break details as CSV.
+- **Pilot summary** (Manage tab): on-time rate, average break minutes a day against the allowance, minutes and days over,
+  auto-closed breaks, per person and for the team, from the pilot start (`pilotStart` in `src/config.js`) or any date.
+  **Pilot data (CSV)** downloads one row per person per day for the whole period, so it grows as the pilot goes on.
+- **Start fresh** (Manage tab): wipes all of the team's app data (breaks, history, pilot data, prizes and looks, Ideas, look
+  choices) after typing START FRESH, e.g. once testing is over. Everyone keeps their login and password.
 - **Breakathon:** the race with minutes over, what last week's champion picked, and a button to give the extra break if they chose it.
 
 ## Security in one paragraph
@@ -91,7 +96,9 @@ audit trail nobody can edit. Breakathon gives agents names and points only, neve
 
 - Stores: first name, shift and break times, allowance adjustments in minutes, OH break rules, break names a manager chose, the audit trail,
   which look (Playful or Professional) each person picked, with their first pick and how often they switched,
-  and the Ideas tab's suggestions and votes (anonymous ones without an author).
+  the Ideas tab's suggestions and votes (anonymous ones without an author),
+  and each person's **daily break totals** for the pilot (`daily_stats`: counts and minutes, no break-by-break times), kept for 180 days.
+  Break-by-break records are still deleted after 14 days. Check the 180 days with HR / your privacy notice.
 - Never stores: the **reason** for a break, an adjustment or an edit. There is no such field anywhere, and tests fail if one appears.
 
 ## Layout

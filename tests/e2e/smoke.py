@@ -102,6 +102,15 @@ with sync_playwright() as p:
     ok('left on Break 1' in (ap.text_content('#toast') or ''), 'an alert fires shortly before the break time is up: ' + (ap.text_content('#toast') or '')[:60])
     al.close()
 
+    # ---- midnight: a shift and a break running past 00:00 stay on the day they started ----
+    nc = b.new_context(); nc.clock.install(time=datetime(2026, 11, 4, 23, 58)); np_ = nc.new_page(); watch(np_)
+    np_.goto(BASE + '/index.html'); np_.fill('#code', 'EE-006'); np_.click('#gateForm button'); np_.wait_for_selector('#uiPick:not(.hidden)'); np_.click('#uiPick [data-pick="pro"]')
+    np_.fill('#endIn', '02:00'); np_.dispatch_event('#endIn', 'change'); np_.click('#bars [data-next]')
+    if np_.locator('#alertAsk').count(): np_.click('#alertNo')
+    np_.clock.run_for(6 * 60 * 1000); np_.wait_for_timeout(500)
+    ok(np_.locator('#bars .now').count() == 1 and np_.input_value('#endIn') == '02:00', 'at 00:04 the break started at 23:58 is still running, on the same shift')
+    nc.close()
+
     # ---- on a phone: bottom tab bar, cards instead of wide tables, installable ----
     ph = b.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True).new_page(); watch(ph)
     ph.goto(BASE + '/manager.html'); ph.fill('#code', 'MGR-001'); ph.click('#gateForm button'); ph.wait_for_selector('#app:not(.hidden)')
@@ -110,6 +119,18 @@ with sync_playwright() as p:
     ok(ph.evaluate("getComputedStyle(document.querySelector('.tabs')).position") == 'fixed', 'phone: the tabs sit in a bottom bar')
     ok(ph.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'phone: nothing is wider than the screen')
     ok(ph.locator('link[rel=manifest]').count() == 1 and ph.evaluate("'serviceWorker' in navigator"), 'phone: the app can be installed')
+    # ---- pilot data: the summary and a CSV with one row per person per day ----
+    m.click('[data-tab="manage"]'); m.wait_for_selector('#pilotStats table')
+    ok('breaks on time' in m.inner_text('#pilotStats') and m.locator('#pilotStats tbody tr').count() >= 5, 'the Pilot summary shows each person')
+    with m.expect_download() as dl: m.click('#pilotCsv')
+    rows = open(dl.value.path()).read().splitlines()
+    ok(rows[0].startswith('date,weekday,code,name') and len(rows) > 20, f'the Pilot data CSV has one row per person per day ({len(rows) - 1} rows)')
+    # ---- start fresh: wipes the team's data after a typed confirmation ----
+    m.click('#freshBtn'); m.wait_for_selector('#freshOv')
+    ok(m.is_disabled('#freshGo'), 'starting fresh needs the words typed first')
+    m.fill('#freshIn', 'START FRESH'); m.click('#freshGo'); m.wait_for_timeout(600)
+    m.click('[data-tab="dash"]'); m.wait_for_timeout(300)
+    ok('Nobody has clocked in yet today' in m.inner_text('#pulse') and m.locator('#freshOv').count() == 0, 'after starting fresh the team has no data')
     ok(not logs, 'no JS or CSP errors: ' + '; '.join(logs)[:300])
     b.close()
 print('\nRESULT:', 'ALL PASSED' if not errs else f'{len(errs)} FAILED'); sys.exit(1 if errs else 0)
