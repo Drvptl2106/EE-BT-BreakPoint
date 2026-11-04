@@ -1,9 +1,9 @@
 // The engine: storage and break maths. Used by both pages.
 // Nothing here touches the page. Storage is only touched inside load() and save(),
 // so this file imports fine in Node (that is how tests/engine.test.js runs it).
-import { CONFIG } from './config.js?v=c85a4b0b52';
-import * as api from './backend/api.js?v=c85a4b0b52';
-import { PILOT_USERS } from './pilot.js?v=c85a4b0b52';
+import { CONFIG } from './config.js?v=6b9fa1564c';
+import * as api from './backend/api.js?v=6b9fa1564c';
+import { PILOT_USERS } from './pilot.js?v=6b9fa1564c';
 export const pad = n => String(n).padStart(2,'0');
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 export const STORAGE_KEY = 'bt-break-tracker:v1';
@@ -133,7 +133,17 @@ export function purge(db){
   for (const m of [db.days, db.adj]) for (const k of Object.keys(m)) if (k < ck) delete m[k];
   for (const u of Object.keys(db.custom)) db.custom[u] = db.custom[u].filter(x => x.scope !== 'today' || x.date >= ck);
 }
-export const hhmm = ms => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+/* 12- or 24-hour times (user menu > Time format), saved on this device. Until someone picks, follow the phone's own setting.
+   hhmm() is for showing a time; hm24() is always 24-hour, for <input type="time"> values. */
+const CLOCK_KEY = 'bt-clock';
+export function clock12() {
+  try { const v = globalThis.localStorage?.getItem(CLOCK_KEY); if (v) return v === '12'; } catch {}
+  try { return new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12 === true; } catch { return false; }
+}
+export const setClock12 = on => { try { localStorage.setItem(CLOCK_KEY, on ? '12' : '24'); } catch {} };
+export const hm24 = ms => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+export const hhmm = (ms, secs = false) => { const d = new Date(ms), h = d.getHours(), rest = pad(d.getMinutes()) + (secs ? ':' + pad(d.getSeconds()) : '');
+  return clock12() ? `${(h + 11) % 12 + 1}:${rest} ${h < 12 ? 'am' : 'pm'}` : `${pad(h)}:${rest}`; };
 export const mmss = sec => { const s = Math.max(0, Math.round(sec)); return pad(Math.floor(s/60)) + ':' + pad(s%60); };
 export const durHM = sec => { const m = Math.max(0, Math.round(sec/60)), h = Math.floor(m/60); return h ? `${h}h ${pad(m%60)}m` : `${m}m`; };
 export const fmtMin = sec => sec < 60 ? `${Math.max(1,Math.round(sec))} sec` : `${Math.round(sec/60)} min`;

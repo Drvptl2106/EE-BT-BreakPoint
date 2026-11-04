@@ -1,8 +1,8 @@
 // Breakathon view, shared by both pages: an illustrated island where everyone's character runs along the road to the
 // Champion's Keep, the further the more punctual points they have, plus the ranking table.
 // Also the characters themselves (used on the dashboard cards and as the agent's pep-talk buddy).
-import { CONFIG } from './config.js?v=c85a4b0b52';
-import { esc } from './dom.js?v=c85a4b0b52';
+import { CONFIG } from './config.js?v=6b9fa1564c';
+import { esc } from './dom.js?v=6b9fa1564c';
 
 /* ---------------- the mascot ----------------
    One soft bean wearing a little headset (it's a contact centre): flat colour, dot eyes, a small smile and rosy cheeks,

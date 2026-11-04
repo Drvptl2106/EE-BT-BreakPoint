@@ -1,13 +1,13 @@
 // The parts both pages share: the live clock (to the second), the Live pill, tabs, a small toast and "change password".
-import { CONFIG } from './config.js?v=c85a4b0b52';
-import { now, changePassword } from './core.js?v=c85a4b0b52';
+import { CONFIG } from './config.js?v=6b9fa1564c';
+import { now, changePassword, hhmm, clock12, setClock12 } from './core.js?v=6b9fa1564c';
 
 const $ = s => document.querySelector(s);
 const API = CONFIG.backend === 'api';
 
 /** The clock in the header, ticking every second on the database-corrected time. */
 export function startClock() {
-  const el = $('#clock'), tick = () => { el.textContent = new Date(now()).toLocaleTimeString('en-GB', { hour12: false }); };
+  const el = $('#clock'), tick = () => { el.textContent = hhmm(now(), true); };
   tick(); return setInterval(tick, 1000);
 }
 /** Live (green, pulsing) while updates arrive; Reconnecting (amber) when the last update failed. */
@@ -79,14 +79,28 @@ export function setupApp() {
   if (ios) show('<b>Add Break Point to your home screen:</b> tap <b>Share</b> <span aria-hidden="true">⬆︎</span> at the bottom of Safari, then <b>Add to Home Screen</b>.');
 }
 
-const SUN ='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>';
-const MOON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" fill="currentColor"/></svg>';
-/** Sun/moon button: switches light and dark. Starts from the device setting; the choice is remembered on this device. */
+/** The menu behind the initials button in the header (#meBtn opens #meOv): time format, dark mode, look, alerts,
+    password and sign out. onClock() redraws the page after switching between 12-hour and 24-hour times. */
+export function setupMenu(onClock) {
+  const ov = $('#meOv'); if (!ov) return;
+  const open = () => { ov.classList.remove('hidden'); paintClock(); $('#meClose')?.focus(); }, close = () => ov.classList.add('hidden');
+  const paintClock = () => ov.querySelectorAll('[data-clock]').forEach(b => b.setAttribute('aria-pressed', (b.dataset.clock === '12') === clock12()));
+  $('#meBtn')?.addEventListener('click', open);
+  $('#meClose')?.addEventListener('click', close);
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  ov.querySelectorAll('[data-clock]').forEach(b => b.addEventListener('click', () => { setClock12(b.dataset.clock === '12'); paintClock();
+    const el = $('#clock'); if (el) el.textContent = hhmm(now(), true); onClock?.(); }));
+  $('#pwBtn')?.addEventListener('click', close);
+  paintClock();
+}
+
+/** Dark mode switch in the menu. Starts from the device setting; the choice is remembered on this device. */
 export function setupTheme() {
   const btn = $('#themeBtn'); if (!btn) return;
   const root = document.documentElement, sysDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
   const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : sysDark();
-  const paint = () => { btn.innerHTML = isDark() ? SUN : MOON; btn.setAttribute('aria-label', isDark() ? 'Switch to light mode' : 'Switch to dark mode'); };
+  const paint = () => btn.setAttribute('aria-checked', isDark());
   btn.addEventListener('click', () => { const t = isDark() ? 'light' : 'dark'; root.dataset.theme = t; try { localStorage.setItem('bt-theme', t); } catch {} paint(); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', paint);
   paint();

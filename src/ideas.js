@@ -1,16 +1,17 @@
 // The Ideas tab on both pages: anyone can suggest an idea, a change or a bug fix (optionally anonymously), everyone in the
 // team sees them all and votes for the ones they want, and team leads mark them planned / done / not now. So what gets
 // built next is what the people using it asked for. The rules live in the database (db/schema.sql, suggestions).
-import { suggestionsList, suggest, voteSuggestion, setSuggestionStatus, removeSuggestion } from './core.js?v=c85a4b0b52';
-import { esc, setHtml } from './dom.js?v=c85a4b0b52';
-import { toast } from './chrome.js?v=c85a4b0b52';
+import { suggestionsList, suggest, voteSuggestion, setSuggestionStatus, removeSuggestion } from './core.js?v=6b9fa1564c';
+import { esc, setHtml } from './dom.js?v=6b9fa1564c';
+import { toast } from './chrome.js?v=6b9fa1564c';
 
-const KINDS = { idea: ['💡', 'Idea'], change: ['✏️', 'Change'], bug: ['🐞', 'Bug'], other: ['💬', 'Other'] };
+const KINDS = { idea: 'Idea', change: 'Change', bug: 'Bug', other: 'Other' };
+const UP = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
 const STATUS = { new: 'New', planned: 'Planned', done: 'Done', not_now: 'Not now' };
 const MAX = 500, REFRESH_MS = 15000, SEEN_KEY = 'bt-ideas-seen';
 const seen = () => { try { return localStorage.getItem(SEEN_KEY) || ''; } catch { return ''; } };
 const ago = iso => { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
-  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
+  return m < 1 ? 'just now' : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
 
 /** root = the element to draw into. who() = the signed-in code. manager = team lead page. Returns { show(on) } for the tab switch
     and peek(), which puts a red dot on the Ideas tab when someone else posted since you last looked. */
@@ -19,13 +20,13 @@ export function setupIdeas(root, { who, manager = false }) {
   root.innerHTML = `<section class="panel ideas"><div class="phead"><h2>Ideas</h2><span class="hint">Make Break Point better</span></div>
     <p class="hint" style="margin-top:0">Something you'd love to see, something to change, or something broken? Tell us here. Everyone can see it and vote,
       and the most wanted ones get built first.</p>
-    <form id="ideaForm" class="ideaform"><div class="kinds" role="radiogroup" aria-label="What is it?">${Object.entries(KINDS).map(([k, [e, l]]) =>
-      `<button type="button" role="radio" class="kind" data-kind="${k}" aria-checked="${k === kind}"><span aria-hidden="true">${e}</span> ${l}</button>`).join('')}</div>
+    <form id="ideaForm" class="ideaform"><div class="kinds" role="radiogroup" aria-label="What is it?">${Object.entries(KINDS).map(([k, l]) =>
+      `<button type="button" role="radio" class="kind" data-kind="${k}" aria-checked="${k === kind}">${l}</button>`).join('')}</div>
       <textarea id="ideaBody" rows="3" maxlength="${MAX}" placeholder="e.g. A buzz one minute before my break ends" aria-label="Your suggestion"></textarea>
-      <div class="ideabar"><label class="anon"><input type="checkbox" id="ideaAnon"> Post anonymously</label><span class="hint" id="ideaCount">0 / ${MAX}</span>
+      <div class="ideabar"><label class="anon"><input type="checkbox" id="ideaAnon" class="sw-in"><span class="switch" aria-hidden="true"></span>Post anonymously</label><span class="hint" id="ideaCount">0 / ${MAX}</span>
         <button class="btn teal sm" id="ideaSend">Send</button></div>
       <p class="hint" style="margin:6px 0 0">About the app only, please. No personal or health details.</p></form></section>
-    <section class="panel"><div class="phead"><h2 id="ideaListH">Suggestions</h2><div class="seg2" id="ideaSort"><button data-sort="top" aria-pressed="true">Most wanted</button><button data-sort="new" aria-pressed="false">Newest</button></div></div>
+    <section class="panel"><div class="phead"><h2 id="ideaListH">Suggestions</h2><div class="utabs" id="ideaSort"><button data-sort="top" aria-pressed="true">Most wanted</button><button data-sort="new" aria-pressed="false">Newest</button></div></div>
       <div id="ideaList"><p class="empty">Loading…</p></div></section>`;
   const $ = s => root.querySelector(s);
 
@@ -33,14 +34,13 @@ export function setupIdeas(root, { who, manager = false }) {
     const list = [...rows].sort(sort === 'new' ? (a, b) => b.at.localeCompare(a.at)
       : (a, b) => (a.status === 'done') - (b.status === 'done') || b.votes - a.votes || b.at.localeCompare(a.at));
     $('#ideaListH').textContent = `Suggestions (${rows.length})`;
-    setHtml($('#ideaList'), list.length ? `<ul class="idealist">${list.map(s => { const [e, l] = KINDS[s.kind] || KINDS.other;
-      return `<li class="idea st-${s.status}"><button class="vote${s.voted ? ' on' : ''}" data-vote="${s.id}" aria-pressed="${s.voted}" aria-label="${s.voted ? 'Remove your vote' : 'Vote for this'} (${s.votes} vote${s.votes === 1 ? '' : 's'})"><span aria-hidden="true">👍</span><b>${s.votes}</b></button>
-        <div class="ibody"><div class="imeta"><span class="ikind"><span aria-hidden="true">${e}</span> ${l}</span>${s.status !== 'new' ? `<span class="istatus">${STATUS[s.status]}</span>` : ''}</div>
-          <p>${esc(s.body)}</p>
-          <div class="imeta"><span>${s.mine ? 'You' : s.author ? esc(s.author) : 'Anonymous'} · ${ago(s.at)}</span>
+    setHtml($('#ideaList'), list.length ? `<ul class="idealist">${list.map(s => { const l = KINDS[s.kind] || KINDS.other, who = s.mine ? 'You' : s.author ? esc(s.author) : 'Anonymous';
+      return `<li class="idea st-${s.status}"><button class="vote${s.voted ? ' on' : ''}" data-vote="${s.id}" aria-pressed="${s.voted}" aria-label="${s.voted ? 'Remove your vote' : 'Vote for this'} (${s.votes} vote${s.votes === 1 ? '' : 's'})">${UP}<b>${s.votes}</b></button>
+        <div class="ibody"><p>${esc(s.body)}</p>
+          <div class="imeta"><span><b class="ikind">${l}</b>${s.status !== 'new' ? ` · <b class="istatus">${STATUS[s.status]}</b>` : ''} · ${who} · ${ago(s.at)}</span>
             ${manager ? `<select data-status="${s.id}" aria-label="Status">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === s.status ? 'selected' : ''}>${v}</option>`).join('')}</select>` : ''}
             ${s.mine || manager ? `<button class="link" data-rm="${s.id}">Remove</button>` : ''}</div></div></li>`; }).join('')}</ul>`
-      : '<p class="empty">No suggestions yet. Be the first!</p>');
+      : '<p class="empty">No suggestions yet. Be the first.</p>');
   }
   async function load() { try { rows = await suggestionsList(who()); draw(); } catch (err) { $('#ideaList').innerHTML = `<p class="empty">${esc(err.message)}</p>`; } }
 
@@ -52,7 +52,7 @@ export function setupIdeas(root, { who, manager = false }) {
     const body = $('#ideaBody').value, anon = $('#ideaAnon').checked;
     sending = true; $('#ideaSend').disabled = true;
     try { await suggest(who(), kind, body, anon); $('#ideaBody').value = ''; $('#ideaCount').textContent = `0 / ${MAX}`;
-      toast(anon ? 'Thanks! Posted anonymously.' : 'Thanks! Your suggestion is up.'); sort = 'new'; markSort(); await load(); }
+      toast(anon ? 'Thanks. Posted anonymously.' : 'Thanks. Your suggestion is up.'); sort = 'new'; markSort(); await load(); }
     catch (err) { toast(err.message); }
     finally { sending = false; $('#ideaSend').disabled = false; }
   });
