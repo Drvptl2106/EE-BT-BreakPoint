@@ -12,7 +12,7 @@ def ok(cond, msg):
     if not cond: errs.append(msg)
 
 with sync_playwright() as p:
-    b = p.chromium.launch(); ctx = b.new_context(); logs = []
+    b = p.chromium.launch(); ctx = b.new_context(locale='en-GB'); logs = []
     def watch(pg):
         pg.on('pageerror', lambda e: logs.append(str(e)))
         pg.on('console', lambda m: logs.append(m.text) if m.type == 'error' and 'favicon' not in m.text and '404' not in m.text else None)
@@ -44,21 +44,34 @@ with sync_playwright() as p:
     m.fill('#dSe', END); m.dispatch_event('#dSe', 'change')
     m.click('#dClose')
 
-    # ---- agent: break bars (the OH break is a new bar), shift pie ticking, pep talk ----
-    pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .brow')
+    # ---- agent: the half circle (the OH break is a new part), the shift card, pep talk ----
+    pg.fill('#code', 'EE-001'); pg.click('#gateForm button'); pg.wait_for_selector('#bars .gauge')
     pg.wait_for_selector('#uiPick:not(.hidden)'); pg.click('#uiPick [data-pick="fun"]')
-    ok(pg.locator('#bars .brow').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as its own bar')
-    ok(pg.input_value('#endIn') == END, 'agent sees the shift end the manager set')
-    w1 = pg.text_content('#worked'); pg.wait_for_timeout(1100)
-    ok(w1 != pg.text_content('#worked'), 'shift clock ticks every second')
+    ok(pg.locator('#bars .g-lab').count() == 4 and 'OH Break 1' in pg.inner_text('#bars'), 'the OH break shows as a part of the half circle')
+    ok(pg.input_value('#endIn') == END and 'to go' in pg.inner_text('#shiftNote'), 'agent sees the shift end the manager set, and how long is left')
+    w1 = pg.text_content('#clock'); pg.wait_for_timeout(1100)
+    ok(w1 != pg.text_content('#clock'), 'the clock ticks every second')
+    ok(re.match(r'^\d+ of \d+ min used$', pg.text_content('#brkSum')) is not None, 'the heading says how many minutes are used')
     ok(len(pg.text_content('#joke')) > 10, 'pep talk shown')
-    ok(pg.locator('#bars .upnext [data-next]').count() == 1 and 'Break 1' in pg.inner_text('#bars .upnext'), 'the next break is one big button')
+    ok(pg.locator('#bars [data-next]').count() == 1 and 'Break 1' in pg.inner_text('#bars [data-next]'), 'the next break is one big button')
     pg.click('#bars button[data-slot="break2"]'); pg.wait_for_timeout(1200)
-    ok(pg.locator('#bars .brow.on.now .now-big').count() == 1 and 'Back at' in pg.inner_text('#bars .now') and pg.is_visible('[data-tab="race"]'), 'a running break becomes a live card with the time to be back, the rest of the page stays usable')
+    ok(pg.locator('#bars .gwrap.on').count() == 1 and 'on Break 2' in pg.text_content('#bars .gauge') and 'min left in Break 2' in pg.inner_text('#bars .under') and pg.inner_text('#tStop') == 'End Break 2' and pg.is_visible('[data-tab="race"]'), 'a running break shows a stopwatch, how long is left and an End button, the rest of the page stays usable')
     if pg.locator('#alertAsk').count(): pg.click('#alertNo')
     pg.click('#tStop')
-    ok(pg.locator('#bars .brow.on').count() == 0 and pg.is_visible('#toast'), 'ending a break shows the result as a note')
-    ok(pg.inner_text('#bars button[data-slot="break2"]') == 'Resume', 'a part-used break can be resumed')
+    ok(pg.locator('#bars .gwrap.on').count() == 0 and pg.is_visible('#toast'), 'ending a break shows the result as a note')
+    ok('Resume' in pg.inner_text('#bars [data-slot="break2"]'), 'a part-used break can be resumed')
+    pg.click('#dayBtn'); pg.wait_for_selector('#dayOv:not(.hidden) .donut')
+    day = pg.inner_text('#dayBody')
+    ok(pg.locator('#dayBody .d-row').count() == 4 and 'How it works' in day and 'min used' in day, 'the arrow opens How today adds up, with every break')
+    pg.click('#dayClose'); ok(not pg.is_visible('#dayOv'), 'the pop-up closes')
+    # ---- the menu behind the initials: time format, dark mode ----
+    ok(pg.text_content('#meIni') == 'U1', 'the header shows the initials')
+    pg.click('#meBtn'); pg.wait_for_selector('#meOv:not(.hidden)')
+    pg.click('[data-clock="12"]'); ok(re.search(r'(am|pm)$', pg.text_content('#clock')) is not None and pg.locator('#startChip small').count() == 1, '12-hour times')
+    pg.click('[data-clock="24"]'); ok(re.match(r'^\d\d:\d\d:\d\d$', pg.text_content('#clock')) is not None, '24-hour times')
+    dark = pg.get_attribute('#themeBtn', 'aria-checked'); pg.click('#themeBtn')
+    ok(pg.get_attribute('#themeBtn', 'aria-checked') != dark and pg.get_attribute('html', 'data-theme') in ('dark', 'light'), 'the dark mode switch works')
+    pg.click('#themeBtn'); pg.click('#meClose')
 
     # ---- Breakathon on both pages ----
     pg.click('[data-tab="race"]'); pg.wait_for_selector('.racer')
@@ -69,7 +82,7 @@ with sync_playwright() as p:
     # ---- Ideas: anyone suggests (optionally anonymously), everyone votes, the team lead sets the status ----
     pg.click('[data-tab="ideas"]'); pg.wait_for_selector('#ideaForm')
     pg.fill('#ideaBody', 'A buzz one minute before my break ends'); pg.click('#ideaSend'); pg.wait_for_selector('.idea')
-    pg.click('[data-kind="bug"]'); pg.fill('#ideaBody', 'The clock froze once'); pg.check('#ideaAnon'); pg.click('#ideaSend'); pg.wait_for_timeout(400)
+    pg.click('[data-kind="bug"]'); pg.fill('#ideaBody', 'The clock froze once'); pg.click('label.anon'); pg.click('#ideaSend'); pg.wait_for_timeout(400)
     ideas = pg.inner_text('#ideaList')
     ok('A buzz one minute' in ideas and 'You ·' in ideas and 'Anonymous ·' in ideas, 'staff can post a suggestion, with their name or anonymously')
     pg.click('#ideaSort [data-sort="top"]'); pg.click('.vote'); pg.wait_for_timeout(300)
@@ -80,15 +93,15 @@ with sync_playwright() as p:
     pg.click('[data-tab="race"]'); m.click('[data-tab="race"]')
 
     # ---- the Professional view: same features, no mascots or map, plain wording; the choice is recorded ----
-    pg.click('#uiBtn'); pg.wait_for_timeout(300)
-    ok(pg.get_attribute('html', 'data-ui') == 'pro' and pg.get_attribute('#uiBtn', 'aria-label') == 'Switch to the playful view', 'the header button switches to the professional view')
+    pg.click('#meBtn'); pg.click('[data-look="pro"]'); pg.wait_for_timeout(300); pg.click('#meClose')
+    ok(pg.get_attribute('html', 'data-ui') == 'pro' and pg.get_attribute('[data-look="pro"]', 'aria-pressed') == 'true', 'the menu switches to the professional view')
     ok(pg.locator('.racer').count() == 0 and pg.locator('#race table.rank tr').count() == 7 and 'Level' not in pg.inner_text('#race'), 'weekly scores show as a plain table')
     ok(pg.inner_text('[data-tab="race"]') == 'Weekly scores' and not pg.is_visible('#look'), 'no game names or mascot panel')
     pg.click('[data-tab="day"]')
-    ok(not pg.is_visible('#custBtn') and pg.locator('#bars .brow').count() == 4, 'no mascot button, and the breaks work the same')
-    pg.reload(); pg.wait_for_selector('#bars .brow')
+    ok(pg.locator('#bars .g-lab').count() == 4 and pg.locator('#bars [data-next]').count() == 1, 'the breaks work the same')
+    pg.reload(); pg.wait_for_selector('#bars .gauge')
     ok(pg.get_attribute('html', 'data-ui') == 'pro' and not pg.is_visible('#uiPick'), 'the choice is remembered and not asked again')
-    m.click('#uiBtn'); m.click('[data-tab="dash"]'); m.wait_for_timeout(300)
+    m.click('#meBtn'); m.click('[data-look="pro"]'); m.click('#meClose'); m.click('[data-tab="dash"]'); m.wait_for_timeout(300)
     ok(not m.is_visible('#peek') and 'wake' not in m.inner_text('#pulse'), 'manager professional view: no mascot, plain wording')
     m.reload(); m.click('[data-tab="manage"]'); m.wait_for_selector('#uiStats table')
     stats = m.inner_text('#uiStats')
@@ -98,17 +111,19 @@ with sync_playwright() as p:
     ap.goto(BASE + '/index.html'); ap.fill('#code', 'EE-005'); ap.click('#gateForm button'); ap.wait_for_selector('#uiPick:not(.hidden)'); ap.click('#uiPick [data-pick="fun"]')
     ap.click('#bars [data-next]'); ap.wait_for_timeout(300)
     ap.evaluate('''() => { const k = 'bt-break-tracker:v1', db = JSON.parse(localStorage.getItem(k)); for (const d of Object.values(db.days)) if (d['EE-005']?.active) d['EE-005'].active.start = Date.now() - 13.5 * 60000; localStorage.setItem(k, JSON.stringify(db)); }''')
-    ap.reload(); ap.wait_for_selector('#bars .now'); ap.wait_for_timeout(1500)
+    ap.reload(); ap.wait_for_selector('#bars .gwrap.on'); ap.wait_for_timeout(1500)
     ok('left on Break 1' in (ap.text_content('#toast') or ''), 'an alert fires shortly before the break time is up: ' + (ap.text_content('#toast') or '')[:60])
     al.close()
 
     # ---- midnight: a shift and a break running past 00:00 stay on the day they started ----
-    nc = b.new_context(); nc.clock.install(time=datetime(2026, 11, 4, 23, 58)); np_ = nc.new_page(); watch(np_)
+    nc = b.new_context(locale='en-GB'); nc.clock.install(time=datetime(2026, 11, 4, 23, 58)); np_ = nc.new_page(); watch(np_)
     np_.goto(BASE + '/index.html'); np_.fill('#code', 'EE-006'); np_.click('#gateForm button'); np_.wait_for_selector('#uiPick:not(.hidden)'); np_.click('#uiPick [data-pick="pro"]')
-    np_.fill('#endIn', '02:00'); np_.dispatch_event('#endIn', 'change'); np_.click('#bars [data-next]')
+    np_.click('#endChip'); np_.wait_for_selector('#wheelOv')
+    np_.evaluate("() => { const c = [...document.querySelectorAll('#wheelOv .wcol')]; c[0].scrollTop = 2 * 44; c[1].scrollTop = 0; }"); np_.wait_for_timeout(200)
+    np_.click('#wSet'); np_.wait_for_timeout(200); np_.click('#bars [data-next]')
     if np_.locator('#alertAsk').count(): np_.click('#alertNo')
     np_.clock.run_for(6 * 60 * 1000); np_.wait_for_timeout(500)
-    ok(np_.locator('#bars .now').count() == 1 and np_.input_value('#endIn') == '02:00', 'at 00:04 the break started at 23:58 is still running, on the same shift')
+    ok(np_.locator('#bars .gwrap.on').count() == 1 and np_.input_value('#endIn') == '02:00', 'at 00:04 the break started at 23:58 is still running, on the same shift')
     nc.close()
 
     # ---- on a phone: bottom tab bar, cards instead of wide tables, installable ----
@@ -119,8 +134,19 @@ with sync_playwright() as p:
     ok(ph.evaluate("getComputedStyle(document.querySelector('.tabs')).position") == 'fixed', 'phone: the tabs sit in a bottom bar')
     ok(ph.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'phone: nothing is wider than the screen')
     ok(ph.locator('link[rel=manifest]').count() == 1 and ph.evaluate("'serviceWorker' in navigator"), 'phone: the app can be installed')
+    # ---- phone, staff page: the shift end picked on the time wheel ----
+    st = ph.context.new_page(); watch(st)
+    st.goto(BASE + '/index.html'); st.fill('#code', 'EE-004'); st.click('#gateForm button'); st.wait_for_selector('#bars .gauge')
+    if st.is_visible('#uiPick'): st.click('#uiPick [data-pick="fun"]')
+    st.click('#endChip'); st.wait_for_selector('#wheelOv .wquick'); st.click('#wheelOv [data-q="1"]'); st.wait_for_timeout(200)
+    ok(st.locator('#wheelOv').count() == 0 and st.input_value('#endIn') != '' and 'to go' in st.inner_text('#shiftNote'), 'phone: the 8½h shift chip on the wheel sets the shift end')
+    ok(st.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'phone: the staff page fits the screen')
+    for fmt in ('12', '24'):
+        st.evaluate(f"localStorage.setItem('bt-clock', '{fmt}')"); before = st.input_value('#endIn')
+        st.click('#endChip'); st.wait_for_selector('#wheelOv'); st.wait_for_timeout(150); st.click('#wSet'); st.wait_for_timeout(150)
+        ok(st.input_value('#endIn') == before, f'phone: Set on the wheel without scrolling keeps the same time ({fmt}-hour, {before})')
     # ---- pilot data: the summary and a CSV with one row per person per day ----
-    m.click('[data-tab="manage"]'); m.wait_for_selector('#pilotStats table')
+    m.click('[data-tab="manage"]'); m.fill('#pilotFrom', (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')); m.dispatch_event('#pilotFrom', 'change'); m.wait_for_selector('#pilotStats table')
     ok('breaks on time' in m.inner_text('#pilotStats') and m.locator('#pilotStats tbody tr').count() >= 5, 'the Pilot summary shows each person')
     with m.expect_download() as dl: m.click('#pilotCsv')
     rows = open(dl.value.path()).read().splitlines()

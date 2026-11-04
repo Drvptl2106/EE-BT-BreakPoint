@@ -41,7 +41,9 @@ own files on the phone so it opens fast on a weak signal. Every update to this r
 
 **Agents (My day)**
 - **Up next:** when no break is running, the next break is one big button ("Start Break 1"), like "order again".
-- **Live break card:** a running break shows a big countdown, **Back at 14:36**, stages (Started → Halfway → 2 min left → Back) and *I'm back*,
+- **Break ring:** one ring for the whole day's break time: each break in its own colour, grey for what's left, red only past the day's
+  total. The middle shows minutes left today, or a stopwatch on a break with "Planned: back at" and "Latest" times. One big button,
+  and a plain list of what was taken when (no "borrowed" maths on screen). Previously: a live break card,
   like a ride in progress. Teal while on time, amber while it borrows from other breaks, red once the day's break time is used.
 - **Break alerts** (`src/notify.js`): offered the first time someone starts a break. A phone notification and buzz `alertBeforeMinutes`
   (2) before the break's time is up, and again before the day's break time runs out. Without a push server the app has to be running:
